@@ -1,10 +1,12 @@
 import { describe, expect, test } from "bun:test";
+import { ProviderUnavailable } from "@yumeoi/domain";
 import {
 	consolidatorLayer,
 	extractorLayer,
 	ingestDocument,
 	recallContext,
 	searchMemories,
+	VectorIndex,
 } from "@yumeoi/memory";
 import {
 	FakeEmbeddings,
@@ -14,6 +16,11 @@ import {
 	memoryMemoryRepoLayer,
 } from "@yumeoi/test-kit";
 import { Effect, Layer } from "effect";
+
+const unavailableVectorIndexLayer = Layer.succeed(VectorIndex, {
+	upsert: () => Effect.fail(new ProviderUnavailable({ provider: "vectorize" })),
+	query: () => Effect.fail(new ProviderUnavailable({ provider: "vectorize" })),
+});
 
 const layer = Layer.mergeAll(
 	memoryMemoryRepoLayer("test-user"),
@@ -88,5 +95,40 @@ describe("ingest and recall", () => {
 		});
 
 		await Effect.runPromise(program.pipe(Effect.provide(layer)));
+	});
+
+	test("falls back to keyword search when Vectorize is down", async () => {
+		const fallback = Layer.mergeAll(
+			memoryMemoryRepoLayer("fts-user"),
+			FakeEmbeddings,
+			FakeLlm,
+			Layer.provide(extractorLayer, FakeLlm),
+			Layer.provide(consolidatorLayer, FakeLlm),
+			unavailableVectorIndexLayer,
+			inMemoryObjectStoreLayer,
+		);
+		const program = Effect.gen(function* () {
+			yield* ingestDocument({
+				userId: "fts-user",
+				request: {
+					externalId: "fts-doc",
+					title: "FTS",
+					markdown: "yumeoi stores memories in Durable Object SQLite with FTS5.",
+					sourceId: "generic",
+					sourceLabel: "Notes",
+					url: null,
+				},
+			});
+			const hits = yield* searchMemories({
+				query: "FTS5",
+				namespace: "fts-user",
+				sources: [],
+				kinds: [],
+				since: null,
+				limit: 10,
+			});
+			expect(hits.some((hit) => hit.memory.text.includes("FTS5"))).toBe(true);
+		});
+		await Effect.runPromise(program.pipe(Effect.provide(fallback)));
 	});
 });

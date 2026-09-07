@@ -35,6 +35,19 @@ export const llmLayerFor = (options: {
 	return heuristicLlmLayer;
 };
 
+export const readUsableBinding = <T>(read: () => T, method: string): T | undefined => {
+	try {
+		const binding = read();
+		if (binding == null || (typeof binding !== "object" && typeof binding !== "function")) {
+			return undefined;
+		}
+		const fn = (binding as Record<string, unknown>)[method];
+		return typeof fn === "function" ? binding : undefined;
+	} catch {
+		return undefined;
+	}
+};
+
 export const makeMemoryAgentLayer = (options: {
 	readonly storage: DurableObjectStorage;
 	readonly ai?: Ai;

@@ -1,4 +1,4 @@
-import { makeMemoryAgentRuntime } from "@yumeoi/cf-runtime";
+import { makeMemoryAgentRuntime, readUsableBinding } from "@yumeoi/cf-runtime";
 import type {
 	AddMemoryRequest,
 	IngestRequest,
@@ -36,11 +36,14 @@ export class MemoryAgent extends Agent<Env, MemoryAgentState> {
 						gatewayBaseUrl = undefined;
 					}
 				}
+				const ai = readUsableBinding(() => env.AI, "run");
+				const vectorize = readUsableBinding(() => env.VECTORIZE, "query");
+				const docs = readUsableBinding(() => env.DOCS, "put");
 				this.#runtime = makeMemoryAgentRuntime({
 					storage: ctx.storage,
-					ai: env.AI,
-					vectorize: env.VECTORIZE,
-					docs: env.DOCS,
+					...(ai ? { ai } : {}),
+					...(vectorize ? { vectorize } : {}),
+					...(docs ? { docs } : {}),
 					...(env.OPENAI_API_KEY ? { openaiApiKey: env.OPENAI_API_KEY } : {}),
 					...(gatewayBaseUrl ? { gatewayBaseUrl } : {}),
 				});

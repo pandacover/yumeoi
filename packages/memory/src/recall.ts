@@ -1,4 +1,5 @@
 import {
+	type ProviderUnavailable,
 	type RecallQuery,
 	type RecallResult,
 	RerankResult,
@@ -10,7 +11,22 @@ import { Embeddings } from "./embeddings.ts";
 import { Llm } from "./llm.ts";
 import { MemoryRepo } from "./memory-repo.ts";
 import { estimateTokens, ftsMatchQuery, recencyBoost, rrfScore } from "./rrf.ts";
-import { VectorIndex } from "./vector-index.ts";
+import { VectorIndex, type VectorMatch } from "./vector-index.ts";
+
+type Embedder = {
+	readonly embed: (
+		texts: ReadonlyArray<string>,
+	) => Effect.Effect<ReadonlyArray<ReadonlyArray<number>>, ProviderUnavailable>;
+};
+
+type Indexer = {
+	readonly query: (options: {
+		readonly values: ReadonlyArray<number>;
+		readonly namespace: string;
+		readonly topK: number;
+		readonly filter?: Record<string, unknown>;
+	}) => Effect.Effect<ReadonlyArray<VectorMatch>, ProviderUnavailable>;
+};
 
 const VECTOR_KIND_CHUNK = "chunk";
 const memoryVectorId = (id: string) => `m:${id}`;
@@ -62,6 +78,40 @@ const vectorFilter = (filters: SearchQuery | RecallQuery, kind?: string) => {
 	return Object.keys(filter).length > 0 ? filter : undefined;
 };
 
+const embedQuery = (embeddings: Embedder, text: string) =>
+	embeddings
+		.embed([text])
+		.pipe(
+			Effect.catchTag("ProviderUnavailable", () =>
+				Effect.succeed<ReadonlyArray<ReadonlyArray<number>>>([]),
+			),
+		);
+
+const queryOrEmpty = (
+	index: Indexer,
+	options: {
+		readonly values: ReadonlyArray<number>;
+		readonly namespace: string;
+		readonly topK: number;
+		readonly filter?: Record<string, unknown>;
+	},
+) =>
+	(options.filter
+		? index.query({
+				values: options.values,
+				namespace: options.namespace,
+				topK: options.topK,
+				filter: options.filter,
+			})
+		: index.query({
+				values: options.values,
+				namespace: options.namespace,
+				topK: options.topK,
+			})
+	).pipe(
+		Effect.catchTag("ProviderUnavailable", () => Effect.succeed<ReadonlyArray<VectorMatch>>([])),
+	);
+
 export const searchMemories = (
 	input: Partial<SearchQuery> & { query: string; namespace: string },
 ) =>
@@ -81,21 +131,15 @@ export const searchMemories = (
 				})
 			: [];
 
-		const [values] = yield* embeddings.embed([query.query]);
+		const [values] = yield* embedQuery(embeddings, query.query);
 		const memoryFilter = vectorFilter(query);
 		const vector = values
-			? memoryFilter
-				? yield* index.query({
-						values,
-						namespace: input.namespace,
-						topK: Math.min(40, Math.max(query.limit, 10)),
-						filter: memoryFilter,
-					})
-				: yield* index.query({
-						values,
-						namespace: input.namespace,
-						topK: Math.min(40, Math.max(query.limit, 10)),
-					})
+			? yield* queryOrEmpty(index, {
+					values,
+					namespace: input.namespace,
+					topK: Math.min(40, Math.max(query.limit, 10)),
+					...(memoryFilter ? { filter: memoryFilter } : {}),
+				})
 			: [];
 
 		const memoryVectorIds = vector
@@ -168,9 +212,9 @@ export const recallContext = (input: Partial<RecallQuery> & { query: string; nam
 					limit: 40,
 				})
 			: [];
-		const [values] = yield* embeddings.embed([query.query]);
+		const [values] = yield* embedQuery(embeddings, query.query);
 		const vectorChunks = values
-			? yield* index.query({
+			? yield* queryOrEmpty(index, {
 					values,
 					namespace: input.namespace,
 					topK: 40,

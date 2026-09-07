@@ -29,26 +29,35 @@ const normalize = (result: unknown): ReadonlyArray<ReadonlyArray<number>> => {
 	throw new Error("unexpected Workers AI embedding response");
 };
 
+const unavailable = (cause: unknown) =>
+	new ProviderUnavailable({
+		provider: "workers-ai",
+		cause,
+	});
+
 export const workersAiEmbeddingsLayer = (ai: Ai) =>
 	Layer.succeed(Embeddings, {
 		model: EMBEDDING_MODEL,
 		dimensions: EMBEDDING_DIMENSIONS,
 		embed: (texts) =>
-			Effect.tryPromise({
-				try: async () => {
-					const result = await ai.run(EMBEDDING_MODEL, { text: [...texts] });
-					const vectors = normalize(result);
-					if (vectors.some((vector) => vector.length !== EMBEDDING_DIMENSIONS)) {
-						throw new Error(
-							`expected ${EMBEDDING_DIMENSIONS}-d embeddings from ${EMBEDDING_MODEL}`,
-						);
-					}
-					return vectors;
-				},
-				catch: (cause) =>
-					new ProviderUnavailable({
-						provider: "workers-ai",
-						cause,
+			Effect.try({
+				try: () => ai.run(EMBEDDING_MODEL, { text: [...texts] }),
+				catch: unavailable,
+			}).pipe(
+				Effect.flatMap((result) =>
+					Effect.tryPromise({
+						try: async () => {
+							const vectors = normalize(await result);
+							if (vectors.some((vector) => vector.length !== EMBEDDING_DIMENSIONS)) {
+								throw new Error(
+									`expected ${EMBEDDING_DIMENSIONS}-d embeddings from ${EMBEDDING_MODEL}`,
+								);
+							}
+							return vectors;
+						},
+						catch: unavailable,
 					}),
-			}).pipe(Effect.catchTag("ProviderUnavailable", () => Effect.succeed(hashEmbed(texts)))),
+				),
+				Effect.catchTag("ProviderUnavailable", () => Effect.succeed(hashEmbed(texts))),
+			),
 	});
