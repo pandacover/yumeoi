@@ -1,0 +1,14 @@
+import handler from "@tanstack/react-start/server-entry";
+import { dispatch } from "./dispatch.ts";
+
+export { MemoryAgent } from "./agents/memory-agent.ts";
+
+export default {
+	async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+		const routed = await dispatch(request, env, ctx);
+		if (routed) {
+			return routed;
+		}
+		return handler.fetch(request);
+	},
+} satisfies ExportedHandler<Env>;

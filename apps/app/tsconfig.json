@@ -1,0 +1,24 @@
+{
+	"extends": "../../tsconfig.base.json",
+	"compilerOptions": {
+		"composite": true,
+		"noEmit": false,
+		"emitDeclarationOnly": true,
+		"declaration": true,
+		"declarationMap": true,
+		"outDir": "dist-types",
+		"rootDir": "src",
+		"jsx": "react-jsx",
+		"lib": ["ES2022", "DOM", "DOM.Iterable"],
+		"types": ["@cloudflare/workers-types", "vite/client"],
+		"paths": {
+			"~/*": ["./src/*"]
+		}
+	},
+	"include": ["src", "worker-configuration.d.ts"],
+	"references": [
+		{ "path": "../../packages/domain" },
+		{ "path": "../../packages/memory" },
+		{ "path": "../../packages/cf-runtime" }
+	]
+}

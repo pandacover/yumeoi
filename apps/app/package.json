@@ -1,0 +1,46 @@
+{
+	"name": "@yumeoi/app",
+	"version": "0.0.0",
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"dev": "vite dev",
+		"build": "vite build",
+		"preview": "vite preview",
+		"deploy": "vite build && wrangler deploy",
+		"deploy:dry-run": "vite build && wrangler deploy --dry-run --outdir dist",
+		"deploy:preview": "vite build && wrangler versions upload",
+		"cf-typegen": "wrangler types",
+		"provision:vectorize": "bash ./scripts/provision-vectorize.sh",
+		"typecheck": "tsgo --pretty false",
+		"test": "vitest run"
+	},
+	"dependencies": {
+		"@modelcontextprotocol/server": "2.0.0",
+		"@tanstack/react-router": "^1.170.33",
+		"@tanstack/react-start": "^1.168.50",
+		"@yumeoi/cf-runtime": "workspace:*",
+		"@yumeoi/domain": "workspace:*",
+		"@yumeoi/memory": "workspace:*",
+		"agents": "latest",
+		"effect": "4.0.0-rc.112",
+		"openai": "^5.20.1",
+		"react": "^19.1.1",
+		"react-dom": "^19.1.1",
+		"zod": "^4.4.3"
+	},
+	"devDependencies": {
+		"@babel/plugin-proposal-decorators": "^8.0.2",
+		"@cloudflare/vite-plugin": "latest",
+		"@cloudflare/vitest-pool-workers": "latest",
+		"@cloudflare/workers-types": "latest",
+		"@tailwindcss/vite": "^4.2.2",
+		"@types/react": "^19.1.13",
+		"@types/react-dom": "^19.1.9",
+		"@vitejs/plugin-react": "^6.0.1",
+		"tailwindcss": "^4.2.2",
+		"vite": "^8.0.14",
+		"vitest": "^4.1.0",
+		"wrangler": "latest"
+	}
+}

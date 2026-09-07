@@ -1,0 +1,29 @@
+{
+	"name": "yumeoi-test",
+	"main": "test/worker.ts",
+	"compatibility_date": "2026-08-22",
+	"compatibility_flags": ["nodejs_compat"],
+	"ai": {
+		"binding": "AI"
+	},
+	"vectorize": [
+		{
+			"binding": "VECTORIZE",
+			"index_name": "yumeoi-memories"
+		}
+	],
+	"durable_objects": {
+		"bindings": [
+			{
+				"name": "MemoryAgent",
+				"class_name": "MemoryAgent"
+			}
+		]
+	},
+	"migrations": [
+		{
+			"tag": "v1",
+			"new_sqlite_classes": ["MemoryAgent"]
+		}
+	]
+}

@@ -1,0 +1,11 @@
+{
+	"files": [],
+	"references": [
+		{ "path": "./packages/domain" },
+		{ "path": "./packages/memory" },
+		{ "path": "./packages/connectors" },
+		{ "path": "./packages/test-kit" },
+		{ "path": "./packages/cf-runtime" },
+		{ "path": "./apps/app" }
+	]
+}

@@ -1,0 +1,16 @@
+{
+	"name": "@yumeoi/connectors",
+	"version": "0.0.0",
+	"private": true,
+	"type": "module",
+	"exports": {
+		".": "./src/index.ts"
+	},
+	"scripts": {
+		"typecheck": "tsgo --pretty false"
+	},
+	"dependencies": {
+		"@yumeoi/domain": "workspace:*",
+		"effect": "4.0.0-rc.112"
+	}
+}

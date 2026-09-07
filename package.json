@@ -1,0 +1,32 @@
+{
+	"name": "yumeoi",
+	"private": true,
+	"type": "module",
+	"workspaces": [
+		"apps/*",
+		"packages/*"
+	],
+	"scripts": {
+		"dev": "bun run --filter @yumeoi/app dev",
+		"build": "bun run --filter @yumeoi/app build",
+		"lint": "biome check .",
+		"lint:fix": "biome check --write .",
+		"typecheck": "tsgo -b --pretty false",
+		"test": "bun test packages && bun run --filter @yumeoi/app test",
+		"deploy:dry-run": "bun run --filter @yumeoi/app deploy:dry-run",
+		"deploy:preview": "bun run --filter @yumeoi/app deploy:preview"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "2.2.4",
+		"@types/bun": "latest",
+		"@typescript/native-preview": "latest",
+		"typescript": "5.9.2"
+	},
+	"overrides": {
+		"effect": "4.0.0-rc.112",
+		"@effect/sql-sqlite-do": "4.0.0-rc.112",
+		"@effect/sql-d1": "4.0.0-rc.112",
+		"@effect/vitest": "4.0.0-rc.112"
+	},
+	"packageManager": "bun@1.4.2"
+}
