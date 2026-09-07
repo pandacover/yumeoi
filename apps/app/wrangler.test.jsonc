@@ -8,15 +8,6 @@
 		"YUMEOI_API_KEY": "ym_test_key",
 		"YUMEOI_USER_ID": "test-user"
 	},
-	"ai": {
-		"binding": "AI"
-	},
-	"vectorize": [
-		{
-			"binding": "VECTORIZE",
-			"index_name": "yumeoi-memories"
-		}
-	],
 	"r2_buckets": [
 		{
 			"binding": "DOCS",
