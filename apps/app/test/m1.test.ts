@@ -74,6 +74,17 @@ describe("HTTP ingest and recall", () => {
 		expect(body.memories.some((hit) => hit.memory.text.toLowerCase().includes("effect"))).toBe(
 			true,
 		);
+
+		const recall = await SELF.fetch("https://example.com/api/recall", {
+			method: "POST",
+			headers: { "content-type": "application/json", ...auth },
+			body: JSON.stringify({ query: "Effect 4" }),
+		});
+		expect(recall.ok).toBe(true);
+		const recalled = (await recall.json()) as { memories: Array<{ memory: { text: string } }> };
+		expect(recalled.memories.some((hit) => hit.memory.text.toLowerCase().includes("effect"))).toBe(
+			true,
+		);
 	});
 });
 
