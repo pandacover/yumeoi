@@ -3,6 +3,11 @@
 	"main": "test/worker.ts",
 	"compatibility_date": "2026-08-22",
 	"compatibility_flags": ["nodejs_compat"],
+	"vars": {
+		"AI_GATEWAY_ID": "default",
+		"YUMEOI_API_KEY": "ym_test_key",
+		"YUMEOI_USER_ID": "test-user"
+	},
 	"ai": {
 		"binding": "AI"
 	},
@@ -10,6 +15,19 @@
 		{
 			"binding": "VECTORIZE",
 			"index_name": "yumeoi-memories"
+		}
+	],
+	"r2_buckets": [
+		{
+			"binding": "DOCS",
+			"bucket_name": "yumeoi-docs-test"
+		}
+	],
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "yumeoi-test",
+			"database_id": "local-yumeoi-test"
 		}
 	],
 	"durable_objects": {
@@ -20,6 +38,13 @@
 			}
 		]
 	},
+	"workflows": [
+		{
+			"name": "ingest-workflow",
+			"binding": "INGEST_WORKFLOW",
+			"class_name": "IngestWorkflow"
+		}
+	],
 	"migrations": [
 		{
 			"tag": "v1",

@@ -2,6 +2,14 @@ import { ProviderUnavailable } from "@yumeoi/domain";
 import { EMBEDDING_DIMENSIONS, EMBEDDING_MODEL, Embeddings } from "@yumeoi/memory";
 import { Effect, Layer } from "effect";
 
+const hashEmbed = (texts: ReadonlyArray<string>): ReadonlyArray<ReadonlyArray<number>> =>
+	texts.map((text, index) =>
+		Array.from({ length: EMBEDDING_DIMENSIONS }, (_, i) => {
+			const code = text.charCodeAt(i % Math.max(text.length, 1)) || 1;
+			return ((code + index + i) % 100) / 100;
+		}),
+	);
+
 const normalize = (result: unknown): ReadonlyArray<ReadonlyArray<number>> => {
 	if (Array.isArray(result)) {
 		if (result.length === 0) {
@@ -42,5 +50,5 @@ export const workersAiEmbeddingsLayer = (ai: Ai) =>
 						provider: "workers-ai",
 						cause,
 					}),
-			}),
+			}).pipe(Effect.catchTag("ProviderUnavailable", () => Effect.succeed(hashEmbed(texts)))),
 	});

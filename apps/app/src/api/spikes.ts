@@ -39,15 +39,8 @@ const spikeRuntime = (env: Env, baseURL: string | undefined) => {
 	return ManagedRuntime.make(Layer.mergeAll(embeddings, vectors, llm));
 };
 
-export async function handleApi(request: Request, env: Env): Promise<Response | null> {
+export async function handleSpikes(request: Request, env: Env): Promise<Response | null> {
 	const url = new URL(request.url);
-	if (url.pathname === "/api/health") {
-		return json({
-			ok: true,
-			milestone: "m0",
-			chatModel: defaultLlmConfig.chat,
-		});
-	}
 
 	if (url.pathname === "/api/spikes/hello") {
 		const name = url.searchParams.get("name") ?? "m0";
@@ -142,7 +135,12 @@ export async function handleApi(request: Request, env: Env): Promise<Response | 
 							id: "spike-vector",
 							values,
 							namespace: "demo",
-							metadata: { sourceId: "generic", kind: "fact", ts: Date.now() },
+							metadata: {
+								sourceId: "generic",
+								documentId: "spike",
+								kind: "fact",
+								ts: Date.now(),
+							},
 						},
 					]);
 					const matches = yield* index.query({

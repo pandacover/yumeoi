@@ -22,14 +22,18 @@ export const vectorizeLayer = (index: Vectorize) =>
 						cause,
 					}),
 			}),
-		query: ({ values, namespace, topK }) =>
+		query: ({ values, namespace, topK, filter }) =>
 			Effect.tryPromise({
 				try: async () => {
-					const result = await index.query([...values], {
+					const queryOptions: VectorizeQueryOptions = {
 						namespace,
 						topK,
 						returnMetadata: "all",
-					});
+					};
+					if (filter) {
+						queryOptions.filter = filter as VectorizeVectorMetadataFilter;
+					}
+					const result = await index.query([...values], queryOptions);
 					return result.matches.map((match) => ({
 						id: match.id,
 						score: match.score,

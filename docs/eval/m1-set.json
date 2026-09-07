@@ -1,0 +1,181 @@
+{
+	"documents": [
+		{
+			"id": "doc-01",
+			"title": "Effect preference",
+			"markdown": "Luv prefers Effect 4 for the yumeoi domain layer. The team keeps Effect out of React components.",
+			"expected": [
+				{ "kind": "preference", "contains": "Effect 4" },
+				{ "kind": "fact", "contains": "React" }
+			]
+		},
+		{
+			"id": "doc-02",
+			"title": "Stack decision",
+			"markdown": "We decided to run ingest on Cloudflare Workflows. Chat will use GPT-5.6 Luna at high effort.",
+			"expected": [
+				{ "kind": "decision", "contains": "Workflows" },
+				{ "kind": "fact", "contains": "Luna" }
+			]
+		},
+		{
+			"id": "doc-03",
+			"title": "M1 task",
+			"markdown": "Luv needs to ship M1 this week. The todo is wiring POST /ingest to IngestWorkflow.",
+			"expected": [
+				{ "kind": "task", "contains": "M1" },
+				{ "kind": "task", "contains": "ingest", "optional": true }
+			]
+		},
+		{
+			"id": "doc-04",
+			"title": "Teammates",
+			"markdown": "Luv works with Cursor agents on yumeoi. Sam reports to Luv on connector work.",
+			"expected": [
+				{ "kind": "relationship", "contains": "Cursor" },
+				{ "kind": "relationship", "contains": "Sam" }
+			]
+		},
+		{
+			"id": "doc-05",
+			"title": "Kickoff",
+			"markdown": "The kickoff meeting is scheduled tomorrow at 10:00. Yesterday we reviewed the v0 plan.",
+			"expected": [
+				{ "kind": "event", "contains": "tomorrow" },
+				{ "kind": "event", "contains": "Yesterday" }
+			]
+		},
+		{
+			"id": "doc-06",
+			"title": "Editor",
+			"markdown": "Luv prefers dark mode in the editor at all times. Tabs are required in Biome output.",
+			"expected": [{ "kind": "preference", "contains": "dark mode" }]
+		},
+		{
+			"id": "doc-07",
+			"title": "Search",
+			"markdown": "We decided to use DO SQLite FTS5 for keyword search. Vectorize holds the embeddings.",
+			"expected": [
+				{ "kind": "decision", "contains": "FTS5" },
+				{ "kind": "fact", "contains": "Vectorize" }
+			]
+		},
+		{
+			"id": "doc-08",
+			"title": "Gmail later",
+			"markdown": "We need to add the Gmail connector in M5. Skip attachments for v0.",
+			"expected": [{ "kind": "task", "contains": "Gmail" }]
+		},
+		{
+			"id": "doc-09",
+			"title": "Auth",
+			"markdown": "API keys start with ym_ and are hashed in D1. MCP OAuth waits until M4.",
+			"expected": [{ "kind": "fact", "contains": "ym_" }, { "kind": "fact", "contains": "M4" }]
+		},
+		{
+			"id": "doc-10",
+			"title": "Embeddings",
+			"markdown": "Embeddings use Workers AI bge-m3 at 1024 dimensions. Namespaces are the user id.",
+			"expected": [{ "kind": "fact", "contains": "bge-m3" }, { "kind": "fact", "contains": "user" }]
+		},
+		{
+			"id": "doc-11",
+			"title": "Rerank",
+			"markdown": "We decided to skip LLM rerank on raw search_memories. recall_context still reranks.",
+			"expected": [{ "kind": "decision", "contains": "search_memories" }]
+		},
+		{
+			"id": "doc-12",
+			"title": "Obsidian",
+			"markdown": "The Obsidian plugin should POST changed files with a contentHash. Vaults are local files.",
+			"expected": [
+				{ "kind": "task", "contains": "Obsidian" },
+				{ "kind": "fact", "contains": "local" }
+			]
+		},
+		{
+			"id": "doc-13",
+			"title": "Notion poll",
+			"markdown": "Notion polling is scheduled every 10 minutes. Rate limit is about 3 requests per second.",
+			"expected": [
+				{ "kind": "event", "contains": "10 minutes" },
+				{ "kind": "fact", "contains": "3" }
+			]
+		},
+		{
+			"id": "doc-14",
+			"title": "Single worker",
+			"markdown": "We decided to ship one Worker for UI, agents, MCP, and the API. Split later only if the bundle hits 10 MB.",
+			"expected": [{ "kind": "decision", "contains": "one Worker" }]
+		},
+		{
+			"id": "doc-15",
+			"title": "Luv and Sam",
+			"markdown": "Sam is a teammate on connectors. Luv works with Sam on the Notion markdown converter.",
+			"expected": [{ "kind": "relationship", "contains": "Sam" }]
+		},
+		{
+			"id": "doc-16",
+			"title": "Coffee",
+			"markdown": "Luv prefers oat milk in coffee. Meetings after 4pm are a hard no.",
+			"expected": [{ "kind": "preference", "contains": "oat milk" }]
+		},
+		{
+			"id": "doc-17",
+			"title": "Budget",
+			"markdown": "Each source has a daily token budget. Polling pauses when the budget is exceeded.",
+			"expected": [{ "kind": "fact", "contains": "budget" }]
+		},
+		{
+			"id": "doc-18",
+			"title": "Reindex",
+			"markdown": "We need to add a reindex command in M6. Delete-source must cascade through DO, Vectorize, and R2.",
+			"expected": [{ "kind": "task", "contains": "reindex" }]
+		},
+		{
+			"id": "doc-19",
+			"title": "Chat model",
+			"markdown": "Chat is pinned to gpt-5.6-luna. Escape hatch is Terra if citation quality is insufficient.",
+			"expected": [
+				{ "kind": "fact", "contains": "gpt-5.6-luna" },
+				{ "kind": "fact", "contains": "Terra" }
+			]
+		},
+		{
+			"id": "doc-20",
+			"title": "Launch",
+			"markdown": "Public launch is scheduled for after Gmail verification. Yesterday we locked the v0 decisions.",
+			"expected": [
+				{ "kind": "event", "contains": "Gmail" },
+				{ "kind": "event", "contains": "Yesterday" }
+			]
+		},
+		{
+			"id": "doc-21",
+			"title": "Citations",
+			"markdown": "Every chat answer should cite memories and documents it used. Provenance includes source, url, and timestamp.",
+			"expected": [{ "kind": "fact", "contains": "cite" }]
+		},
+		{
+			"id": "doc-22",
+			"title": "Generic ingest",
+			"markdown": "POST /ingest accepts externalId, title, markdown, and metadata. This is how Zapier scripts plug in.",
+			"expected": [{ "kind": "fact", "contains": "externalId" }]
+		},
+		{
+			"id": "doc-23",
+			"title": "Manager",
+			"markdown": "Alex is the manager for the memory project. Luv reports to Alex on weekly progress.",
+			"expected": [{ "kind": "relationship", "contains": "Alex" }]
+		},
+		{
+			"id": "doc-24",
+			"title": "Chunking",
+			"markdown": "We decided on heading-aware chunks of about 500 tokens with 15 percent overlap. Unchanged chunks are never re-extracted.",
+			"expected": [
+				{ "kind": "decision", "contains": "500 tokens" },
+				{ "kind": "fact", "contains": "unchanged", "optional": true }
+			]
+		}
+	]
+}
