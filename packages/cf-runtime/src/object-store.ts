@@ -25,7 +25,18 @@ export const r2ObjectStoreLayer = (bucket: R2Bucket) =>
 			}),
 	});
 
-export const memoryObjectStoreLayer = Layer.succeed(ObjectStore, {
-	put: () => Effect.void,
-	get: (key) => Effect.fail(new NotFound({ entity: "object", id: key })),
-});
+export const memoryObjectStoreLayer = () => {
+	const objects = new Map<string, string>();
+	return Layer.succeed(ObjectStore, {
+		put: (key, body) =>
+			Effect.sync(() => {
+				objects.set(key, body);
+			}),
+		get: (key) => {
+			const body = objects.get(key);
+			return body !== undefined
+				? Effect.succeed(body)
+				: Effect.fail(new NotFound({ entity: "object", id: key }));
+		},
+	});
+};

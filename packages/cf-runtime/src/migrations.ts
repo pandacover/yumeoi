@@ -103,3 +103,12 @@ export const memoryStoreV2Migration = Effect.gen(function* () {
 		yield* sql.unsafe(statement);
 	}
 });
+
+/** Existing DOs created before r2_key was in 0001 still need the column. */
+export const memoryStoreV3Migration = Effect.gen(function* () {
+	const sql = yield* SqlClient;
+	const columns = yield* sql<{ name: string }>`PRAGMA table_info(documents)`;
+	if (!columns.some((column) => column.name === "r2_key")) {
+		yield* sql.unsafe("ALTER TABLE documents ADD COLUMN r2_key TEXT");
+	}
+});

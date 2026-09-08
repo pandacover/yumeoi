@@ -3,6 +3,7 @@ import {
 	type ExtractedMemory,
 	extractedMemoriesJsonSchema,
 	type ProviderUnavailable,
+	type RateLimited,
 	type SchemaViolation,
 } from "@yumeoi/domain";
 import { Context, Effect, Layer } from "effect";
@@ -24,7 +25,10 @@ export class Extractor extends Context.Service<
 		readonly extract: (
 			chunkText: string,
 			title: string,
-		) => Effect.Effect<ReadonlyArray<ExtractedMemory>, ProviderUnavailable | SchemaViolation>;
+		) => Effect.Effect<
+			ReadonlyArray<ExtractedMemory>,
+			ProviderUnavailable | RateLimited | SchemaViolation
+		>;
 	}
 >()("@yumeoi/memory/Extractor") {}
 

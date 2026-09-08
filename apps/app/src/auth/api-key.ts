@@ -56,12 +56,18 @@ export const authenticateRequest = async (
 	}
 
 	if (env.DB && token.startsWith("ym_")) {
-		const digest = await hashApiKey(token);
-		const row = await env.DB.prepare("SELECT user_id, prefix FROM api_keys WHERE hash = ? LIMIT 1")
-			.bind(digest)
-			.first<{ user_id: string; prefix: string }>();
-		if (row) {
-			return { userId: row.user_id, keyPrefix: row.prefix };
+		try {
+			const digest = await hashApiKey(token);
+			const row = await env.DB.prepare(
+				"SELECT user_id, prefix FROM api_keys WHERE hash = ? LIMIT 1",
+			)
+				.bind(digest)
+				.first<{ user_id: string; prefix: string }>();
+			if (row) {
+				return { userId: row.user_id, keyPrefix: row.prefix };
+			}
+		} catch {
+			// D1 may be unbound or not yet migrated; env key still authenticates above.
 		}
 	}
 

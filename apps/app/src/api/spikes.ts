@@ -1,10 +1,12 @@
 import {
 	extractedMemoryJsonSchema,
-	openaiGatewayLlmLayer,
+	type GatewayLlmProvider,
+	gatewayLlmLayer,
+	resolveGatewayLlmProvidersFromKeys,
 	vectorizeLayer,
 	workersAiEmbeddingsLayer,
 } from "@yumeoi/cf-runtime";
-import { defaultLlmConfig, ExtractedMemory, ProviderUnavailable } from "@yumeoi/domain";
+import { defaultLlmConfig, ExtractedMemory } from "@yumeoi/domain";
 import { Embeddings, Llm, VectorIndex } from "@yumeoi/memory";
 import { Effect, Layer, ManagedRuntime } from "effect";
 
@@ -14,29 +16,20 @@ const json = (body: unknown, status = 200) =>
 		headers: { "cache-control": "no-store" },
 	});
 
-const gatewayBaseUrl = async (env: Env) => {
-	const gatewayId = env.AI_GATEWAY_ID || "default";
-	try {
-		return await env.AI.gateway(gatewayId).getUrl("openai");
-	} catch {
-		return undefined;
-	}
-};
+const llmProvidersFromEnv = (env: Env) =>
+	resolveGatewayLlmProvidersFromKeys({
+		getUrl: (provider) => env.AI.gateway(env.AI_GATEWAY_ID || "default").getUrl(provider),
+		openrouterApiKey: env.OPENROUTER_API_KEY,
+		openaiApiKey: env.OPENAI_API_KEY,
+	});
 
-const spikeRuntime = (env: Env, baseURL: string | undefined) => {
+const spikeRuntime = (env: Env, providers: ReadonlyArray<GatewayLlmProvider> = []) => {
 	const embeddings = workersAiEmbeddingsLayer(env.AI);
 	const vectors = vectorizeLayer(env.VECTORIZE);
-	const llm = baseURL
-		? openaiGatewayLlmLayer({
-				apiKey: env.OPENAI_API_KEY ?? "sk-placeholder",
-				baseURL,
-				config: defaultLlmConfig,
-			})
-		: Layer.succeed(Llm, {
-				config: defaultLlmConfig,
-				drainUsage: () => Effect.succeed([]),
-				structured: () => Effect.fail(new ProviderUnavailable({ provider: "openai" })),
-			});
+	const llm = gatewayLlmLayer({
+		config: defaultLlmConfig,
+		providers,
+	});
 	return ManagedRuntime.make(Layer.mergeAll(embeddings, vectors, llm));
 };
 
@@ -60,7 +53,7 @@ export async function handleSpikes(request: Request, env: Env): Promise<Response
 	if (url.pathname === "/api/spikes/embed" && request.method === "POST") {
 		const body = (await request.json().catch(() => ({}))) as { text?: string };
 		const text = body.text ?? "yumeoi remembers the apps you already use";
-		const runtime = spikeRuntime(env, undefined);
+		const runtime = spikeRuntime(env);
 		try {
 			const payload = await runtime.runPromise(
 				Effect.gen(function* () {
@@ -84,17 +77,18 @@ export async function handleSpikes(request: Request, env: Env): Promise<Response
 	if (url.pathname === "/api/spikes/extract" && request.method === "POST") {
 		const body = (await request.json().catch(() => ({}))) as { text?: string };
 		const text = body.text ?? "Luv is building yumeoi on Cloudflare Workers.";
-		const baseURL = await gatewayBaseUrl(env);
-		if (!baseURL || !env.OPENAI_API_KEY) {
+		const providers = await llmProvidersFromEnv(env);
+		if (providers.length === 0) {
 			return json(
 				{
-					error: "OPENAI_API_KEY and AI Gateway are required for the extract spike",
+					error:
+						"OPENROUTER_API_KEY or OPENAI_API_KEY and AI Gateway are required for the extract spike",
 					schema: extractedMemoryJsonSchema(),
 				},
 				503,
 			);
 		}
-		const runtime = spikeRuntime(env, baseURL);
+		const runtime = spikeRuntime(env, providers);
 		try {
 			const memory = await runtime.runPromise(
 				Effect.gen(function* () {
@@ -121,7 +115,7 @@ export async function handleSpikes(request: Request, env: Env): Promise<Response
 	if (url.pathname === "/api/spikes/vectorize" && request.method === "POST") {
 		const body = (await request.json().catch(() => ({}))) as { text?: string };
 		const text = body.text ?? "vectorize spike";
-		const runtime = spikeRuntime(env, undefined);
+		const runtime = spikeRuntime(env);
 		try {
 			const result = await runtime.runPromise(
 				Effect.gen(function* () {

@@ -18,7 +18,8 @@
 		{
 			"binding": "DB",
 			"database_name": "yumeoi-test",
-			"database_id": "local-yumeoi-test"
+			"database_id": "local-yumeoi-test",
+			"migrations_dir": "migrations"
 		}
 	],
 	"durable_objects": {

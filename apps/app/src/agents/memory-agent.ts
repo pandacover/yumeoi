@@ -1,4 +1,8 @@
-import { makeMemoryAgentRuntime, readUsableBinding } from "@yumeoi/cf-runtime";
+import {
+	makeMemoryAgentRuntime,
+	readUsableBinding,
+	resolveGatewayLlmProvidersFromKeys,
+} from "@yumeoi/cf-runtime";
 import type {
 	AddMemoryRequest,
 	IngestRequest,
@@ -11,6 +15,7 @@ import {
 	type IngestStepName,
 	ingestDocument,
 	initialIngestState,
+	loadDocument,
 	MemoryRepo,
 	recallContext,
 	runIngestStep,
@@ -37,14 +42,11 @@ export class MemoryAgent extends Agent<Env, MemoryAgentState> {
 		super(ctx, env);
 		void ctx.blockConcurrencyWhile(async () => {
 			try {
-				let gatewayBaseUrl: string | undefined;
-				if (env.OPENAI_API_KEY) {
-					try {
-						gatewayBaseUrl = await env.AI.gateway(env.AI_GATEWAY_ID || "default").getUrl("openai");
-					} catch {
-						gatewayBaseUrl = undefined;
-					}
-				}
+				const providers = await resolveGatewayLlmProvidersFromKeys({
+					getUrl: (provider) => env.AI.gateway(env.AI_GATEWAY_ID || "default").getUrl(provider),
+					openrouterApiKey: env.OPENROUTER_API_KEY,
+					openaiApiKey: env.OPENAI_API_KEY,
+				});
 				const ai = readUsableBinding(() => env.AI, "run");
 				const vectorize = readUsableBinding(() => env.VECTORIZE, "query");
 				const docs = readUsableBinding(() => env.DOCS, "put");
@@ -53,8 +55,7 @@ export class MemoryAgent extends Agent<Env, MemoryAgentState> {
 					...(ai ? { ai } : {}),
 					...(vectorize ? { vectorize } : {}),
 					...(docs ? { docs } : {}),
-					...(env.OPENAI_API_KEY ? { openaiApiKey: env.OPENAI_API_KEY } : {}),
-					...(gatewayBaseUrl ? { gatewayBaseUrl } : {}),
+					...(providers.length > 0 ? { providers } : {}),
 				});
 				await this.#runtime.context();
 				this.setState({ ready: true });
@@ -212,14 +213,15 @@ export class MemoryAgent extends Agent<Env, MemoryAgentState> {
 
 	@callable()
 	async getDocument(id: string) {
-		return this.#runtime.runPromise(Effect.flatMap(MemoryRepo, (repo) => repo.getDocument(id)));
+		return this.#runtime.runPromise(loadDocument(id));
 	}
 
 	@callable()
 	async addMemory(input: AddMemoryRequest) {
 		const userId = this.name;
+		const request = input.sourceId ? input : { ...input, sourceId: `agent:${userId}` };
 		return this.#runtime.runPromise(
-			Effect.flatMap(MemoryRepo, (repo) => repo.addMemory(userId, input)),
+			Effect.flatMap(MemoryRepo, (repo) => repo.addMemory(userId, request)),
 		);
 	}
 
@@ -227,6 +229,13 @@ export class MemoryAgent extends Agent<Env, MemoryAgentState> {
 	async listSources() {
 		const userId = this.name;
 		return this.#runtime.runPromise(Effect.flatMap(MemoryRepo, (repo) => repo.listSources(userId)));
+	}
+
+	@callable()
+	async listRecentMemories(limit = 20) {
+		return this.#runtime.runPromise(
+			Effect.flatMap(MemoryRepo, (repo) => repo.listRecentMemories(limit)),
+		);
 	}
 
 	override async onWorkflowComplete(

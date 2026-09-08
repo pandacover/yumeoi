@@ -1,8 +1,14 @@
 import { describe, expect, test } from "bun:test";
 import { Schema } from "effect";
 import { extractedMemoriesJsonSchema, extractedMemoryJsonSchema } from "./json-schema.ts";
-import { CHAT_MODEL_ID, defaultLlmConfig, parseResponseUsage } from "./llm.ts";
-import { ExtractedMemories, ExtractedMemory } from "./schema.ts";
+import {
+	CHAT_MODEL_ID,
+	DEFAULT_LLM_PROVIDER,
+	defaultLlmConfig,
+	FALLBACK_LLM_PROVIDER,
+	parseResponseUsage,
+} from "./llm.ts";
+import { ExtractedMemories, ExtractedMemory, IngestRequest } from "./schema.ts";
 
 describe("domain schemas", () => {
 	test("chat is pinned to gpt-5.6-luna high", () => {
@@ -38,6 +44,11 @@ describe("domain schemas", () => {
 			reasoningTokens: 40,
 			cachedInputTokens: 16,
 		});
+	});
+
+	test("OpenRouter is the default LLM provider with OpenAI as fallback", () => {
+		expect(DEFAULT_LLM_PROVIDER).toBe("openrouter");
+		expect(FALLBACK_LLM_PROVIDER).toBe("openai");
 	});
 
 	test("ExtractedMemory JSON Schema is an object with required fields", () => {
@@ -77,5 +88,18 @@ describe("domain schemas", () => {
 			],
 		});
 		expect(decoded.memories.length).toBe(1);
+	});
+
+	test("IngestRequest accepts optional metadata", () => {
+		const decoded = Schema.decodeUnknownSync(IngestRequest)({
+			externalId: "doc-1",
+			title: "Notes",
+			markdown: "hello",
+			sourceId: "generic",
+			sourceLabel: "Notes",
+			url: null,
+			metadata: { origin: "test" },
+		});
+		expect(decoded.metadata).toEqual({ origin: "test" });
 	});
 });

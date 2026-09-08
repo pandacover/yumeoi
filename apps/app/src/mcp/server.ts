@@ -10,35 +10,18 @@ const jsonText = (value: unknown) => ({
 	content: [{ type: "text" as const, text: JSON.stringify(value, null, 2) }],
 });
 
-const agentFor = (env: Env) => {
+const authUserId = () => {
 	const auth = getMcpAuthContext();
-	const userId = typeof auth?.props.userId === "string" ? auth.props.userId : "default";
-	return env.MemoryAgent.getByName(userId);
+	return typeof auth?.props.userId === "string" ? auth.props.userId : "default";
 };
+
+const agentFor = (env: Env) => env.MemoryAgent.getByName(authUserId());
 
 export function createYumeoiMcpServer(env: Env) {
 	const server = new McpServer({
 		name: "yumeoi",
 		version: "0.1.0",
 	});
-
-	server.registerTool(
-		"ping",
-		{
-			description: "Health check for the yumeoi MCP server.",
-			inputSchema: {
-				note: z.string().optional(),
-			},
-		},
-		async ({ note }) => ({
-			content: [
-				{
-					type: "text" as const,
-					text: note ? `pong: ${note}` : "pong",
-				},
-			],
-		}),
-	);
 
 	server.registerTool(
 		"search_memories",
@@ -103,7 +86,7 @@ export function createYumeoiMcpServer(env: Env) {
 	server.registerTool(
 		"get_document",
 		{
-			description: "Fetch a normalized document (markdown) by id.",
+			description: "Fetch a normalized document (markdown) by id. Prefers the R2 payload.",
 			inputSchema: { id: z.string() },
 		},
 		async ({ id }) => jsonText(await agentFor(env).getDocument(id)),
@@ -119,14 +102,17 @@ export function createYumeoiMcpServer(env: Env) {
 				confidence: z.number().optional(),
 			},
 		},
-		async ({ text, kind, confidence }) =>
-			jsonText(
+		async ({ text, kind, confidence }) => {
+			const userId = authUserId();
+			return jsonText(
 				await agentFor(env).addMemory({
 					text,
 					kind: kind ?? "fact",
 					confidence: confidence ?? 1,
+					sourceId: `agent:${userId}`,
 				}),
-			),
+			);
+		},
 	);
 
 	server.registerTool(
@@ -136,6 +122,44 @@ export function createYumeoiMcpServer(env: Env) {
 			inputSchema: {},
 		},
 		async () => jsonText(await agentFor(env).listSources()),
+	);
+
+	server.registerResource(
+		"sources",
+		"memory://sources",
+		{
+			title: "Sources",
+			description: "Connected sources for this user",
+			mimeType: "application/json",
+		},
+		async (uri) => ({
+			contents: [
+				{
+					uri: uri.href,
+					mimeType: "application/json",
+					text: JSON.stringify(await agentFor(env).listSources(), null, 2),
+				},
+			],
+		}),
+	);
+
+	server.registerResource(
+		"recent",
+		"memory://recent",
+		{
+			title: "Recent memories",
+			description: "Last 20 memories for this user",
+			mimeType: "application/json",
+		},
+		async (uri) => ({
+			contents: [
+				{
+					uri: uri.href,
+					mimeType: "application/json",
+					text: JSON.stringify(await agentFor(env).listRecentMemories(20), null, 2),
+				},
+			],
+		}),
 	);
 
 	return server;

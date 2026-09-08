@@ -1,19 +1,207 @@
 import {
+	DEFAULT_LLM_PROVIDER,
 	extractedMemoryJsonSchema,
 	type LlmConfig,
+	type LlmJobName,
+	type LlmProviderName,
 	type LlmUsage,
 	ProviderUnavailable,
 	parseResponseUsage,
+	RateLimited,
 	SchemaViolation,
 } from "@yumeoi/domain";
 import { Llm } from "@yumeoi/memory";
-import { Effect, Layer, Schema } from "effect";
+import { Effect, Layer, Result, Schedule, Schema } from "effect";
 import OpenAI from "openai";
 
-export const openaiGatewayLlmLayer = (options: {
+type StructuredError = ProviderUnavailable | RateLimited | SchemaViolation;
+
+export type GatewayLlmProvider = {
+	readonly provider: LlmProviderName;
 	readonly apiKey: string;
 	readonly baseURL: string;
+};
+
+export const modelIdForProvider = (provider: LlmProviderName, model: string): string =>
+	provider === "openrouter" && !model.includes("/") ? `openai/${model}` : model;
+
+export const resolveGatewayLlmProviders = (input: {
+	readonly openrouter?: {
+		readonly apiKey?: string | undefined;
+		readonly baseURL?: string | undefined;
+	};
+	readonly openai?: { readonly apiKey?: string | undefined; readonly baseURL?: string | undefined };
+}): ReadonlyArray<GatewayLlmProvider> => {
+	const providers: GatewayLlmProvider[] = [];
+	if (input.openrouter?.apiKey && input.openrouter.baseURL) {
+		providers.push({
+			provider: "openrouter",
+			apiKey: input.openrouter.apiKey,
+			baseURL: input.openrouter.baseURL,
+		});
+	}
+	if (input.openai?.apiKey && input.openai.baseURL) {
+		providers.push({
+			provider: "openai",
+			apiKey: input.openai.apiKey,
+			baseURL: input.openai.baseURL,
+		});
+	}
+	return providers;
+};
+
+export const resolveGatewayLlmProvidersFromKeys = async (options: {
+	readonly getUrl: (provider: LlmProviderName) => Promise<string>;
+	readonly openrouterApiKey?: string | undefined;
+	readonly openaiApiKey?: string | undefined;
+}): Promise<ReadonlyArray<GatewayLlmProvider>> => {
+	const urlFor = async (provider: LlmProviderName) => {
+		try {
+			return await options.getUrl(provider);
+		} catch {
+			return undefined;
+		}
+	};
+	const [openrouter, openai] = await Promise.all([
+		options.openrouterApiKey ? urlFor("openrouter") : Promise.resolve(undefined),
+		options.openaiApiKey ? urlFor("openai") : Promise.resolve(undefined),
+	]);
+	return resolveGatewayLlmProviders({
+		openrouter: { apiKey: options.openrouterApiKey, baseURL: openrouter },
+		openai: { apiKey: options.openaiApiKey, baseURL: openai },
+	});
+};
+
+const httpStatusOf = (cause: unknown): number | undefined => {
+	if (!cause || typeof cause !== "object") {
+		return undefined;
+	}
+	const record = cause as { status?: unknown; statusCode?: unknown };
+	if (typeof record.status === "number") {
+		return record.status;
+	}
+	if (typeof record.statusCode === "number") {
+		return record.statusCode;
+	}
+	return undefined;
+};
+
+export const classifyGatewayError = (
+	provider: LlmProviderName,
+	cause: unknown,
+): RateLimited | ProviderUnavailable => {
+	if (httpStatusOf(cause) === 429) {
+		return new RateLimited({ provider });
+	}
+	return new ProviderUnavailable({ provider, cause });
+};
+
+const isTransientLlmError = (error: StructuredError): boolean =>
+	error._tag === "RateLimited" || error._tag === "ProviderUnavailable";
+
+const withLlmResilience = <A>(
+	provider: LlmProviderName,
+	effect: Effect.Effect<A, StructuredError>,
+) =>
+	effect.pipe(
+		Effect.timeout("45 seconds"),
+		Effect.catchTag("TimeoutError", () =>
+			Effect.fail(new ProviderUnavailable({ provider, cause: "timeout" })),
+		),
+		Effect.retry({
+			times: 2,
+			while: isTransientLlmError,
+			schedule: Schedule.exponential("200 millis"),
+		}),
+		Effect.withSpan("llm.structured", { attributes: { "llm.provider": provider } }),
+	);
+
+export const firstAvailableStructured = <A>(
+	attempts: ReadonlyArray<() => Effect.Effect<A, StructuredError>>,
+): Effect.Effect<A, StructuredError> =>
+	Effect.gen(function* () {
+		let lastTransient: ProviderUnavailable | RateLimited | undefined;
+		for (const attempt of attempts) {
+			const outcome = yield* Effect.result(attempt());
+			if (Result.isSuccess(outcome)) {
+				return outcome.success;
+			}
+			if (outcome.failure._tag === "SchemaViolation") {
+				return yield* Effect.fail(outcome.failure);
+			}
+			lastTransient = outcome.failure;
+		}
+		return yield* Effect.fail(
+			lastTransient ?? new ProviderUnavailable({ provider: DEFAULT_LLM_PROVIDER }),
+		);
+	});
+
+const structuredFromProvider = <A, I>(
+	provider: GatewayLlmProvider,
+	config: LlmConfig,
+	options: {
+		readonly job: LlmJobName;
+		readonly schema: Schema.Codec<A, I>;
+		readonly schemaName: string;
+		readonly jsonSchema: Record<string, unknown>;
+		readonly system: string;
+		readonly user: string;
+	},
+	recorded: LlmUsage[],
+) =>
+	Effect.gen(function* () {
+		const jobConfig = config[options.job];
+		const client = new OpenAI({
+			apiKey: provider.apiKey,
+			baseURL: provider.baseURL,
+		});
+		const response = yield* Effect.tryPromise({
+			try: () =>
+				client.responses.create({
+					model: modelIdForProvider(provider.provider, jobConfig.model),
+					...(jobConfig.effort === "none" ? {} : { reasoning: { effort: jobConfig.effort } }),
+					input: [
+						{ role: "system", content: options.system },
+						{ role: "user", content: options.user },
+					],
+					text: {
+						format: {
+							type: "json_schema",
+							name: options.schemaName,
+							strict: true,
+							schema: options.jsonSchema,
+						},
+					},
+				}),
+			catch: (cause) => classifyGatewayError(provider.provider, cause),
+		});
+		recorded.push(parseResponseUsage(options.job, jobConfig, response));
+		const text =
+			"output_text" in response && typeof response.output_text === "string"
+				? response.output_text
+				: JSON.stringify(response);
+		const parsed = yield* Effect.try({
+			try: () => JSON.parse(text) as unknown,
+			catch: (cause) =>
+				new SchemaViolation({
+					message: "model did not return JSON",
+					issues: cause,
+				}),
+		});
+		return yield* Schema.decodeUnknownEffect(options.schema)(parsed).pipe(
+			Effect.mapError(
+				(issues) =>
+					new SchemaViolation({
+						message: "structured output failed schema decode",
+						issues,
+					}),
+			),
+		);
+	});
+
+export const gatewayLlmLayer = (options: {
 	readonly config: LlmConfig;
+	readonly providers: ReadonlyArray<GatewayLlmProvider>;
 }) => {
 	const recorded: LlmUsage[] = [];
 	return Layer.succeed(Llm, {
@@ -24,61 +212,27 @@ export const openaiGatewayLlmLayer = (options: {
 				recorded.length = 0;
 				return snapshot;
 			}),
-		structured: ({ job, schema, schemaName, jsonSchema, system, user }) =>
-			Effect.gen(function* () {
-				const jobConfig = options.config[job];
-				const client = new OpenAI({
-					apiKey: options.apiKey,
-					baseURL: options.baseURL,
-				});
-				const response = yield* Effect.tryPromise({
-					try: () =>
-						client.responses.create({
-							model: jobConfig.model,
-							...(jobConfig.effort === "none" ? {} : { reasoning: { effort: jobConfig.effort } }),
-							input: [
-								{ role: "system", content: system },
-								{ role: "user", content: user },
-							],
-							text: {
-								format: {
-									type: "json_schema",
-									name: schemaName,
-									strict: true,
-									schema: jsonSchema,
-								},
-							},
-						}),
-					catch: (cause) =>
-						new ProviderUnavailable({
-							provider: "openai",
-							cause,
-						}),
-				});
-				recorded.push(parseResponseUsage(job, jobConfig, response));
-				const text =
-					"output_text" in response && typeof response.output_text === "string"
-						? response.output_text
-						: JSON.stringify(response);
-				const parsed = yield* Effect.try({
-					try: () => JSON.parse(text) as unknown,
-					catch: (cause) =>
-						new SchemaViolation({
-							message: "model did not return JSON",
-							issues: cause,
-						}),
-				});
-				return yield* Schema.decodeUnknownEffect(schema)(parsed).pipe(
-					Effect.mapError(
-						(issues) =>
-							new SchemaViolation({
-								message: "structured output failed schema decode",
-								issues,
-							}),
-					),
-				);
-			}),
+		structured: (request) =>
+			firstAvailableStructured(
+				options.providers.map(
+					(provider) => () =>
+						withLlmResilience(
+							provider.provider,
+							structuredFromProvider(provider, options.config, request, recorded),
+						),
+				),
+			),
 	});
 };
+
+export const openaiGatewayLlmLayer = (options: {
+	readonly apiKey: string;
+	readonly baseURL: string;
+	readonly config: LlmConfig;
+}) =>
+	gatewayLlmLayer({
+		config: options.config,
+		providers: [{ provider: "openai", apiKey: options.apiKey, baseURL: options.baseURL }],
+	});
 
 export { extractedMemoryJsonSchema };

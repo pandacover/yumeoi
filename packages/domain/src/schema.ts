@@ -77,6 +77,7 @@ export const Document = Schema.Struct({
 	title: Schema.String,
 	markdown: Schema.String,
 	url: Schema.NullOr(Schema.String),
+	r2Key: Schema.optionalKey(Schema.NullOr(Schema.String)),
 });
 export type Document = typeof Document.Type;
 
@@ -147,6 +148,18 @@ export const IngestRequest = Schema.Struct({
 	sourceId: Schema.NullOr(Schema.String),
 	sourceLabel: Schema.NullOr(Schema.String),
 	url: Schema.NullOr(Schema.String),
+	metadata: Schema.optionalKey(
+		Schema.Record(
+			Schema.String,
+			Schema.Union([
+				Schema.String,
+				Schema.Number,
+				Schema.Boolean,
+				Schema.Null,
+				Schema.Array(Schema.Union([Schema.String, Schema.Number, Schema.Boolean, Schema.Null])),
+			]),
+		),
+	),
 });
 export type IngestRequest = typeof IngestRequest.Type;
 
@@ -165,5 +178,6 @@ export const AddMemoryRequest = Schema.Struct({
 	text: Schema.String,
 	kind: MemoryKind,
 	confidence: Schema.Finite,
+	sourceId: Schema.optionalKey(Schema.String),
 });
 export type AddMemoryRequest = typeof AddMemoryRequest.Type;

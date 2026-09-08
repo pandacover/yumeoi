@@ -3,6 +3,7 @@ import {
 	consolidateDecisionJsonSchema,
 	type Memory,
 	type ProviderUnavailable,
+	type RateLimited,
 	type SchemaViolation,
 } from "@yumeoi/domain";
 import { Context, Effect, Layer } from "effect";
@@ -23,7 +24,7 @@ export class Consolidator extends Context.Service<
 		readonly decide: (
 			candidate: string,
 			existing: ReadonlyArray<Memory>,
-		) => Effect.Effect<ConsolidateDecision, ProviderUnavailable | SchemaViolation>;
+		) => Effect.Effect<ConsolidateDecision, ProviderUnavailable | RateLimited | SchemaViolation>;
 	}
 >()("@yumeoi/memory/Consolidator") {}
 

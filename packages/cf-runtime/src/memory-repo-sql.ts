@@ -31,6 +31,7 @@ type DocumentRow = {
 	title: string;
 	markdown: string;
 	url: string | null;
+	r2_key: string | null;
 };
 
 type ChunkRow = {
@@ -60,6 +61,7 @@ const toDocument = (row: DocumentRow): Document => ({
 	title: row.title,
 	markdown: row.markdown,
 	url: row.url,
+	r2Key: row.r2_key,
 });
 
 const toChunk = (row: ChunkRow): Chunk => ({
@@ -98,7 +100,7 @@ export const sqlMemoryRepoLayer = Layer.effect(
 			getDocumentByExternalId: (sourceId, externalId) =>
 				Effect.gen(function* () {
 					const rows = yield* sql<DocumentRow>`
-						SELECT id, source_id, external_id, content_hash, title, markdown, url
+						SELECT id, source_id, external_id, content_hash, title, markdown, url, r2_key
 						FROM documents
 						WHERE source_id = ${sourceId} AND external_id = ${externalId}
 						LIMIT 1
@@ -178,7 +180,7 @@ export const sqlMemoryRepoLayer = Layer.effect(
 			getDocument: (id) =>
 				Effect.gen(function* () {
 					const rows = yield* sql<DocumentRow>`
-						SELECT id, source_id, external_id, content_hash, title, markdown, url
+						SELECT id, source_id, external_id, content_hash, title, markdown, url, r2_key
 						FROM documents WHERE id = ${id} LIMIT 1
 					`;
 					const row = rows[0];
@@ -320,6 +322,10 @@ export const sqlMemoryRepoLayer = Layer.effect(
 				sql<MemoryRow>`SELECT * FROM memories ORDER BY created_at DESC LIMIT ${limit}`.pipe(
 					Effect.map((rows) => rows.map(toMemory)),
 				),
+			listRecentMemories: (limit) =>
+				sql<MemoryRow>`SELECT * FROM memories ORDER BY created_at DESC LIMIT ${limit}`.pipe(
+					Effect.map((rows) => rows.map(toMemory)),
+				),
 			commit: (batch) =>
 				sql.withTransaction(
 					Effect.gen(function* () {
@@ -401,8 +407,8 @@ export const sqlMemoryRepoLayer = Layer.effect(
 			addMemory: (userId, input: AddMemoryRequest) =>
 				Effect.gen(function* () {
 					const now = Date.now();
-					const sourceId = "agent";
-					const documentId = "agent:notes";
+					const sourceId = input.sourceId ?? `agent:${userId}`;
+					const documentId = `${sourceId}:notes`;
 					const chunkId = crypto.randomUUID();
 					const memoryId = crypto.randomUUID();
 					yield* sql`
@@ -412,7 +418,7 @@ export const sqlMemoryRepoLayer = Layer.effect(
 					`;
 					yield* sql`
 						INSERT INTO documents (id, source_id, external_id, content_hash, title, markdown, url, r2_key, created_at, updated_at)
-						VALUES (${documentId}, ${sourceId}, ${"notes"}, ${"agent"}, ${"Agent notes"}, ${input.text}, ${null}, ${`${userId}/agent/notes.json`}, ${now}, ${now})
+						VALUES (${documentId}, ${sourceId}, ${"notes"}, ${"agent"}, ${"Agent notes"}, ${input.text}, ${null}, ${`${userId}/${sourceId}/notes.json`}, ${now}, ${now})
 						ON CONFLICT(id) DO UPDATE SET updated_at = excluded.updated_at
 					`;
 					yield* sql`

@@ -188,6 +188,7 @@ const fetchIngest = (state: IngestState) =>
 				title: state.request.title,
 				markdown: state.request.markdown,
 				url: state.request.url,
+				...(state.request.metadata ? { metadata: state.request.metadata } : {}),
 			}),
 		);
 		if (existing && existing.contentHash === contentHash) {
@@ -258,14 +259,20 @@ const embedIngest = (state: IngestState) =>
 	Effect.gen(function* () {
 		const embeddings = yield* Embeddings;
 		const index = yield* VectorIndex;
-		if (state.chunks.length === 0) {
+		const fresh = state.chunks.filter((chunk) => !chunk.reused);
+		if (fresh.length === 0) {
 			return state;
 		}
-		const vectors = yield* embeddings.embed(state.chunks.map((chunk) => chunk.text));
-		const chunks = state.chunks.map((chunk, i) => ({
-			...chunk,
-			values: vectors[i] ?? null,
-		}));
+		const vectors = yield* embeddings.embed(fresh.map((chunk) => chunk.text));
+		let freshIndex = 0;
+		const chunks = state.chunks.map((chunk) => {
+			if (chunk.reused) {
+				return chunk;
+			}
+			const values = vectors[freshIndex] ?? null;
+			freshIndex += 1;
+			return { ...chunk, values };
+		});
 		const ts = Date.now();
 		const records = chunks.flatMap((chunk) =>
 			chunk.values

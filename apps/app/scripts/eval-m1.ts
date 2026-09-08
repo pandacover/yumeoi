@@ -1,6 +1,6 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { openaiGatewayLlmLayer } from "@yumeoi/cf-runtime/llm-openai";
+import { gatewayLlmLayer, resolveGatewayLlmProviders } from "@yumeoi/cf-runtime/llm-openai";
 import {
 	CONSOLIDATE_EVAL_CANDIDATES,
 	defaultLlmConfig,
@@ -29,8 +29,23 @@ const mdPath = resolve(root, "docs/eval/m1.md");
 
 const set = JSON.parse(readFileSync(setPath, "utf8")) as { documents: EvalDocument[] };
 
-const apiKey = process.env.OPENAI_API_KEY;
-const baseURL = process.env.OPENAI_BASE_URL ?? "https://api.openai.com/v1";
+const openrouterApiKey = process.env.OPENROUTER_API_KEY;
+const openaiApiKey = process.env.OPENAI_API_KEY;
+const providers = resolveGatewayLlmProviders({
+	openrouter: {
+		apiKey: openrouterApiKey,
+		baseURL: openrouterApiKey
+			? (process.env.OPENROUTER_BASE_URL ?? "https://openrouter.ai/api/v1")
+			: undefined,
+	},
+	openai: {
+		apiKey: openaiApiKey,
+		baseURL: openaiApiKey
+			? (process.env.OPENAI_BASE_URL ?? "https://api.openai.com/v1")
+			: undefined,
+	},
+});
+const live = providers.length > 0;
 
 const withJob = (job: "extract" | "consolidate" | "rerank", config: LlmJobConfig): LlmConfig => ({
 	...defaultLlmConfig,
@@ -38,7 +53,7 @@ const withJob = (job: "extract" | "consolidate" | "rerank", config: LlmJobConfig
 });
 
 const llmLayer = (config: LlmConfig) =>
-	apiKey ? openaiGatewayLlmLayer({ apiKey, baseURL, config }) : heuristicLlmLayer;
+	live ? gatewayLlmLayer({ config, providers }) : heuristicLlmLayer;
 
 const serviceLayer = (config: LlmConfig) => {
 	const llm = llmLayer(config);
@@ -219,9 +234,9 @@ const renderMarkdown = (payload: {
 	]);
 	return `# M1 model decision
 
-Extraction, consolidation, and rerank stay on OpenAI via AI Gateway (v0 decision 3). Chat remains GPT-5.6 Luna at reasoning effort \`high\`.
+Extraction, consolidation, and rerank use OpenRouter via AI Gateway, with OpenAI as fallback. Chat remains GPT-5.6 Luna at reasoning effort \`high\`.
 
-This milestone pins the other three jobs from the eval set in \`m1-set.json\` (${set.documents.length} hand-labeled documents, all six memory kinds). The harness is \`packages/memory/src/eval.ts\` / \`eval-run.ts\`. Live numbers below were produced by \`bun run eval:m1\`${payload.live ? " against OpenAI" : " with the heuristic extractor (no OPENAI_API_KEY)"}.
+This milestone pins the other three jobs from the eval set in \`m1-set.json\` (${set.documents.length} hand-labeled documents, all six memory kinds). The harness is \`packages/memory/src/eval.ts\` / \`eval-run.ts\`. Live numbers below were produced by \`bun run eval:m1\`${payload.live ? " against OpenRouter (OpenAI fallback)" : " with the heuristic extractor (no OPENROUTER_API_KEY or OPENAI_API_KEY)"}.
 
 Per-document input, output, and reasoning tokens are in \`docs/eval/m1-results.json\`.
 
@@ -270,7 +285,7 @@ const pins = {
 };
 
 const payload = {
-	live: Boolean(apiKey),
+	live,
 	generatedAt: new Date().toISOString(),
 	extract,
 	consolidate,
@@ -282,8 +297,8 @@ writeFileSync(resultsPath, `${JSON.stringify(payload, null, 2)}\n`);
 writeFileSync(mdPath, renderMarkdown(payload));
 console.log(`wrote ${resultsPath} and ${mdPath}`);
 console.log("pins", pins);
-if (!apiKey) {
+if (!live) {
 	console.log(
-		"OPENAI_API_KEY is unset; pins above are heuristic-only and were not applied to defaultLlmConfig.",
+		"OPENROUTER_API_KEY and OPENAI_API_KEY are unset; pins above are heuristic-only and were not applied to defaultLlmConfig.",
 	);
 }

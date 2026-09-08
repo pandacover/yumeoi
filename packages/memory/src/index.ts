@@ -1,6 +1,7 @@
 export * from "./chunker.ts";
 export * from "./consolidator.ts";
 export * from "./cosine.ts";
+export * from "./documents.ts";
 export * from "./embeddings.ts";
 export * from "./eval.ts";
 export * from "./eval-run.ts";

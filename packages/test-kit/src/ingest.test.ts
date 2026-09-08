@@ -2,9 +2,14 @@ import { describe, expect, test } from "bun:test";
 import { ProviderUnavailable } from "@yumeoi/domain";
 import {
 	consolidatorLayer,
+	EMBEDDING_DIMENSIONS,
+	EMBEDDING_MODEL,
 	Embeddings,
 	extractorLayer,
 	ingestDocument,
+	loadDocument,
+	MemoryRepo,
+	ObjectStore,
 	recallContext,
 	searchMemories,
 	similarExistingMemories,
@@ -31,7 +36,7 @@ const layer = Layer.mergeAll(
 	Layer.provide(extractorLayer, FakeLlm),
 	Layer.provide(consolidatorLayer, FakeLlm),
 	inMemoryVectorIndexLayer(),
-	inMemoryObjectStoreLayer,
+	inMemoryObjectStoreLayer(),
 );
 
 describe("ingest and recall", () => {
@@ -107,7 +112,7 @@ describe("ingest and recall", () => {
 			Layer.provide(extractorLayer, FakeLlm),
 			Layer.provide(consolidatorLayer, FakeLlm),
 			unavailableVectorIndexLayer,
-			inMemoryObjectStoreLayer,
+			inMemoryObjectStoreLayer(),
 		);
 		const program = Effect.gen(function* () {
 			yield* ingestDocument({
@@ -169,7 +174,7 @@ describe("ingest and recall", () => {
 			Layer.provide(extractorLayer, FakeLlm),
 			Layer.provide(consolidatorLayer, FakeLlm),
 			unavailableVectorIndexLayer,
-			inMemoryObjectStoreLayer,
+			inMemoryObjectStoreLayer(),
 		);
 		const program = Effect.gen(function* () {
 			yield* ingestDocument({
@@ -193,5 +198,119 @@ describe("ingest and recall", () => {
 			expect(similar.some((memory) => memory.text.toLowerCase().includes("effect"))).toBe(true);
 		});
 		await Effect.runPromise(program.pipe(Effect.provide(fallback)));
+	});
+
+	test("skips embedding reused chunks on a partial rewrite", async () => {
+		const counts = { texts: 0 };
+		const countingEmbeddings = Layer.succeed(Embeddings, {
+			model: EMBEDDING_MODEL,
+			dimensions: EMBEDDING_DIMENSIONS,
+			embed: (texts) =>
+				Effect.sync(() => {
+					counts.texts += texts.length;
+					return texts.map((text, index) =>
+						Array.from(
+							{ length: EMBEDDING_DIMENSIONS },
+							(_, i) => ((text.charCodeAt(i % Math.max(text.length, 1)) + index + i) % 100) / 100,
+						),
+					);
+				}),
+		});
+		const counting = Layer.mergeAll(
+			memoryMemoryRepoLayer("skip-user"),
+			countingEmbeddings,
+			FakeLlm,
+			Layer.provide(extractorLayer, FakeLlm),
+			Layer.provide(consolidatorLayer, FakeLlm),
+			inMemoryVectorIndexLayer(),
+			inMemoryObjectStoreLayer(),
+		);
+		const firstMarkdown = [
+			"# Prefs",
+			"Luv prefers Effect 4 for the yumeoi domain layer and uses it everywhere.",
+			"",
+			"# Work",
+			"Luv decided to run ingest on Cloudflare Workflows for durability.",
+		].join("\n");
+		const secondMarkdown = [
+			"# Prefs",
+			"Luv prefers Effect 4 for the yumeoi domain layer and uses it everywhere.",
+			"",
+			"# Work",
+			"Luv decided to ship M1 with OpenRouter as the default LLM provider.",
+		].join("\n");
+		const program = Effect.gen(function* () {
+			const first = yield* ingestDocument({
+				userId: "skip-user",
+				request: {
+					externalId: "skip-doc",
+					title: "Skip",
+					markdown: firstMarkdown,
+					sourceId: "generic",
+					sourceLabel: "Notes",
+					url: null,
+				},
+			});
+			const afterFirst = counts.texts;
+			const second = yield* ingestDocument({
+				userId: "skip-user",
+				request: {
+					externalId: "skip-doc",
+					title: "Skip",
+					markdown: secondMarkdown,
+					sourceId: "generic",
+					sourceLabel: "Notes",
+					url: null,
+				},
+			});
+			expect(first.unchanged).toBe(false);
+			expect(second.unchanged).toBe(false);
+			expect(second.skippedChunks).toBeGreaterThan(0);
+			expect(counts.texts - afterFirst).toBeLessThan(afterFirst);
+		});
+		await Effect.runPromise(program.pipe(Effect.provide(counting)));
+	});
+
+	test("hydrates get_document markdown from the object store", async () => {
+		const objects = inMemoryObjectStoreLayer();
+		const layerWithStore = Layer.mergeAll(
+			memoryMemoryRepoLayer("r2-user"),
+			FakeEmbeddings,
+			FakeLlm,
+			Layer.provide(extractorLayer, FakeLlm),
+			Layer.provide(consolidatorLayer, FakeLlm),
+			inMemoryVectorIndexLayer(),
+			objects,
+		);
+		const program = Effect.gen(function* () {
+			const ingest = yield* ingestDocument({
+				userId: "r2-user",
+				request: {
+					externalId: "r2-doc",
+					title: "R2",
+					markdown: "Luv prefers Effect 4 for the yumeoi domain layer.",
+					sourceId: "generic",
+					sourceLabel: "Notes",
+					url: null,
+					metadata: { origin: "test" },
+				},
+			});
+			const repo = yield* MemoryRepo;
+			const stored = yield* repo.getDocument(ingest.documentId);
+			expect(stored.r2Key).toBeTruthy();
+			const objectStore = yield* ObjectStore;
+			yield* objectStore.put(
+				stored.r2Key ?? "",
+				JSON.stringify({
+					title: "From R2",
+					markdown: "hydrated-from-r2",
+					url: "https://example.test/r2",
+				}),
+			);
+			const loaded = yield* loadDocument(ingest.documentId);
+			expect(loaded.markdown).toBe("hydrated-from-r2");
+			expect(loaded.title).toBe("From R2");
+		});
+		await Effect.runPromise(program.pipe(Effect.provide(layerWithStore)));
 	});
 });

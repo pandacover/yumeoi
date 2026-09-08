@@ -12,6 +12,7 @@ declare namespace Cloudflare {
 		DOCS: R2Bucket;
 		DB: D1Database;
 		AI_GATEWAY_ID: string;
+		OPENROUTER_API_KEY?: string;
 		OPENAI_API_KEY?: string;
 		YUMEOI_API_KEY?: string;
 		YUMEOI_USER_ID?: string;

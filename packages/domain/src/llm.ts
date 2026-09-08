@@ -6,6 +6,12 @@ export type LlmEffort = typeof LlmEffort.Type;
 export const LlmJobName = Schema.Literals(["chat", "extract", "consolidate", "rerank"]);
 export type LlmJobName = typeof LlmJobName.Type;
 
+export const LlmProviderName = Schema.Literals(["openrouter", "openai"]);
+export type LlmProviderName = typeof LlmProviderName.Type;
+
+export const DEFAULT_LLM_PROVIDER = "openrouter" as const satisfies LlmProviderName;
+export const FALLBACK_LLM_PROVIDER = "openai" as const satisfies LlmProviderName;
+
 export const LlmJobConfig = Schema.Struct({
 	model: Schema.String,
 	effort: LlmEffort,

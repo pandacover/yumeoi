@@ -54,10 +54,21 @@ const empty = (): Stored => ({
 	updatedAt: new Map(),
 });
 
-export const inMemoryObjectStoreLayer = Layer.succeed(ObjectStore, {
-	put: () => Effect.void,
-	get: (key) => Effect.fail(new NotFound({ entity: "object", id: key })),
-});
+export const inMemoryObjectStoreLayer = () => {
+	const objects = new Map<string, string>();
+	return Layer.succeed(ObjectStore, {
+		put: (key, body) =>
+			Effect.sync(() => {
+				objects.set(key, body);
+			}),
+		get: (key) => {
+			const body = objects.get(key);
+			return body !== undefined
+				? Effect.succeed(body)
+				: Effect.fail(new NotFound({ entity: "object", id: key }));
+		},
+	});
+};
 
 export const memoryMemoryRepoLayer = (userId = "test-user") => {
 	const db = empty();
@@ -150,6 +161,13 @@ export const memoryMemoryRepoLayer = (userId = "test-user") => {
 		listSources: () => Effect.succeed(db.sources.map((source) => ({ ...source, userId }))),
 		similarMemoryCandidates: (_exclude, limit) =>
 			Effect.succeed(db.memories.slice(0, limit).map(strip)),
+		listRecentMemories: (limit) =>
+			Effect.succeed(
+				[...db.memories]
+					.sort((left, right) => right.createdAt - left.createdAt)
+					.slice(0, limit)
+					.map(strip),
+			),
 		commit: (batch: CommitBatch) =>
 			Effect.sync(() => {
 				const now = Date.now();
@@ -170,6 +188,7 @@ export const memoryMemoryRepoLayer = (userId = "test-user") => {
 					title: batch.document.title,
 					markdown: batch.document.markdown,
 					url: batch.document.url,
+					r2Key: batch.document.r2Key,
 				});
 				db.updatedAt.set(batch.document.id, now);
 				const keep = new Set(batch.chunks.map((chunk) => chunk.id));
@@ -225,8 +244,17 @@ export const memoryMemoryRepoLayer = (userId = "test-user") => {
 					skippedChunks: 0,
 				};
 			}),
-		addMemory: (_user, input) =>
+		addMemory: (userId, input) =>
 			Effect.sync(() => {
+				const sourceId = input.sourceId ?? `agent:${userId}`;
+				if (!db.sources.some((source) => source.id === sourceId)) {
+					db.sources.push({
+						id: sourceId,
+						userId,
+						kind: "agent",
+						label: "Agent writes",
+					});
+				}
 				const memory = {
 					id: crypto.randomUUID(),
 					kind: input.kind,
