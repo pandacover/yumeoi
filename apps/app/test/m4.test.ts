@@ -60,17 +60,48 @@ const csrfFromHtml = (html: string) => {
 	return match?.[1] ?? "";
 };
 
+const oauthRedirect = (response: Response, html = "") => {
+	const header = response.headers.get("location");
+	if (header) {
+		return new URL(header);
+	}
+	const match = html.match(/id="oauth-redirect" href="([^"]+)"/);
+	expect(match?.[1]).toBeTruthy();
+	return new URL(
+		(match?.[1] ?? "")
+			.replaceAll("&quot;", '"')
+			.replaceAll("&#039;", "'")
+			.replaceAll("&lt;", "<")
+			.replaceAll("&gt;", ">")
+			.replaceAll("&amp;", "&"),
+	);
+};
+
+const hiddenFields = (html: string) => {
+	const body = new URLSearchParams();
+	for (const match of html.matchAll(/name="([^"]+)" value="([^"]*)"/g)) {
+		const name = match[1] ?? "";
+		const value = (match[2] ?? "")
+			.replaceAll("&quot;", '"')
+			.replaceAll("&#039;", "'")
+			.replaceAll("&lt;", "<")
+			.replaceAll("&gt;", ">")
+			.replaceAll("&amp;", "&");
+		body.append(name, value);
+	}
+	return body;
+};
+
 const approve = async (clientId: string, challenge: string) => {
 	const url = authorizeUrl(clientId, challenge);
 	const page = await SELF.fetch(url);
 	expect(page.status).toBe(200);
 	const html = await page.text();
 	expect(html).toContain("Connect an agent");
-	const body = new URLSearchParams({
-		csrf_token: csrfFromHtml(html),
-		decision: "approve",
-	});
-	return SELF.fetch(url, {
+	expect(html).toContain("loopback");
+	const body = hiddenFields(html);
+	body.set("decision", "approve");
+	return SELF.fetch("https://example.com/authorize", {
 		method: "POST",
 		redirect: "manual",
 		headers: {
@@ -158,11 +189,10 @@ describe("M4 MCP OAuth", () => {
 		const { verifier, challenge } = await pkce();
 		const { client_id: clientId } = await registerClient("Cursor Test");
 		const approved = await approve(clientId, challenge);
-		expect(approved.status).toBeGreaterThanOrEqual(300);
-		expect(approved.status).toBeLessThan(400);
-		const location = approved.headers.get("location");
-		expect(location).toBeTruthy();
-		const redirected = new URL(location ?? "");
+		expect(approved.status).toBe(200);
+		const html = await approved.text();
+		expect(html).toContain("Return to Cursor");
+		const redirected = oauthRedirect(approved, html);
 		expect(redirected.searchParams.get("state")).toBe("state-1");
 		const code = redirected.searchParams.get("code");
 		expect(code).toBeTruthy();

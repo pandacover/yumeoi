@@ -18,7 +18,6 @@ const json = (body: unknown, status = 200) =>
 
 const llmProvidersFromEnv = (env: Env) =>
 	resolveGatewayLlmProvidersFromKeys({
-		getUrl: (provider) => env.AI.gateway(env.AI_GATEWAY_ID || "default").getUrl(provider),
 		openrouterApiKey: env.OPENROUTER_API_KEY,
 		openaiApiKey: env.OPENAI_API_KEY,
 	});
@@ -77,12 +76,11 @@ export async function handleSpikes(request: Request, env: Env): Promise<Response
 	if (url.pathname === "/api/spikes/extract" && request.method === "POST") {
 		const body = (await request.json().catch(() => ({}))) as { text?: string };
 		const text = body.text ?? "Luv is building yumeoi on Cloudflare Workers.";
-		const providers = await llmProvidersFromEnv(env);
+		const providers = llmProvidersFromEnv(env);
 		if (providers.length === 0) {
 			return json(
 				{
-					error:
-						"OPENROUTER_API_KEY or OPENAI_API_KEY and AI Gateway are required for the extract spike",
+					error: "OPENROUTER_API_KEY or OPENAI_API_KEY is required for the extract spike",
 					schema: extractedMemoryJsonSchema(),
 				},
 				503,

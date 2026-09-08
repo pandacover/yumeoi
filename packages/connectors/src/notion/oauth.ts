@@ -35,7 +35,7 @@ export const notionAuthorizeUrl = (
 };
 
 const basicAuth = (clientId: string, clientSecret: string): string =>
-	`Basic ${btoa(`${clientId}:${clientSecret}`)}`;
+	`Basic ${btoa(`${clientId.trim()}:${clientSecret.trim()}`)}`;
 
 const readToken = (raw: unknown): NotionTokenResponse => {
 	if (!raw || typeof raw !== "object") {

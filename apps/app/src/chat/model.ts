@@ -11,6 +11,14 @@ export const chatLanguageModel = (
 		apiKey: provider.apiKey,
 		baseURL: provider.baseURL,
 		name: provider.provider,
+		...(provider.provider === "openrouter"
+			? {
+					headers: {
+						"HTTP-Referer": "https://yumeoi.luvmakin01.workers.dev",
+						"X-Title": "yumeoi",
+					},
+				}
+			: {}),
 	});
 	return client.responses(modelIdForProvider(provider.provider, job.model));
 };

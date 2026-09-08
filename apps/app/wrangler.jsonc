@@ -29,15 +29,14 @@
 	"kv_namespaces": [
 		{
 			"binding": "OAUTH_KV",
-			"id": "local-oauth-kv"
+			"id": "6fc3540c6ee747a5a1674717821a1e5b"
 		}
 	],
 	"d1_databases": [
 		{
 			"binding": "DB",
 			"database_name": "yumeoi",
-			"database_id": "local-yumeoi",
-			"preview_database_id": "local-yumeoi-preview",
+			"database_id": "0cb4d753-ff62-49a0-a262-cbf786639ddc",
 			"migrations_dir": "migrations"
 		}
 	],

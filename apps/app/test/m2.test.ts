@@ -52,6 +52,14 @@ describe("M2 HTTP sources and memories", () => {
 		expect(start.status).toBe(503);
 	});
 
+	it("does not require an API key for the Notion OAuth callback", async () => {
+		const missing = await SELF.fetch("https://example.com/api/sources/notion/callback");
+		expect(missing.status).toBe(400);
+		const slash = await SELF.fetch("https://example.com/api/sources/notion/callback/");
+		expect(slash.status).toBe(400);
+		expect(slash.status).not.toBe(401);
+	});
+
 	it("connects a fixture source over HTTP and lists provenance", async () => {
 		const created = await SELF.fetch("https://example.com/api/sources", {
 			method: "POST",

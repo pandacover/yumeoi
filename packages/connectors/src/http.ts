@@ -13,6 +13,21 @@ export class ConnectorHttp extends Context.Service<
 	}
 >()("@yumeoi/connectors/Http") {}
 
+const readAuthError = (response: Response) =>
+	Effect.tryPromise({
+		try: async () => {
+			const fallback = `http ${response.status}`;
+			const raw = (await response.json().catch(() => null)) as Record<string, unknown> | null;
+			if (!raw) {
+				return fallback;
+			}
+			const code =
+				typeof raw.error === "string" ? raw.error : typeof raw.code === "string" ? raw.code : null;
+			return code ? `${fallback} ${code}` : fallback;
+		},
+		catch: () => `http ${response.status}`,
+	});
+
 export const fetchHttpLayer = (fetchImpl: FetchFn = (url, init) => fetch(url, init)) =>
 	Layer.succeed(ConnectorHttp, {
 		fetch: (url, init) =>
@@ -31,7 +46,8 @@ export const fetchHttpLayer = (fetchImpl: FetchFn = (url, init) => fetch(url, in
 					);
 				}
 				if (response.status === 401 || response.status === 403) {
-					return yield* Effect.fail(new Unauthorized({ message: `http ${response.status}` }));
+					const detail = yield* readAuthError(response);
+					return yield* Effect.fail(new Unauthorized({ message: detail }));
 				}
 				return response;
 			}),

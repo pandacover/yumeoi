@@ -30,6 +30,88 @@ export const sanitizeUrl = (url: string): string => {
 	}
 };
 
+const OAUTH_QUERY_KEYS = new Set([
+	"response_type",
+	"client_id",
+	"redirect_uri",
+	"scope",
+	"state",
+	"code_challenge",
+	"code_challenge_method",
+	"resource",
+]);
+
+export const isLoopbackRedirect = (url: string): boolean => {
+	try {
+		const host = new URL(url).hostname.toLowerCase();
+		return host === "localhost" || host === "127.0.0.1" || host === "[::1]" || host === "::1";
+	} catch {
+		return false;
+	}
+};
+
+export const requestWithOAuthForm = (request: Request, form: FormData): Request => {
+	const url = new URL(request.url);
+	for (const [key, value] of form.entries()) {
+		if (!OAUTH_QUERY_KEYS.has(key) || typeof value !== "string" || value.length === 0) {
+			continue;
+		}
+		if (key === "resource") {
+			if (!url.searchParams.getAll("resource").includes(value)) {
+				url.searchParams.append(key, value);
+			}
+			continue;
+		}
+		if (!url.searchParams.has(key)) {
+			url.searchParams.set(key, value);
+		}
+	}
+	return new Request(url.toString(), {
+		method: request.method,
+		headers: request.headers,
+	});
+};
+
+const hiddenInput = (name: string, value: string) =>
+	`<input type="hidden" name="${sanitizeText(name)}" value="${sanitizeText(value)}" />`;
+
+const hiddenOAuthFields = (oauthRequest: AuthRequest): string => {
+	const fields: Array<[string, string]> = [
+		["response_type", oauthRequest.responseType],
+		["client_id", oauthRequest.clientId],
+		["redirect_uri", oauthRequest.redirectUri],
+		["scope", oauthRequest.scope.join(" ")],
+		["state", oauthRequest.state],
+	];
+	if (oauthRequest.codeChallenge) {
+		fields.push(["code_challenge", oauthRequest.codeChallenge]);
+	}
+	if (oauthRequest.codeChallengeMethod) {
+		fields.push(["code_challenge_method", oauthRequest.codeChallengeMethod]);
+	}
+	const resources = oauthRequest.resource
+		? Array.isArray(oauthRequest.resource)
+			? oauthRequest.resource
+			: [oauthRequest.resource]
+		: [];
+	for (const resource of resources) {
+		if (resource) {
+			fields.push(["resource", resource]);
+		}
+	}
+	return fields
+		.filter(([, value]) => value.length > 0)
+		.map(([name, value]) => hiddenInput(name, value))
+		.join("");
+};
+
+const redirectHint = (redirectUri: string): string => {
+	if (isLoopbackRedirect(redirectUri)) {
+		return `<p>After you approve, this browser returns to your MCP client on this computer (<code>${sanitizeText(redirectUri)}</code>). That loopback URL is Cursor&apos;s callback, not this Worker.</p>`;
+	}
+	return `<p>After you approve, this browser returns to <code>${sanitizeText(redirectUri)}</code>.</p>`;
+};
+
 const cookieValue = (header: string | null, name: string): string | null => {
 	if (!header) {
 		return null;
@@ -79,12 +161,13 @@ const htmlResponse = (body: string, status = 200, headers?: HeadersInit) =>
 		},
 	});
 
-const pageShell = (title: string, inner: string) => `<!doctype html>
+const pageShell = (title: string, inner: string, extraHead = "") => `<!doctype html>
 <html lang="en">
 <head>
 	<meta charset="utf-8" />
 	<meta name="viewport" content="width=device-width, initial-scale=1" />
 	<title>${sanitizeText(title)}</title>
+	${extraHead}
 	<style>
 		:root { color-scheme: dark; --bg:#0b0d10; --fg:#e8edf2; --muted:#9aa7b4; --card:#14181e; --accent:#7dd3c7; --line:#232a33; --danger:#f0a0a0; }
 		html, body { background: var(--bg); color: var(--fg); margin: 0; font-family: ui-sans-serif, system-ui, sans-serif; }
@@ -139,22 +222,22 @@ const renderConsent = (
 	userId: string,
 	csrfToken: string,
 	secure: boolean,
-	formAction: string,
 ) => {
 	const name = sanitizeText(client.clientName || client.clientId);
 	const clientUri = client.clientUri ? sanitizeUrl(client.clientUri) : "";
-	const redirectUri = sanitizeText(oauthRequest.redirectUri);
 	const scopes = grantedScopes(oauthRequest.scope);
 	const inner = `
 		<p class="kicker">MCP consent</p>
 		<h1>Connect an agent</h1>
 		<p class="client">${name} wants access to your yumeoi memories.</p>
 		${clientUri ? `<p><a class="ghost" href="${sanitizeText(clientUri)}">${sanitizeText(clientUri)}</a></p>` : ""}
-		<p>Signed in as <code>${sanitizeText(userId)}</code>. Redirect: <code>${redirectUri}</code></p>
+		<p>Signed in as <code>${sanitizeText(userId)}</code>.</p>
+		${redirectHint(oauthRequest.redirectUri)}
 		<ul class="scopes">
 			${scopes.map((scope) => `<li><code>${sanitizeText(scope)}</code></li>`).join("")}
 		</ul>
-		<form method="post" action="${sanitizeText(formAction)}">
+		<form method="post" action="/authorize">
+			${hiddenOAuthFields(oauthRequest)}
 			<input type="hidden" name="csrf_token" value="${sanitizeText(csrfToken)}" />
 			<div class="actions">
 				<button type="submit" name="decision" value="approve">Approve</button>
@@ -165,6 +248,23 @@ const renderConsent = (
 	`;
 	return htmlResponse(pageShell("Approve MCP client — yumeoi", inner), 200, {
 		"set-cookie": setCsrfCookie(csrfToken, secure),
+	});
+};
+
+const loopbackHandoff = (redirectTo: string, secure: boolean) => {
+	const href = sanitizeUrl(redirectTo);
+	const extraHead = href
+		? `<meta http-equiv="refresh" content="0;url=${sanitizeText(href)}" />`
+		: "";
+	const inner = `
+		<p class="kicker">MCP consent</p>
+		<h1>Return to Cursor</h1>
+		<p>Access approved. Finish in your MCP client on this computer.</p>
+		${href ? `<p><a id="oauth-redirect" class="ghost" href="${sanitizeText(href)}">Open the local callback</a></p>` : `<p class="error">Missing loopback redirect.</p>`}
+	`;
+	return htmlResponse(pageShell("Return to Cursor — yumeoi", inner, extraHead), 200, {
+		"set-cookie": clearCsrfCookie(secure),
+		...(href ? { location: href, refresh: `0;url=${href}` } : {}),
 	});
 };
 
@@ -191,7 +291,7 @@ const parseOrError = async (request: Request, env: Env): Promise<AuthRequest | R
 			if (error.issuer) {
 				redirect.searchParams.set("iss", error.issuer);
 			}
-			return Response.redirect(redirect.toString(), 302);
+			return redirectResponse(redirect.toString());
 		}
 		throw error;
 	}
@@ -230,7 +330,37 @@ const recordGrant = async (
 export async function handleAuthorize(request: Request, env: Env): Promise<Response> {
 	const url = new URL(request.url);
 	const secure = url.protocol === "https:";
-	const parsed = await parseOrError(request, env);
+
+	if (request.method === "GET") {
+		const parsed = await parseOrError(request, env);
+		if (parsed instanceof Response) {
+			return parsed;
+		}
+		const client = await oauthHelpers(env).lookupClient(parsed.clientId);
+		if (!client) {
+			return htmlResponse(
+				pageShell(
+					"Unknown client — yumeoi",
+					`<p class="kicker">MCP consent</p><h1>Unknown client</h1><p class="error">This MCP client is not registered.</p>`,
+				),
+				400,
+			);
+		}
+		return renderConsent(parsed, client, appUserId(env), crypto.randomUUID(), secure);
+	}
+
+	if (request.method !== "POST") {
+		return htmlResponse(
+			pageShell(
+				"Method not allowed — yumeoi",
+				`<p class="kicker">MCP consent</p><h1>Method not allowed</h1>`,
+			),
+			405,
+		);
+	}
+
+	const form = await request.formData();
+	const parsed = await parseOrError(requestWithOAuthForm(request, form), env);
 	if (parsed instanceof Response) {
 		return parsed;
 	}
@@ -248,29 +378,6 @@ export async function handleAuthorize(request: Request, env: Env): Promise<Respo
 	}
 
 	const userId = appUserId(env);
-
-	if (request.method === "GET") {
-		return renderConsent(
-			parsed,
-			client,
-			userId,
-			crypto.randomUUID(),
-			secure,
-			`${url.pathname}${url.search}`,
-		);
-	}
-
-	if (request.method !== "POST") {
-		return htmlResponse(
-			pageShell(
-				"Method not allowed — yumeoi",
-				`<p class="kicker">MCP consent</p><h1>Method not allowed</h1>`,
-			),
-			405,
-		);
-	}
-
-	const form = await request.formData();
 	const csrfForm = String(form.get("csrf_token") ?? "");
 	const csrfCookie = cookieValue(request.headers.get("cookie"), csrfCookieName(secure));
 	if (!csrfForm || !csrfCookie || csrfForm !== csrfCookie) {
@@ -305,5 +412,8 @@ export async function handleAuthorize(request: Request, env: Env): Promise<Respo
 		},
 	});
 	await recordGrant(env, userId, client.clientId, clientName);
+	if (isLoopbackRedirect(redirectTo)) {
+		return loopbackHandoff(redirectTo, secure);
+	}
 	return redirectResponse(redirectTo, { "set-cookie": clearCsrfCookie(secure) });
 }

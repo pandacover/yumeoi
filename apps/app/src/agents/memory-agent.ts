@@ -56,6 +56,34 @@ type AgentRuntime = ReturnType<typeof makeMemoryAgentRuntime>;
 
 type FilterKind = MemoryKind;
 
+const causeText = (cause: unknown): string => {
+	if (cause instanceof Error && cause.message.trim()) {
+		return cause.message;
+	}
+	if (typeof cause === "string" && cause.trim()) {
+		return cause;
+	}
+	return "";
+};
+
+const publicError = (error: unknown): Error => {
+	if (error instanceof Error && error.message.trim()) {
+		return error;
+	}
+	if (error && typeof error === "object" && "_tag" in error) {
+		const tagged = error as {
+			_tag: string;
+			message?: string;
+			provider?: string;
+			cause?: unknown;
+		};
+		const detail = tagged.message || causeText(tagged.cause) || tagged.provider || "";
+		return new Error(detail ? `${tagged._tag}: ${detail}` : tagged._tag);
+	}
+	const text = String(error);
+	return new Error(text && text !== "[object Object]" ? text : "ingest failed");
+};
+
 export class MemoryAgent extends AIChatAgent<Env, MemoryAgentState> {
 	override initialState: MemoryAgentState = { ready: false, sources: [] };
 	override maxPersistedMessages = 200;
@@ -68,8 +96,7 @@ export class MemoryAgent extends AIChatAgent<Env, MemoryAgentState> {
 		super(ctx, env);
 		void ctx.blockConcurrencyWhile(async () => {
 			try {
-				const providers = await resolveGatewayLlmProvidersFromKeys({
-					getUrl: (provider) => env.AI.gateway(env.AI_GATEWAY_ID || "default").getUrl(provider),
+				const providers = resolveGatewayLlmProvidersFromKeys({
 					openrouterApiKey: env.OPENROUTER_API_KEY,
 					openaiApiKey: env.OPENAI_API_KEY,
 				});
@@ -195,16 +222,24 @@ export class MemoryAgent extends AIChatAgent<Env, MemoryAgentState> {
 
 	@callable()
 	async ingest(request: IngestRequest): Promise<IngestResult> {
-		const result = await this.#runtime.runPromise(ingestDocument({ userId: this.name, request }));
-		this.setState({ ...this.state, lastIngest: result });
-		return result;
+		try {
+			const result = await this.#runtime.runPromise(ingestDocument({ userId: this.name, request }));
+			this.setState({ ...this.state, lastIngest: result });
+			return result;
+		} catch (error) {
+			throw publicError(error);
+		}
 	}
 
 	@callable()
 	async beginIngest(request: IngestRequest): Promise<IngestState> {
-		return this.#runtime.runPromise(
-			runIngestStep("fetch", initialIngestState({ userId: this.name, request })),
-		);
+		try {
+			return await this.#runtime.runPromise(
+				runIngestStep("fetch", initialIngestState({ userId: this.name, request })),
+			);
+		} catch (error) {
+			throw publicError(error);
+		}
 	}
 
 	@callable()
@@ -212,24 +247,32 @@ export class MemoryAgent extends AIChatAgent<Env, MemoryAgentState> {
 		name: Exclude<IngestStepName, "fetch">,
 		state: IngestState,
 	): Promise<IngestState> {
-		return this.#runtime.runPromise(runIngestStep(name, state));
+		try {
+			return await this.#runtime.runPromise(runIngestStep(name, state));
+		} catch (error) {
+			throw publicError(error);
+		}
 	}
 
 	@callable()
 	async startIngest(request: IngestRequest): Promise<IngestResult & { instanceId?: string }> {
-		if (!this.env.INGEST_WORKFLOW) {
-			return this.ingest(request);
+		try {
+			if (!this.env.INGEST_WORKFLOW) {
+				return this.ingest(request);
+			}
+			const instanceId = await this.runWorkflow("INGEST_WORKFLOW", {
+				userId: this.name,
+				request,
+			});
+			const result = await this.#waitForIngestWorkflow(instanceId);
+			this.setState({ ...this.state, lastIngest: result });
+			return { ...result, instanceId };
+		} catch (error) {
+			throw publicError(error);
 		}
-		const instanceId = await this.runWorkflow("INGEST_WORKFLOW", {
-			userId: this.name,
-			request,
-		});
-		const result = await this.#waitForIngestWorkflow(instanceId);
-		this.setState({ ...this.state, lastIngest: result });
-		return { ...result, instanceId };
 	}
 
-	async #waitForIngestWorkflow(instanceId: string, timeoutMs = 60_000): Promise<IngestResult> {
+	async #waitForIngestWorkflow(instanceId: string, timeoutMs = 180_000): Promise<IngestResult> {
 		const deadline = Date.now() + timeoutMs;
 		while (Date.now() < deadline) {
 			const status = await this.getWorkflowStatus("INGEST_WORKFLOW", instanceId);

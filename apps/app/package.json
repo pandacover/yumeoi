@@ -8,6 +8,7 @@
 		"build": "vite build",
 		"preview": "vite preview",
 		"deploy": "vite build && wrangler deploy",
+		"deploy:prod": "bash ./scripts/deploy-prod.sh",
 		"deploy:dry-run": "vite build && wrangler deploy --dry-run --outdir dist",
 		"deploy:preview": "vite build && wrangler versions upload",
 		"cf-typegen": "wrangler types",

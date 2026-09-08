@@ -79,4 +79,24 @@ describe("Notion OAuth", () => {
 		expect(token.accessToken).toBe("ntn_access_2");
 		expect(token.refreshToken).toBe("ntn_refresh_2");
 	});
+
+	test("surfaces Notion invalid_client on token exchange", async () => {
+		const fetchImpl: FetchFn = async () =>
+			Response.json({ error: "invalid_client", request_id: "req-1" }, { status: 401 });
+		try {
+			await Effect.runPromise(
+				exchangeNotionCode(
+					{
+						clientId: "client-1",
+						clientSecret: "secret",
+						redirectUri: "http://localhost:3000/api/sources/notion/callback",
+					},
+					"code-1",
+				).pipe(Effect.provide(fetchHttpLayer(fetchImpl))),
+			);
+			throw new Error("expected token exchange to fail");
+		} catch (error) {
+			expect(String(error)).toContain("invalid_client");
+		}
+	});
 });

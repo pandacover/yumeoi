@@ -86,6 +86,24 @@ function AgentsPage() {
 			),
 		[mcpUrl],
 	);
+	const headlessSnippet = useMemo(
+		() =>
+			JSON.stringify(
+				{
+					mcpServers: {
+						yumeoi: {
+							url: mcpUrl || "https://<your-worker>/mcp",
+							headers: {
+								Authorization: "Bearer ym_…",
+							},
+						},
+					},
+				},
+				null,
+				2,
+			),
+		[mcpUrl],
+	);
 	const claudeSnippet = useMemo(
 		() =>
 			JSON.stringify(
@@ -119,17 +137,18 @@ function AgentsPage() {
 				<p className="text-sm tracking-[0.2em] text-[var(--accent)] uppercase">M4 agents</p>
 				<h1 className="text-3xl font-semibold tracking-tight">Agents</h1>
 				<p className="max-w-2xl text-[var(--muted)]">
-					Connect Cursor or Claude Desktop over MCP OAuth, or mint a <code>ym_</code> API key for
-					headless agents. Grants can be revoked here.
+					Cursor and Claude connect over MCP OAuth — copy the URL below, no API key. Mint a{" "}
+					<code>ym_</code> key only for curl, scripts, or other headless clients that send{" "}
+					<code>Authorization: Bearer</code>.
 				</p>
 			</header>
 
 			<section className="rounded-2xl border border-[var(--line)] bg-[var(--card)] p-6">
 				<h2 className="text-lg font-medium">MCP connection</h2>
 				<p className="mt-2 text-sm text-[var(--muted)]">
-					Remote MCP URL. Clients register at <code>{initial.registerPath}</code>, authorize at{" "}
-					<code>{initial.authorizePath}</code>, and exchange tokens at{" "}
-					<code>{initial.tokenPath}</code>. Scopes: {initial.scopes.join(", ")}.
+					Paste this into Cursor MCP settings. Cursor opens a browser for OAuth and returns to{" "}
+					<code>http://localhost:8787/callback</code> on your machine — that is Cursor's loopback,
+					not this Worker. Do not put an API key in this config.
 				</p>
 				<p className="mt-4 font-mono text-sm">{mcpUrl || initial.mcpPath}</p>
 				<div className="mt-4 flex flex-wrap gap-3">
@@ -196,12 +215,23 @@ function AgentsPage() {
 					</button>
 				</div>
 				<p className="mt-2 text-sm text-[var(--muted)]">
-					Headless MCP and <code>/ingest</code> use <code>Authorization: Bearer ym_…</code>. The
+					Not for Cursor OAuth. Use a minted <code>ym_</code> key as{" "}
+					<code>Authorization: Bearer ym_…</code> on <code>/ingest</code>, <code>/api/*</code>, and
+					headless MCP. The Worker env key <code>YUMEOI_API_KEY</code> is the same mechanism. The
 					full token is shown once.
 				</p>
 				{mintedToken ? (
-					<p className="mt-3 break-all font-mono text-sm text-[var(--accent)]">{mintedToken}</p>
-				) : null}
+					<>
+						<p className="mt-3 break-all font-mono text-sm text-[var(--accent)]">{mintedToken}</p>
+						<pre className="mt-3 overflow-x-auto rounded-lg border border-[var(--line)] bg-[var(--bg)] p-3 text-xs">
+							{headlessSnippet.replace("ym_…", mintedToken)}
+						</pre>
+					</>
+				) : (
+					<pre className="mt-3 overflow-x-auto rounded-lg border border-[var(--line)] bg-[var(--bg)] p-3 text-xs">
+						{headlessSnippet}
+					</pre>
+				)}
 				<ul className="mt-4 flex flex-col gap-3">
 					{keys.length === 0 ? (
 						<li className="text-sm text-[var(--muted)]">No API keys yet.</li>

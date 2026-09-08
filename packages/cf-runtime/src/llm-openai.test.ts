@@ -100,32 +100,30 @@ describe("classifyGatewayError", () => {
 		expect(error._tag).toBe("ProviderUnavailable");
 		expect(error.provider).toBe("openai");
 	});
+
+	test("maps HTTP 404 to ProviderUnavailable so the next provider can run", () => {
+		const error = classifyGatewayError("openrouter", { status: 404 });
+		expect(error._tag).toBe("ProviderUnavailable");
+		expect(error.provider).toBe("openrouter");
+	});
 });
 
 describe("resolveGatewayLlmProvidersFromKeys", () => {
-	test("resolves OpenRouter first when both keys can fetch a gateway URL", async () => {
-		const providers = await resolveGatewayLlmProvidersFromKeys({
-			getUrl: async (provider) => `https://gateway.example/${provider}`,
-			openrouterApiKey: "or-key",
-			openaiApiKey: "oa-key",
-		});
-		expect(providers.map((provider) => provider.provider)).toEqual(["openrouter", "openai"]);
-		expect(providers[0]?.baseURL).toBe("https://gateway.example/openrouter");
-	});
-
-	test("skips OpenRouter when its gateway URL cannot be resolved", async () => {
-		const providers = await resolveGatewayLlmProvidersFromKeys({
-			getUrl: async (provider) => {
-				if (provider === "openrouter") {
-					throw new Error("no openrouter gateway");
-				}
-				return `https://gateway.example/${provider}`;
-			},
+	test("binds OpenRouter to its public API, not AI Gateway", () => {
+		const providers = resolveGatewayLlmProvidersFromKeys({
 			openrouterApiKey: "or-key",
 			openaiApiKey: "oa-key",
 		});
 		expect(providers).toEqual([
-			{ provider: "openai", apiKey: "oa-key", baseURL: "https://gateway.example/openai" },
+			{ provider: "openrouter", apiKey: "or-key", baseURL: "https://openrouter.ai/api/v1" },
+			{ provider: "openai", apiKey: "oa-key", baseURL: "https://api.openai.com/v1" },
 		]);
+	});
+
+	test("omits a provider when its key is missing", () => {
+		expect(resolveGatewayLlmProvidersFromKeys({ openrouterApiKey: "or-key" })).toEqual([
+			{ provider: "openrouter", apiKey: "or-key", baseURL: "https://openrouter.ai/api/v1" },
+		]);
+		expect(resolveGatewayLlmProvidersFromKeys({})).toEqual([]);
 	});
 });
