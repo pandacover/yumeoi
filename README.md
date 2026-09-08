@@ -2,7 +2,7 @@
 
 Memory infrastructure: connect apps, extract memories, chat with them, and serve them to agents over MCP.
 
-v0 plan: [`docs/v0-plan.md`](docs/v0-plan.md). This tree is **M1** — ingest and recall, no connectors.
+v0 plan: [`docs/v0-plan.md`](docs/v0-plan.md). This tree is **M1** — ingest and recall, no connectors. Model pins: [`docs/eval/m1.md`](docs/eval/m1.md).
 
 ## Stack
 
@@ -51,8 +51,8 @@ Creates `yumeoi-memories` at 1024/cosine with metadata indexes `sourceId`, `kind
 
 Chat is pinned to **GPT-5.6 Luna**, API id `gpt-5.6-luna` (OpenRouter: `openai/gpt-5.6-luna`), reasoning effort `high`. Calls go to OpenRouter first, then OpenAI.
 
-M1 pins from the eval set (`docs/eval/m1.md`):
+M1 pins from the keyed eval (`docs/eval/m1.md`):
 
-- extract: Luna `low`
-- consolidate: Luna `low`
+- extract: Luna `high`
+- consolidate: Luna `none`
 - rerank: Luna `none`

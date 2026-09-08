@@ -30,22 +30,19 @@ export type LlmConfig = typeof LlmConfig.Type;
  * Exact OpenAI API id for GPT-5.6 Luna (confirmed against the GPT-5.6 Luna model page).
  * Chat stays pinned at reasoning effort `high`.
  *
- * M1 pins extract / consolidate / rerank from the eval-set decision in docs/eval/m1.md:
- * Luna is the cost-efficient 5.6 tier; extract is the volume job so effort is `low`;
- * consolidate shares that model so prompt cache hits; rerank is on the chat latency
- * path so effort is `none`.
+ * Extract / consolidate / rerank were pinned from the keyed OpenRouter eval in
+ * `docs/eval/m1.md` (live numbers, not the pre-eval cost defaults).
  */
 export const CHAT_MODEL_ID = "gpt-5.6-luna";
 export const EXTRACT_MODEL_ID = "gpt-5.6-luna";
 export const CONSOLIDATE_MODEL_ID = "gpt-5.6-luna";
 export const RERANK_MODEL_ID = "gpt-5.6-luna";
-
 export const TERRA_MODEL_ID = "gpt-5.6-terra";
 
 export const defaultLlmConfig: LlmConfig = {
 	chat: { model: CHAT_MODEL_ID, effort: "high" },
-	extract: { model: EXTRACT_MODEL_ID, effort: "low" },
-	consolidate: { model: CONSOLIDATE_MODEL_ID, effort: "low" },
+	extract: { model: EXTRACT_MODEL_ID, effort: "high" },
+	consolidate: { model: CONSOLIDATE_MODEL_ID, effort: "none" },
 	rerank: { model: RERANK_MODEL_ID, effort: "none" },
 };
 
@@ -94,20 +91,25 @@ export const parseResponseUsage = (
 	};
 };
 
-/** Candidates measured at M1 for extract (volume job). Luna `high` is omitted from the default sweep. */
+/** Candidates measured at M1 for extract (volume job). Includes Luna `high` because the keyed eval scored it. */
 export const EXTRACT_EVAL_CANDIDATES: ReadonlyArray<LlmJobConfig> = [
 	{ model: EXTRACT_MODEL_ID, effort: "none" },
 	{ model: EXTRACT_MODEL_ID, effort: "low" },
 	{ model: EXTRACT_MODEL_ID, effort: "medium" },
+	{ model: EXTRACT_MODEL_ID, effort: "high" },
 	{ model: TERRA_MODEL_ID, effort: "low" },
 ];
 
 export const CONSOLIDATE_EVAL_CANDIDATES: ReadonlyArray<LlmJobConfig> = [
 	{ model: CONSOLIDATE_MODEL_ID, effort: "none" },
 	{ model: CONSOLIDATE_MODEL_ID, effort: "low" },
+	{ model: CONSOLIDATE_MODEL_ID, effort: "medium" },
+	{ model: CONSOLIDATE_MODEL_ID, effort: "high" },
+	{ model: TERRA_MODEL_ID, effort: "low" },
 ];
 
 export const RERANK_EVAL_CANDIDATES: ReadonlyArray<LlmJobConfig> = [
 	{ model: RERANK_MODEL_ID, effort: "none" },
 	{ model: RERANK_MODEL_ID, effort: "low" },
+	{ model: TERRA_MODEL_ID, effort: "low" },
 ];
