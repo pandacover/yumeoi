@@ -7,10 +7,11 @@ export const Route = createRootRoute({
 		meta: [
 			{ charSet: "utf-8" },
 			{ name: "viewport", content: "width=device-width, initial-scale=1" },
-			{ title: "yumeoi — m0" },
+			{ title: "yumeoi — m1" },
 			{
 				name: "description",
-				content: "Memory infrastructure skeleton: connect, ingest, remember, recall.",
+				content:
+					"Memory infrastructure: ingest documents, extract memories, recall over MCP and HTTP.",
 			},
 		],
 		links: [{ rel: "stylesheet", href: appCss }],

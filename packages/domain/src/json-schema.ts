@@ -1,5 +1,5 @@
 import { Schema } from "effect";
-import { ExtractedMemory } from "./schema.ts";
+import { ConsolidateDecision, ExtractedMemories, ExtractedMemory, RerankResult } from "./schema.ts";
 
 export const toOpenAiJsonSchema = (schema: Schema.Top): Record<string, unknown> => {
 	const document = Schema.toJsonSchemaDocument(schema);
@@ -11,3 +11,6 @@ export const toOpenAiJsonSchema = (schema: Schema.Top): Record<string, unknown> 
 };
 
 export const extractedMemoryJsonSchema = () => toOpenAiJsonSchema(ExtractedMemory);
+export const extractedMemoriesJsonSchema = () => toOpenAiJsonSchema(ExtractedMemories);
+export const consolidateDecisionJsonSchema = () => toOpenAiJsonSchema(ConsolidateDecision);
+export const rerankResultJsonSchema = () => toOpenAiJsonSchema(RerankResult);

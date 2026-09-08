@@ -10,6 +10,15 @@ export const MemoryKind = Schema.Literals([
 ]);
 export type MemoryKind = typeof MemoryKind.Type;
 
+export const MEMORY_KINDS = [
+	"fact",
+	"preference",
+	"decision",
+	"task",
+	"relationship",
+	"event",
+] as const;
+
 /** Structured-output shape used by extract (all fields required for OpenAI strict mode). */
 export const ExtractedMemory = Schema.Struct({
 	kind: MemoryKind,
@@ -18,6 +27,25 @@ export const ExtractedMemory = Schema.Struct({
 	validFrom: Schema.NullOr(Schema.String),
 });
 export type ExtractedMemory = typeof ExtractedMemory.Type;
+
+export const ExtractedMemories = Schema.Struct({
+	memories: Schema.Array(ExtractedMemory),
+});
+export type ExtractedMemories = typeof ExtractedMemories.Type;
+
+export const ConsolidateAction = Schema.Literals(["new", "duplicate", "supersedes"]);
+export type ConsolidateAction = typeof ConsolidateAction.Type;
+
+export const ConsolidateDecision = Schema.Struct({
+	action: ConsolidateAction,
+	targetId: Schema.NullOr(Schema.String),
+});
+export type ConsolidateDecision = typeof ConsolidateDecision.Type;
+
+export const RerankResult = Schema.Struct({
+	ids: Schema.Array(Schema.String),
+});
+export type RerankResult = typeof RerankResult.Type;
 
 export const Memory = Schema.Struct({
 	id: Schema.String,
@@ -62,8 +90,80 @@ export const Chunk = Schema.Struct({
 });
 export type Chunk = typeof Chunk.Type;
 
+export const Provenance = Schema.Struct({
+	sourceId: Schema.String,
+	documentId: Schema.String,
+	chunkId: Schema.String,
+	title: Schema.String,
+	url: Schema.NullOr(Schema.String),
+});
+export type Provenance = typeof Provenance.Type;
+
+export const MemoryHit = Schema.Struct({
+	memory: Memory,
+	score: Schema.Finite,
+	provenance: Schema.Array(Provenance),
+});
+export type MemoryHit = typeof MemoryHit.Type;
+
+export const ChunkHit = Schema.Struct({
+	chunk: Chunk,
+	score: Schema.Finite,
+	title: Schema.String,
+	url: Schema.NullOr(Schema.String),
+	sourceId: Schema.String,
+});
+export type ChunkHit = typeof ChunkHit.Type;
+
 export const RecallResult = Schema.Struct({
-	memories: Schema.Array(Memory),
-	chunks: Schema.Array(Chunk),
+	memories: Schema.Array(MemoryHit),
+	chunks: Schema.Array(ChunkHit),
 });
 export type RecallResult = typeof RecallResult.Type;
+
+export const SearchQuery = Schema.Struct({
+	query: Schema.String,
+	sources: Schema.Array(Schema.String),
+	kinds: Schema.Array(MemoryKind),
+	since: Schema.NullOr(Schema.Finite),
+	limit: Schema.Int,
+});
+export type SearchQuery = typeof SearchQuery.Type;
+
+export const RecallQuery = Schema.Struct({
+	query: Schema.String,
+	sources: Schema.Array(Schema.String),
+	kinds: Schema.Array(MemoryKind),
+	since: Schema.NullOr(Schema.Finite),
+	budgetTokens: Schema.Int,
+	rerank: Schema.Boolean,
+});
+export type RecallQuery = typeof RecallQuery.Type;
+
+export const IngestRequest = Schema.Struct({
+	externalId: Schema.String,
+	title: Schema.String,
+	markdown: Schema.String,
+	sourceId: Schema.NullOr(Schema.String),
+	sourceLabel: Schema.NullOr(Schema.String),
+	url: Schema.NullOr(Schema.String),
+});
+export type IngestRequest = typeof IngestRequest.Type;
+
+export const IngestResult = Schema.Struct({
+	documentId: Schema.String,
+	sourceId: Schema.String,
+	contentHash: Schema.String,
+	unchanged: Schema.Boolean,
+	chunkCount: Schema.Int,
+	memoryCount: Schema.Int,
+	skippedChunks: Schema.Int,
+});
+export type IngestResult = typeof IngestResult.Type;
+
+export const AddMemoryRequest = Schema.Struct({
+	text: Schema.String,
+	kind: MemoryKind,
+	confidence: Schema.Finite,
+});
+export type AddMemoryRequest = typeof AddMemoryRequest.Type;
