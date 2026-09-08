@@ -1,6 +1,6 @@
 import type { MemoryKind, RecallResult } from "@yumeoi/domain";
 import { citationsFromRecall } from "@yumeoi/memory";
-import { tool } from "ai";
+import { type ToolSet, tool } from "ai";
 import { z } from "zod";
 
 const kindSchema = z.enum(["fact", "preference", "decision", "task", "relationship", "event"]);
@@ -20,7 +20,7 @@ export const createMemoryChatTools = (agent: {
 		rerank?: boolean;
 	}) => Promise<RecallResult>;
 	getDocument: (id: string) => Promise<ChatDocument>;
-}) => ({
+}): ToolSet => ({
 	recall: tool({
 		description:
 			"Recall relevant memories and supporting chunks for a question. Call this before answering anything about the user's notes, preferences, documents, or past decisions.",

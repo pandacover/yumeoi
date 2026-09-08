@@ -11,7 +11,8 @@ export const Route = createRootRoute({
 			{ title: "yumeoi — m3" },
 			{
 				name: "description",
-				content: "Connect sources, extract memories, and chat with them from the UI, MCP, and HTTP.",
+				content:
+					"Connect sources, extract memories, and chat with them from the UI, MCP, and HTTP.",
 			},
 		],
 		links: [{ rel: "stylesheet", href: appCss }],

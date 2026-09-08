@@ -83,7 +83,10 @@ describe("chat citations", () => {
 	});
 
 	test("heuristic answer cites memories and lists sources", () => {
-		const { text, citations } = heuristicChatAnswer("What does Luv prefer?", citationsFromRecall(recall));
+		const { text, citations } = heuristicChatAnswer(
+			"What does Luv prefer?",
+			citationsFromRecall(recall),
+		);
 		expect(citations).toHaveLength(2);
 		expect(text).toContain("Effect 4");
 		expect(text).toContain("[1]");

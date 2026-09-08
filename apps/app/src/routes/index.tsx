@@ -55,9 +55,7 @@ function Home() {
 	return (
 		<main className="mx-auto flex min-h-screen max-w-3xl flex-col gap-8 px-6 py-16">
 			<header className="flex flex-col gap-3">
-				<p className="text-sm tracking-[0.2em] text-[var(--accent)] uppercase">
-					M3 chat
-				</p>
+				<p className="text-sm tracking-[0.2em] text-[var(--accent)] uppercase">M3 chat</p>
 				<h1 className="text-4xl font-semibold tracking-tight">yumeoi</h1>
 				<p className="max-w-xl text-[var(--muted)]">
 					Connect Notion, extract memories, and chat with them. Answers cite the memories and
