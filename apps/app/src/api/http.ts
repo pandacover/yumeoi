@@ -170,7 +170,11 @@ export async function handleApi(request: Request, env: Env): Promise<Response | 
 		return handleSpikes(request, env);
 	}
 
-	if (url.pathname === "/api/sources/notion/authorize" && request.method === "GET") {
+	const pathname = url.pathname.replace(/\/+$/, "") || "/";
+	const isPublicNotionOAuth =
+		pathname === "/api/sources/notion/authorize" || pathname === "/api/sources/notion/callback";
+
+	if (pathname === "/api/sources/notion/authorize" && request.method === "GET") {
 		try {
 			const location = await startNotionAuthorize(env, request, appUserId(env));
 			return Response.redirect(location, 302);
@@ -179,7 +183,7 @@ export async function handleApi(request: Request, env: Env): Promise<Response | 
 		}
 	}
 
-	if (url.pathname === "/api/sources/notion/callback" && request.method === "GET") {
+	if (pathname === "/api/sources/notion/callback" && request.method === "GET") {
 		const code = url.searchParams.get("code");
 		const state = url.searchParams.get("state");
 		if (!code || !state) {
@@ -190,7 +194,17 @@ export async function handleApi(request: Request, env: Env): Promise<Response | 
 			await syncSource(env, source.id);
 			return Response.redirect(new URL("/sources?connected=1", request.url), 302);
 		} catch (error) {
-			return json({ error: error instanceof Error ? error.message : String(error) }, 400);
+			const message = error instanceof Error ? error.message : String(error);
+			const invalidClient = /invalid_client/i.test(message);
+			return json(
+				{
+					error: invalidClient ? "invalid_client" : message,
+					message: invalidClient
+						? "Notion rejected the OAuth client ID or secret. Copy both from the same public connection Configuration tab, not an internal integration token."
+						: message,
+				},
+				invalidClient ? 401 : 400,
+			);
 		}
 	}
 
@@ -200,7 +214,7 @@ export async function handleApi(request: Request, env: Env): Promise<Response | 
 		url.pathname.startsWith("/api/recall") ||
 		url.pathname.startsWith("/api/memories") ||
 		url.pathname.startsWith("/api/documents") ||
-		url.pathname.startsWith("/api/sources") ||
+		(url.pathname.startsWith("/api/sources") && !isPublicNotionOAuth) ||
 		url.pathname.startsWith("/api/keys") ||
 		url.pathname.startsWith("/api/grants");
 
