@@ -14,16 +14,17 @@ export type OAuthState = {
 	readonly nonce: string;
 };
 
+export const resolveNotionRedirectUri = (env: Env, request: Request): string =>
+	env.NOTION_REDIRECT_URI || `${new URL(request.url).origin}/api/sources/notion/callback`;
+
 export const notionOAuthConfig = (env: Env, request: Request): NotionOAuthConfig | null => {
 	if (!env.NOTION_CLIENT_ID || !env.NOTION_CLIENT_SECRET) {
 		return null;
 	}
-	const redirectUri =
-		env.NOTION_REDIRECT_URI || `${new URL(request.url).origin}/api/sources/notion/callback`;
 	return {
 		clientId: env.NOTION_CLIENT_ID,
 		clientSecret: env.NOTION_CLIENT_SECRET,
-		redirectUri,
+		redirectUri: resolveNotionRedirectUri(env, request),
 	};
 };
 

@@ -30,7 +30,7 @@ Chat uses `AIChatAgent` + `useAgentChat` with tools bound to `recall` and `get_d
 
 Set `YUMEOI_API_KEY` (and optional `YUMEOI_USER_ID`) in `.dev.vars`. Set `OPENROUTER_API_KEY` (default LLM) and optionally `OPENAI_API_KEY` (fallback). Without either LLM key, ingest uses the heuristic extractor so the loop still runs.
 
-Notion OAuth uses `NOTION_CLIENT_ID` / `NOTION_CLIENT_SECRET`. Without those, the Sources screen can still **Connect demo workspace** (fixture connector) to exercise SourceAgent polling.
+Notion OAuth uses a **public** connection plus `NOTION_CLIENT_ID` / `NOTION_CLIENT_SECRET`. The Redirect URI in that connection must match `NOTION_REDIRECT_URI` exactly (production: `https://yumeoi.luvmakin01.workers.dev/api/sources/notion/callback`). Internal connections cannot complete this flow. Without those secrets, the Sources screen can still **Connect demo workspace** (fixture connector) to exercise SourceAgent polling.
 
 `POST /ingest` starts `IngestWorkflow` (realtime lane) and waits for the durable steps to finish.
 

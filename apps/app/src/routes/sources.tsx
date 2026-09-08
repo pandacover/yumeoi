@@ -13,6 +13,7 @@ const getSourcesContext = createServerFn({ method: "GET" }).handler(async () => 
 	return {
 		userId,
 		notionConfigured: Boolean(env.NOTION_CLIENT_ID && env.NOTION_CLIENT_SECRET),
+		notionRedirectUri: env.NOTION_REDIRECT_URI || null,
 		sources,
 	};
 });
@@ -95,6 +96,14 @@ function SourcesPage() {
 					{busy === "demo" ? "Connecting…" : "Connect demo workspace"}
 				</button>
 			</section>
+
+			{initial.notionConfigured && initial.notionRedirectUri ? (
+				<p className="max-w-2xl text-sm text-[var(--muted)]">
+					If Notion reports a missing or invalid redirect URI, add this exact value to the public
+					connection under Redirect URIs:{" "}
+					<code className="break-all text-[var(--fg)]">{initial.notionRedirectUri}</code>
+				</p>
+			) : null}
 
 			{message ? <p className="text-sm text-[var(--accent)]">{message}</p> : null}
 
