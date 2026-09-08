@@ -190,6 +190,7 @@ export class SourceAgent extends Agent<Env, SourceAgentState> {
 			kind: input.kind,
 			label: input.label,
 			status: "idle",
+			cursor: null,
 			lastError: null,
 		});
 		await this.env.MemoryAgent.getByName(input.userId).registerSource({
@@ -213,7 +214,11 @@ export class SourceAgent extends Agent<Env, SourceAgentState> {
 		this.setState({
 			...this.state,
 			status: "disconnected",
+			cursor: null,
+			lastSyncedAt: null,
 			lastError: null,
+			documentsSeen: 0,
+			documentsIngested: 0,
 		});
 		await this.#publish();
 		return this.#snapshot();
@@ -282,10 +287,15 @@ export class SourceAgent extends Agent<Env, SourceAgentState> {
 			}).pipe(Effect.provide(layer)),
 		);
 		const changed = [...refs];
+		const previousSeen = this.state.documentsSeen;
 		let ingested = 0;
 		let unchanged = 0;
 		const memory = this.env.MemoryAgent.getByName(this.state.userId);
-		this.setState({ ...this.state, status: "syncing", documentsSeen: changed.length });
+		this.setState({
+			...this.state,
+			status: "syncing",
+			documentsSeen: changed.length > 0 ? changed.length : previousSeen,
+		});
 		await this.#publish();
 		for (const ref of changed) {
 			const document = await this.#fetchNormalized(layer, ref);
@@ -318,7 +328,7 @@ export class SourceAgent extends Agent<Env, SourceAgentState> {
 			cursor: nextCursor,
 			lastSyncedAt: Date.now(),
 			lastError: null,
-			documentsSeen: changed.length,
+			documentsSeen: changed.length > 0 ? changed.length : previousSeen,
 			documentsIngested: this.state.documentsIngested + ingested,
 		});
 		await this.#publish();

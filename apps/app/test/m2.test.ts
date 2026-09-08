@@ -23,6 +23,7 @@ describe("M2 SourceAgent + Notion fixture", () => {
 		const again = await source.poll();
 		expect(again.status).toBe("idle");
 		expect(again.ingested).toBe(0);
+		expect((await source.status()).documentsSeen).toBe(poll.seen);
 
 		const memories = await env.MemoryAgent.getByName("rpc-user").search({
 			query: "Effect 4",
