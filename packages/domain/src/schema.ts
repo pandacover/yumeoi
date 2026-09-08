@@ -69,6 +69,31 @@ export const Source = Schema.Struct({
 });
 export type Source = typeof Source.Type;
 
+export const SourceStatus = Schema.Literals([
+	"idle",
+	"polling",
+	"syncing",
+	"error",
+	"disconnected",
+]);
+export type SourceStatus = typeof SourceStatus.Type;
+
+export const SOURCE_STATUSES = ["idle", "polling", "syncing", "error", "disconnected"] as const;
+
+/** Live source row shown in the UI and streamed via MemoryAgent state. */
+export const SourceView = Schema.Struct({
+	id: Schema.String,
+	userId: Schema.String,
+	kind: SourceKind,
+	label: Schema.String,
+	status: SourceStatus,
+	lastSyncedAt: Schema.NullOr(Schema.Finite),
+	lastError: Schema.NullOr(Schema.String),
+	documentsSeen: Schema.Int,
+	documentsIngested: Schema.Int,
+});
+export type SourceView = typeof SourceView.Type;
+
 export const Document = Schema.Struct({
 	id: Schema.String,
 	sourceId: Schema.String,
@@ -148,6 +173,7 @@ export const IngestRequest = Schema.Struct({
 	sourceId: Schema.NullOr(Schema.String),
 	sourceLabel: Schema.NullOr(Schema.String),
 	url: Schema.NullOr(Schema.String),
+	sourceKind: Schema.optionalKey(SourceKind),
 	metadata: Schema.optionalKey(
 		Schema.Record(
 			Schema.String,

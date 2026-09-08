@@ -8,7 +8,8 @@
 		"./llm-openai": "./src/llm-openai.ts"
 	},
 	"scripts": {
-		"typecheck": "tsgo --pretty false"
+		"typecheck": "tsgo --pretty false",
+		"test": "bun test"
 	},
 	"dependencies": {
 		"@effect/sql-d1": "4.0.0-rc.112",

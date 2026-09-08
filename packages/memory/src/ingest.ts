@@ -50,6 +50,7 @@ export type IngestState = {
 	readonly userId: string;
 	readonly request: IngestRequest;
 	readonly sourceId: string;
+	readonly sourceKind: NonNullable<IngestRequest["sourceKind"]>;
 	readonly sourceLabel: string;
 	readonly contentHash: string;
 	readonly documentId: string;
@@ -143,9 +144,26 @@ export const similarExistingMemories = (options: {
 		return overlapCandidates([...options.inBatch, ...recent], options.text);
 	});
 
+const sourceKindFor = (
+	request: IngestRequest,
+	sourceId: string,
+): NonNullable<IngestRequest["sourceKind"]> => {
+	if (request.sourceKind) {
+		return request.sourceKind;
+	}
+	if (sourceId.startsWith("notion")) {
+		return "notion";
+	}
+	if (sourceId.startsWith("agent")) {
+		return "agent";
+	}
+	return "generic";
+};
+
 export const initialIngestState = (params: IngestParams): IngestState => {
 	const sourceId = params.request.sourceId ?? "generic";
 	const sourceLabel = params.request.sourceLabel ?? "Generic ingest";
+	const sourceKind = sourceKindFor(params.request, sourceId);
 	return {
 		jobId: "",
 		userId: params.userId,
@@ -153,8 +171,10 @@ export const initialIngestState = (params: IngestParams): IngestState => {
 			...params.request,
 			sourceId,
 			sourceLabel,
+			sourceKind,
 		},
 		sourceId,
+		sourceKind,
 		sourceLabel,
 		contentHash: "",
 		documentId: "",
@@ -372,7 +392,7 @@ const commitIngest = (state: IngestState) =>
 			userId: state.userId,
 			source: {
 				id: state.sourceId,
-				kind: "generic",
+				kind: state.sourceKind,
 				label: state.sourceLabel,
 			},
 			document: {

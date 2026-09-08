@@ -2,7 +2,7 @@
 
 Memory infrastructure: connect apps, extract memories, chat with them, and serve them to agents over MCP.
 
-v0 plan: [`docs/v0-plan.md`](docs/v0-plan.md). This tree is **M1** — ingest and recall, no connectors. Model pins: [`docs/eval/m1.md`](docs/eval/m1.md).
+v0 plan: [`docs/v0-plan.md`](docs/v0-plan.md). This tree is **M2** — Notion connector, SourceAgent polling, and Sources/Memories UI. Model pins: [`docs/eval/m1.md`](docs/eval/m1.md).
 
 ## Stack
 
@@ -18,12 +18,14 @@ bun run dev
 
 The Worker serves:
 
-- UI at `/`
+- UI at `/`, `/sources`, `/memories`
 - MCP at `/mcp` (API key required; tools: `search_memories`, `recall_context`, `get_memory`, `get_document`, `add_memory`, `list_sources`)
-- Agents at `/agents/memory-agent/:name`
-- `POST /ingest` and `/api/search`, `/api/recall` with `Authorization: Bearer ym_…`
+- Agents at `/agents/memory-agent/:name` and `/agents/source-agent/:name`
+- `POST /ingest`, `/api/search`, `/api/recall`, `/api/sources` with `Authorization: Bearer ym_…`
 
 Set `YUMEOI_API_KEY` (and optional `YUMEOI_USER_ID`) in `.dev.vars`. Set `OPENROUTER_API_KEY` (default LLM) and optionally `OPENAI_API_KEY` (fallback). Without either LLM key, ingest uses the heuristic extractor so the loop still runs.
+
+Notion OAuth uses `NOTION_CLIENT_ID` / `NOTION_CLIENT_SECRET`. Without those, the Sources screen can still **Connect demo workspace** (fixture connector) to exercise SourceAgent polling.
 
 `POST /ingest` starts `IngestWorkflow` (realtime lane) and waits for the durable steps to finish.
 

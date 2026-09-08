@@ -1,6 +1,7 @@
 import { dispatch } from "../src/dispatch.ts";
 
 export { MemoryAgent } from "../src/agents/memory-agent.ts";
+export { SourceAgent } from "../src/agents/source-agent.ts";
 export { IngestWorkflow } from "../src/workflows/ingest-workflow.ts";
 
 export default {

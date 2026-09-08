@@ -1,18 +1,20 @@
 import { env } from "cloudflare:workers";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import { DEFAULT_LLM_PROVIDER, defaultLlmConfig, FALLBACK_LLM_PROVIDER } from "@yumeoi/domain";
 import { useState } from "react";
+import { appUserId } from "../api/sources.ts";
 
 const getHello = createServerFn({ method: "GET" }).handler(async () => {
-	const agent = env.MemoryAgent.getByName("demo");
-	return agent.hello("m1");
+	const userId = appUserId(env);
+	const agent = env.MemoryAgent.getByName(userId);
+	return { ...(await agent.hello("m2")), userId };
 });
 
 const demoIngest = createServerFn({ method: "POST" })
 	.validator((data: { title: string; markdown: string }) => data)
 	.handler(async ({ data }) => {
-		const agent = env.MemoryAgent.getByName("demo");
+		const agent = env.MemoryAgent.getByName(appUserId(env));
 		return agent.ingest({
 			externalId: `ui-${crypto.randomUUID()}`,
 			title: data.title.trim() || "Untitled",
@@ -26,7 +28,7 @@ const demoIngest = createServerFn({ method: "POST" })
 const demoRecall = createServerFn({ method: "POST" })
 	.validator((data: { query: string }) => data)
 	.handler(async ({ data }) => {
-		const agent = env.MemoryAgent.getByName("demo");
+		const agent = env.MemoryAgent.getByName(appUserId(env));
 		return agent.recall({
 			query: data.query,
 			rerank: true,
@@ -54,12 +56,20 @@ function Home() {
 		<main className="mx-auto flex min-h-screen max-w-3xl flex-col gap-8 px-6 py-16">
 			<header className="flex flex-col gap-3">
 				<p className="text-sm tracking-[0.2em] text-[var(--accent)] uppercase">
-					M1 ingest + recall
+					M2 Notion + sources
 				</p>
 				<h1 className="text-4xl font-semibold tracking-tight">yumeoi</h1>
 				<p className="max-w-xl text-[var(--muted)]">
-					POST markdown to <code>/ingest</code>, extract memories, and recall them from MCP or{" "}
-					<code>/api</code> with an API key.
+					Connect Notion, poll changes, extract memories, and recall them from the UI, MCP, or{" "}
+					<code>/api</code>.
+				</p>
+				<p className="flex gap-4 text-sm">
+					<Link className="text-[var(--accent)]" to="/sources">
+						Sources
+					</Link>
+					<Link className="text-[var(--accent)]" to="/memories">
+						Memories
+					</Link>
 				</p>
 			</header>
 
@@ -186,8 +196,8 @@ function Home() {
 				<div className="rounded-2xl border border-[var(--line)] bg-[var(--card)] p-6">
 					<h2 className="text-lg font-medium">LLM</h2>
 					<p className="mt-2 text-sm text-[var(--muted)]">
-						Chat stays Luna high, via OpenRouter with OpenAI as fallback. Extract and consolidate
-						are Luna low; rerank is Luna none. See <code>docs/eval/m1.md</code>.
+						Chat stays Luna high, via OpenRouter with OpenAI as fallback. Extract is Luna high;
+						consolidate and rerank are Luna none. See <code>docs/eval/m1.md</code>.
 					</p>
 					<p className="mt-3 font-mono text-sm">
 						extract {defaultLlmConfig.extract.model}/{defaultLlmConfig.extract.effort}
@@ -207,7 +217,8 @@ function Home() {
 					<li>GET /api/memories/:id</li>
 					<li>GET /api/documents/:id</li>
 					<li>POST /api/memories</li>
-					<li>GET /api/sources</li>
+					<li>GET|POST /api/sources · POST /api/sources/:id/sync</li>
+					<li>GET /api/sources/notion/authorize</li>
 					<li>GET|POST /api/keys · DELETE /api/keys/:id</li>
 					<li>GET /api/health</li>
 				</ul>
