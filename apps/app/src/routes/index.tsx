@@ -8,7 +8,7 @@ import { appUserId } from "../api/sources.ts";
 const getHello = createServerFn({ method: "GET" }).handler(async () => {
 	const userId = appUserId(env);
 	const agent = env.MemoryAgent.getByName(userId);
-	return { ...(await agent.hello("m3")), userId };
+	return { ...(await agent.hello("m4")), userId };
 });
 
 const demoIngest = createServerFn({ method: "POST" })
@@ -55,11 +55,11 @@ function Home() {
 	return (
 		<main className="mx-auto flex min-h-screen max-w-3xl flex-col gap-8 px-6 py-16">
 			<header className="flex flex-col gap-3">
-				<p className="text-sm tracking-[0.2em] text-[var(--accent)] uppercase">M3 chat</p>
+				<p className="text-sm tracking-[0.2em] text-[var(--accent)] uppercase">M4 agents</p>
 				<h1 className="text-4xl font-semibold tracking-tight">yumeoi</h1>
 				<p className="max-w-xl text-[var(--muted)]">
-					Connect Notion, extract memories, and chat with them. Answers cite the memories and
-					documents they used.
+					Connect Notion, extract memories, chat with them, and share the same store with Cursor or
+					Claude over MCP OAuth.
 				</p>
 				<p className="flex gap-4 text-sm">
 					<Link className="text-[var(--accent)]" to="/sources">
@@ -70,6 +70,9 @@ function Home() {
 					</Link>
 					<Link className="text-[var(--accent)]" to="/chat">
 						Chat
+					</Link>
+					<Link className="text-[var(--accent)]" to="/agents">
+						Agents
 					</Link>
 				</p>
 			</header>
@@ -183,7 +186,12 @@ function Home() {
 				<div className="rounded-2xl border border-[var(--line)] bg-[var(--card)] p-6">
 					<h2 className="text-lg font-medium">MCP</h2>
 					<p className="mt-2 text-sm text-[var(--muted)]">
-						API-key auth (<code>Authorization: Bearer ym_…</code>). Point Cursor at:
+						OAuth at <code>/authorize</code>, <code>/token</code>, <code>/register</code>, plus API
+						keys for headless clients. Manage grants on{" "}
+						<Link className="text-[var(--accent)]" to="/agents">
+							Agents
+						</Link>
+						.
 					</p>
 					<p className="mt-3 font-mono text-sm">/mcp</p>
 					<p className="mt-2 text-sm text-[var(--muted)]">
@@ -222,6 +230,8 @@ function Home() {
 					<li>GET|POST /api/sources · POST /api/sources/:id/sync</li>
 					<li>GET /api/sources/notion/authorize</li>
 					<li>GET|POST /api/keys · DELETE /api/keys/:id</li>
+					<li>GET /api/grants · DELETE /api/grants/:id</li>
+					<li>GET /authorize · POST /token · POST /register</li>
 					<li>GET /api/health</li>
 				</ul>
 			</section>

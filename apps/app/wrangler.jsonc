@@ -3,7 +3,7 @@
 	"name": "yumeoi",
 	"main": "src/server.ts",
 	"compatibility_date": "2026-09-07",
-	"compatibility_flags": ["nodejs_compat"],
+	"compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
 	"observability": {
 		"enabled": true,
 		"head_sampling_rate": 1
@@ -24,6 +24,12 @@
 		{
 			"binding": "DOCS",
 			"bucket_name": "yumeoi-docs"
+		}
+	],
+	"kv_namespaces": [
+		{
+			"binding": "OAUTH_KV",
+			"id": "local-oauth-kv"
 		}
 	],
 	"d1_databases": [

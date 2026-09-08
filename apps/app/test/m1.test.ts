@@ -1,7 +1,7 @@
 import { env, SELF } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
 
-const auth = { authorization: "Bearer ym_test_key" };
+const auth = { authorization: `Bearer ${env.YUMEOI_API_KEY}` };
 
 describe("MemoryAgent", () => {
 	it("returns hello from RPC", async () => {
@@ -54,7 +54,7 @@ describe("HTTP ingest and recall", () => {
 			extractModel: { model: string; effort: string };
 			llm: { defaultProvider: string; fallbackProvider: string };
 		};
-		expect(["m1", "m2", "m3"]).toContain(body.milestone);
+		expect(["m1", "m2", "m3", "m4"]).toContain(body.milestone);
 		expect(body.extractModel).toEqual({ model: "gpt-5.6-luna", effort: "high" });
 		expect(body.llm.defaultProvider).toBe("openrouter");
 		expect(body.llm.fallbackProvider).toBe("openai");

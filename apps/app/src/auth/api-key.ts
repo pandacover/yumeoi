@@ -39,15 +39,7 @@ export const unauthorized = () =>
 		{ status: 401, headers: { "www-authenticate": "Bearer" } },
 	);
 
-export const authenticateRequest = async (
-	request: Request,
-	env: Env,
-): Promise<AuthContext | null> => {
-	const token = bearer(request);
-	if (!token) {
-		return null;
-	}
-
+export const authenticateToken = async (token: string, env: Env): Promise<AuthContext | null> => {
 	if (env.YUMEOI_API_KEY && timingSafeEqual(token, env.YUMEOI_API_KEY)) {
 		return {
 			userId: env.YUMEOI_USER_ID || "default",
@@ -72,4 +64,15 @@ export const authenticateRequest = async (
 	}
 
 	return null;
+};
+
+export const authenticateRequest = async (
+	request: Request,
+	env: Env,
+): Promise<AuthContext | null> => {
+	const token = bearer(request);
+	if (!token) {
+		return null;
+	}
+	return authenticateToken(token, env);
 };

@@ -2,7 +2,7 @@
 
 Memory infrastructure: connect apps, extract memories, chat with them, and serve them to agents over MCP.
 
-v0 plan: [`docs/v0-plan.md`](docs/v0-plan.md). This tree is **M3** — streaming chat on MemoryAgent with inline citations. Model pins: [`docs/eval/m1.md`](docs/eval/m1.md).
+v0 plan: [`docs/v0-plan.md`](docs/v0-plan.md). This tree is **M4** — MCP OAuth, consent, and the Agents screen. Model pins: [`docs/eval/m1.md`](docs/eval/m1.md).
 
 ## Stack
 
@@ -18,10 +18,13 @@ bun run dev
 
 The Worker serves:
 
-- UI at `/`, `/sources`, `/memories`, `/chat`
-- MCP at `/mcp` (API key required; tools: `search_memories`, `recall_context`, `get_memory`, `get_document`, `add_memory`, `list_sources`)
+- UI at `/`, `/sources`, `/memories`, `/chat`, `/agents`
+- MCP at `/mcp` (OAuth or API key; tools: `search_memories`, `recall_context`, `get_memory`, `get_document`, `add_memory`, `list_sources`)
+- MCP OAuth at `/authorize`, `/token`, `/register` (PKCE + dynamic client registration)
 - Agents at `/agents/memory-agent/:name` and `/agents/source-agent/:name`
-- `POST /ingest`, `/api/search`, `/api/recall`, `/api/sources` with `Authorization: Bearer ym_…`
+- `POST /ingest`, `/api/search`, `/api/recall`, `/api/sources`, `/api/keys`, `/api/grants` with `Authorization: Bearer ym_…`
+
+Point Cursor or Claude Desktop at `/mcp`. The first connection opens the consent page; connected clients and API keys are managed on **Agents**. Headless agents that cannot do OAuth still send `Authorization: Bearer ym_…`.
 
 Chat uses `AIChatAgent` + `useAgentChat` with tools bound to `recall` and `get_document`. Streaming is resumable. Without an LLM key, chat answers from recalled memories with the same citation marks.
 

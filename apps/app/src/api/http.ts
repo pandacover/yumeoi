@@ -13,6 +13,8 @@ import {
 import { Schema } from "effect";
 import { authenticateRequest, unauthorized } from "../auth/api-key.ts";
 import { listApiKeys, mintApiKey, revokeApiKey } from "../auth/api-keys.ts";
+import { listConnectedMcpClients, revokeConnectedMcpClient } from "../auth/mcp-clients.ts";
+import { MCP_SCOPES } from "../auth/scopes.ts";
 import {
 	appUserId,
 	connectFixtureSource,
@@ -139,11 +141,19 @@ export async function handleApi(request: Request, env: Env): Promise<Response | 
 	if (url.pathname === "/api/health") {
 		return json({
 			ok: true,
-			milestone: "m3",
+			milestone: "m4",
 			chat: {
 				model: defaultLlmConfig.chat,
 				resumable: true,
 				tools: ["recall", "get_document"],
+			},
+			mcp: {
+				oauth: true,
+				authorize: "/authorize",
+				token: "/token",
+				register: "/register",
+				scopes: [...MCP_SCOPES],
+				apiKey: true,
 			},
 			chatModel: defaultLlmConfig.chat,
 			extractModel: defaultLlmConfig.extract,
@@ -191,7 +201,8 @@ export async function handleApi(request: Request, env: Env): Promise<Response | 
 		url.pathname.startsWith("/api/memories") ||
 		url.pathname.startsWith("/api/documents") ||
 		url.pathname.startsWith("/api/sources") ||
-		url.pathname.startsWith("/api/keys");
+		url.pathname.startsWith("/api/keys") ||
+		url.pathname.startsWith("/api/grants");
 
 	if (!needsAuth) {
 		if (url.pathname.startsWith("/api/") || url.pathname === "/ingest") {
@@ -322,6 +333,27 @@ export async function handleApi(request: Request, env: Env): Promise<Response | 
 			return json(await mintApiKey(env, auth.userId), 201);
 		} catch {
 			return json({ error: "api keys unavailable" }, 503);
+		}
+	}
+
+	if (url.pathname === "/api/grants" && request.method === "GET") {
+		try {
+			return json({ grants: await listConnectedMcpClients(env, auth.userId) });
+		} catch {
+			return json({ error: "grants unavailable" }, 503);
+		}
+	}
+
+	if (url.pathname.startsWith("/api/grants/") && request.method === "DELETE") {
+		const id = url.pathname.slice("/api/grants/".length);
+		try {
+			const revoked = await revokeConnectedMcpClient(env, auth.userId, id);
+			if (!revoked) {
+				return json({ error: "not found" }, 404);
+			}
+			return json({ ok: true, id });
+		} catch {
+			return json({ error: "grants unavailable" }, 503);
 		}
 	}
 

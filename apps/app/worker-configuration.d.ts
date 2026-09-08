@@ -12,6 +12,8 @@ declare namespace Cloudflare {
 		}>;
 		DOCS: R2Bucket;
 		DB: D1Database;
+		OAUTH_KV: KVNamespace;
+		OAUTH_PROVIDER?: import("@cloudflare/workers-oauth-provider").OAuthHelpers;
 		AI_GATEWAY_ID: string;
 		OPENROUTER_API_KEY?: string;
 		OPENAI_API_KEY?: string;
