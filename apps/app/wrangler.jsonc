@@ -1,0 +1,72 @@
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "yumeoi",
+	"main": "src/server.ts",
+	"compatibility_date": "2026-09-07",
+	"compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+	"observability": {
+		"enabled": true,
+		"head_sampling_rate": 1
+	},
+	"vars": {
+		"AI_GATEWAY_ID": "default"
+	},
+	"ai": {
+		"binding": "AI"
+	},
+	"vectorize": [
+		{
+			"binding": "VECTORIZE",
+			"index_name": "yumeoi-memories"
+		}
+	],
+	"r2_buckets": [
+		{
+			"binding": "DOCS",
+			"bucket_name": "yumeoi-docs"
+		}
+	],
+	"kv_namespaces": [
+		{
+			"binding": "OAUTH_KV",
+			"id": "6fc3540c6ee747a5a1674717821a1e5b"
+		}
+	],
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "yumeoi",
+			"database_id": "0cb4d753-ff62-49a0-a262-cbf786639ddc",
+			"migrations_dir": "migrations"
+		}
+	],
+	"durable_objects": {
+		"bindings": [
+			{
+				"name": "MemoryAgent",
+				"class_name": "MemoryAgent"
+			},
+			{
+				"name": "SourceAgent",
+				"class_name": "SourceAgent"
+			}
+		]
+	},
+	"workflows": [
+		{
+			"name": "ingest-workflow",
+			"binding": "INGEST_WORKFLOW",
+			"class_name": "IngestWorkflow"
+		}
+	],
+	"migrations": [
+		{
+			"tag": "v1",
+			"new_sqlite_classes": ["MemoryAgent"]
+		},
+		{
+			"tag": "v2",
+			"new_sqlite_classes": ["SourceAgent"]
+		}
+	]
+}

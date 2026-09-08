@@ -1,0 +1,18 @@
+{
+	"name": "@yumeoi/test-kit",
+	"version": "0.0.0",
+	"private": true,
+	"type": "module",
+	"exports": {
+		".": "./src/index.ts"
+	},
+	"scripts": {
+		"typecheck": "tsgo --pretty false",
+		"test": "bun test"
+	},
+	"dependencies": {
+		"@yumeoi/domain": "workspace:*",
+		"@yumeoi/memory": "workspace:*",
+		"effect": "4.0.0-rc.112"
+	}
+}

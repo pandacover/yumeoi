@@ -1,0 +1,25 @@
+{
+	"name": "@yumeoi/cf-runtime",
+	"version": "0.0.0",
+	"private": true,
+	"type": "module",
+	"exports": {
+		".": "./src/index.ts",
+		"./llm-openai": "./src/llm-openai.ts"
+	},
+	"scripts": {
+		"typecheck": "tsgo --pretty false",
+		"test": "bun test"
+	},
+	"dependencies": {
+		"@effect/sql-d1": "4.0.0-rc.112",
+		"@effect/sql-sqlite-do": "4.0.0-rc.112",
+		"@yumeoi/domain": "workspace:*",
+		"@yumeoi/memory": "workspace:*",
+		"effect": "4.0.0-rc.112",
+		"openai": "^5.20.1"
+	},
+	"devDependencies": {
+		"@cloudflare/workers-types": "latest"
+	}
+}
