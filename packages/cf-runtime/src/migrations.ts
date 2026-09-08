@@ -10,6 +10,7 @@ const statements = [
 		title TEXT NOT NULL,
 		markdown TEXT NOT NULL,
 		url TEXT,
+		r2_key TEXT,
 		created_at INTEGER NOT NULL,
 		updated_at INTEGER NOT NULL
 	)`,
@@ -83,5 +84,31 @@ export const memoryStoreMigration = Effect.gen(function* () {
 	const sql = yield* SqlClient;
 	for (const statement of statements) {
 		yield* sql.unsafe(statement);
+	}
+});
+
+const v2Statements = [
+	`CREATE TABLE IF NOT EXISTS sources (
+		id TEXT PRIMARY KEY NOT NULL,
+		kind TEXT NOT NULL,
+		label TEXT NOT NULL,
+		created_at INTEGER NOT NULL
+	)`,
+	`CREATE UNIQUE INDEX IF NOT EXISTS documents_source_external ON documents(source_id, external_id)`,
+];
+
+export const memoryStoreV2Migration = Effect.gen(function* () {
+	const sql = yield* SqlClient;
+	for (const statement of v2Statements) {
+		yield* sql.unsafe(statement);
+	}
+});
+
+/** Existing DOs created before r2_key was in 0001 still need the column. */
+export const memoryStoreV3Migration = Effect.gen(function* () {
+	const sql = yield* SqlClient;
+	const columns = yield* sql<{ name: string }>`PRAGMA table_info(documents)`;
+	if (!columns.some((column) => column.name === "r2_key")) {
+		yield* sql.unsafe("ALTER TABLE documents ADD COLUMN r2_key TEXT");
 	}
 });

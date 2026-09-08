@@ -19,3 +19,11 @@ export class NotFound extends Data.TaggedError("NotFound")<{
 	readonly entity: string;
 	readonly id: string;
 }> {}
+
+export class Unauthorized extends Data.TaggedError("Unauthorized")<{
+	readonly message: string;
+}> {}
+
+export class InvalidRequest extends Data.TaggedError("InvalidRequest")<{
+	readonly message: string;
+}> {}

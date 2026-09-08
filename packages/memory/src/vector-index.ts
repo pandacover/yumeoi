@@ -7,6 +7,7 @@ export interface VectorRecord {
 	readonly namespace: string;
 	readonly metadata: {
 		readonly sourceId: string;
+		readonly documentId: string;
 		readonly kind: string;
 		readonly ts: number;
 	};
@@ -28,6 +29,7 @@ export class VectorIndex extends Context.Service<
 			readonly values: ReadonlyArray<number>;
 			readonly namespace: string;
 			readonly topK: number;
+			readonly filter?: Record<string, unknown>;
 		}) => Effect.Effect<ReadonlyArray<VectorMatch>, ProviderUnavailable>;
 	}
 >()("@yumeoi/memory/VectorIndex") {}

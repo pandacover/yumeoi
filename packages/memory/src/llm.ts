@@ -1,4 +1,11 @@
-import type { LlmConfig, LlmJobName, ProviderUnavailable, SchemaViolation } from "@yumeoi/domain";
+import type {
+	LlmConfig,
+	LlmJobName,
+	LlmUsage,
+	ProviderUnavailable,
+	RateLimited,
+	SchemaViolation,
+} from "@yumeoi/domain";
 import { Context, type Effect, type Schema } from "effect";
 
 export class Llm extends Context.Service<
@@ -12,6 +19,8 @@ export class Llm extends Context.Service<
 			readonly jsonSchema: Record<string, unknown>;
 			readonly system: string;
 			readonly user: string;
-		}) => Effect.Effect<A, ProviderUnavailable | SchemaViolation>;
+		}) => Effect.Effect<A, ProviderUnavailable | RateLimited | SchemaViolation>;
+		/** Take-and-clear recorded token usage from structured calls since the last drain. */
+		readonly drainUsage: () => Effect.Effect<ReadonlyArray<LlmUsage>>;
 	}
 >()("@yumeoi/memory/Llm") {}

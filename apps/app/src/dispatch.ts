@@ -1,6 +1,6 @@
 import { routeAgentRequest } from "agents";
-import { handleApi } from "./api/spikes.ts";
-import { mcpHandler } from "./mcp/server.ts";
+import { handleApi } from "./api/http.ts";
+import { handleMcp } from "./mcp/server.ts";
 
 export async function dispatch(
 	request: Request,
@@ -10,7 +10,7 @@ export async function dispatch(
 	const url = new URL(request.url);
 
 	if (url.pathname === "/mcp" || url.pathname.startsWith("/mcp/")) {
-		return mcpHandler(request, env, ctx);
+		return handleMcp(request, env, ctx);
 	}
 
 	const agentResponse = await routeAgentRequest(request, env);

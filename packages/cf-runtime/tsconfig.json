@@ -11,5 +11,6 @@
 		"types": ["@cloudflare/workers-types"]
 	},
 	"include": ["src"],
+	"exclude": ["src/**/*.test.ts"],
 	"references": [{ "path": "../domain" }, { "path": "../memory" }]
 }

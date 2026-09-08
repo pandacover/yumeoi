@@ -1,6 +1,7 @@
 import { dispatch } from "../src/dispatch.ts";
 
 export { MemoryAgent } from "../src/agents/memory-agent.ts";
+export { IngestWorkflow } from "../src/workflows/ingest-workflow.ts";
 
 export default {
 	async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {

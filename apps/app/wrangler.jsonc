@@ -20,6 +20,21 @@
 			"index_name": "yumeoi-memories"
 		}
 	],
+	"r2_buckets": [
+		{
+			"binding": "DOCS",
+			"bucket_name": "yumeoi-docs"
+		}
+	],
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "yumeoi",
+			"database_id": "local-yumeoi",
+			"preview_database_id": "local-yumeoi-preview",
+			"migrations_dir": "migrations"
+		}
+	],
 	"durable_objects": {
 		"bindings": [
 			{
@@ -28,6 +43,13 @@
 			}
 		]
 	},
+	"workflows": [
+		{
+			"name": "ingest-workflow",
+			"binding": "INGEST_WORKFLOW",
+			"class_name": "IngestWorkflow"
+		}
+	],
 	"migrations": [
 		{
 			"tag": "v1",

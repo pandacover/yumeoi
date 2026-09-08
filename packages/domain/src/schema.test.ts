@@ -6,16 +6,59 @@ import {
 	extractedMemoryJsonSchema,
 	rerankResultJsonSchema,
 } from "./json-schema.ts";
-import { CHAT_MODEL_ID, defaultLlmConfig } from "./llm.ts";
-import { ConsolidateDecision, ExtractedMemories, ExtractedMemory } from "./schema.ts";
+import {
+	CHAT_MODEL_ID,
+	DEFAULT_LLM_PROVIDER,
+	defaultLlmConfig,
+	FALLBACK_LLM_PROVIDER,
+	parseResponseUsage,
+} from "./llm.ts";
+import {
+	ConsolidateDecision,
+	ExtractedMemories,
+	ExtractedMemory,
+	IngestRequest,
+} from "./schema.ts";
 
 describe("domain schemas", () => {
 	test("chat is pinned to gpt-5.6-luna high", () => {
 		expect(CHAT_MODEL_ID).toBe("gpt-5.6-luna");
 		expect(defaultLlmConfig.chat).toEqual({ model: "gpt-5.6-luna", effort: "high" });
+	});
+
+	test("M1 pins extract/consolidate/rerank from the keyed eval", () => {
 		expect(defaultLlmConfig.extract).toEqual({ model: "gpt-5.6-luna", effort: "high" });
 		expect(defaultLlmConfig.consolidate).toEqual({ model: "gpt-5.6-luna", effort: "none" });
 		expect(defaultLlmConfig.rerank).toEqual({ model: "gpt-5.6-luna", effort: "none" });
+	});
+
+	test("parseResponseUsage reads input, output, and reasoning tokens", () => {
+		const usage = parseResponseUsage(
+			"extract",
+			{ model: "gpt-5.6-luna", effort: "low" },
+			{
+				usage: {
+					input_tokens: 120,
+					output_tokens: 80,
+					output_tokens_details: { reasoning_tokens: 40 },
+					input_tokens_details: { cached_tokens: 16 },
+				},
+			},
+		);
+		expect(usage).toEqual({
+			job: "extract",
+			model: "gpt-5.6-luna",
+			effort: "low",
+			inputTokens: 120,
+			outputTokens: 80,
+			reasoningTokens: 40,
+			cachedInputTokens: 16,
+		});
+	});
+
+	test("OpenRouter is the default LLM provider with OpenAI as fallback", () => {
+		expect(DEFAULT_LLM_PROVIDER).toBe("openrouter");
+		expect(FALLBACK_LLM_PROVIDER).toBe("openai");
 	});
 
 	test("ExtractedMemory JSON Schema is an object with required fields", () => {
@@ -29,6 +72,7 @@ describe("domain schemas", () => {
 
 	test("ExtractedMemories / consolidate / rerank schemas are objects", () => {
 		expect(extractedMemoriesJsonSchema().type).toBe("object");
+		expect(extractedMemoriesJsonSchema().required).toEqual(expect.arrayContaining(["memories"]));
 		expect(consolidateDecisionJsonSchema().type).toBe("object");
 		expect(rerankResultJsonSchema().type).toBe("object");
 	});
@@ -60,5 +104,18 @@ describe("domain schemas", () => {
 			targetId: null,
 		});
 		expect(decision.action).toBe("new");
+	});
+
+	test("IngestRequest accepts optional metadata", () => {
+		const decoded = Schema.decodeUnknownSync(IngestRequest)({
+			externalId: "doc-1",
+			title: "Notes",
+			markdown: "hello",
+			sourceId: "generic",
+			sourceLabel: "Notes",
+			url: null,
+			metadata: { origin: "test" },
+		});
+		expect(decoded.metadata).toEqual({ origin: "test" });
 	});
 });

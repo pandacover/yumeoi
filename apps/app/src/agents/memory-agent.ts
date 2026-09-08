@@ -1,20 +1,62 @@
-import { makeMemoryStoreRuntime, SqlClient } from "@yumeoi/cf-runtime";
+import {
+	makeMemoryAgentRuntime,
+	readUsableBinding,
+	resolveGatewayLlmProvidersFromKeys,
+} from "@yumeoi/cf-runtime";
+import type {
+	AddMemoryRequest,
+	IngestRequest,
+	IngestResult,
+	MemoryKind,
+	RecallResult,
+} from "@yumeoi/domain";
+import {
+	type IngestState,
+	type IngestStepName,
+	ingestDocument,
+	initialIngestState,
+	loadDocument,
+	MemoryRepo,
+	recallContext,
+	runIngestStep,
+	searchMemories,
+} from "@yumeoi/memory";
 import { Agent, callable } from "agents";
 import { Effect } from "effect";
 
 export type MemoryAgentState = {
 	ready: boolean;
+	lastIngest?: IngestResult;
 };
+
+type AgentRuntime = ReturnType<typeof makeMemoryAgentRuntime>;
+
+type FilterKind = MemoryKind;
 
 export class MemoryAgent extends Agent<Env, MemoryAgentState> {
 	override initialState: MemoryAgentState = { ready: false };
 
-	#runtime = makeMemoryStoreRuntime(this.ctx.storage);
+	#runtime!: AgentRuntime;
 
 	constructor(ctx: DurableObjectState, env: Env) {
 		super(ctx, env);
 		void ctx.blockConcurrencyWhile(async () => {
 			try {
+				const providers = await resolveGatewayLlmProvidersFromKeys({
+					getUrl: (provider) => env.AI.gateway(env.AI_GATEWAY_ID || "default").getUrl(provider),
+					openrouterApiKey: env.OPENROUTER_API_KEY,
+					openaiApiKey: env.OPENAI_API_KEY,
+				});
+				const ai = readUsableBinding(() => env.AI, "run");
+				const vectorize = readUsableBinding(() => env.VECTORIZE, "query");
+				const docs = readUsableBinding(() => env.DOCS, "put");
+				this.#runtime = makeMemoryAgentRuntime({
+					storage: ctx.storage,
+					...(ai ? { ai } : {}),
+					...(vectorize ? { vectorize } : {}),
+					...(docs ? { docs } : {}),
+					...(providers.length > 0 ? { providers } : {}),
+				});
 				await this.#runtime.context();
 				this.setState({ ready: true });
 			} catch (error) {
@@ -36,20 +78,173 @@ export class MemoryAgent extends Agent<Env, MemoryAgentState> {
 	async pingFts(query: string): Promise<{ matches: Array<{ id: string; text: string }> }> {
 		return this.#runtime.runPromise(
 			Effect.gen(function* () {
-				const sql = yield* SqlClient;
-				const id = crypto.randomUUID();
-				const now = Date.now();
-				yield* sql`INSERT INTO memories (id, kind, text, confidence, valid_from, valid_to, supersedes, created_at)
-					VALUES (${id}, ${"fact"}, ${"yumeoi stores memories in Durable Object SQLite with FTS5"}, ${1}, ${null}, ${null}, ${null}, ${now})`;
-				const matches = yield* sql<{ id: string; text: string }>`
-					SELECT memories.id, memories.text
-					FROM memories_fts
-					JOIN memories ON memories.rowid = memories_fts.rowid
-					WHERE memories_fts MATCH ${query}
-					LIMIT 10
-				`;
-				return { matches: [...matches] };
+				const repo = yield* MemoryRepo;
+				yield* ingestDocument({
+					userId: "demo",
+					request: {
+						externalId: "fts-ping",
+						title: "FTS ping",
+						markdown: "yumeoi stores memories in Durable Object SQLite with FTS5.",
+						sourceId: "generic",
+						sourceLabel: "Ping",
+						url: null,
+					},
+				});
+				const hits = yield* repo.searchMemoryFts(`"${query.replaceAll('"', "")}"`, {
+					sources: [],
+					kinds: [],
+					since: null,
+					limit: 10,
+				});
+				const memories = yield* repo.listMemoriesByIds(hits.map((hit) => hit.id));
+				return { matches: memories.map((memory) => ({ id: memory.id, text: memory.text })) };
 			}),
 		);
+	}
+
+	@callable()
+	async ingest(request: IngestRequest): Promise<IngestResult> {
+		const result = await this.#runtime.runPromise(ingestDocument({ userId: this.name, request }));
+		this.setState({ ...this.state, lastIngest: result });
+		return result;
+	}
+
+	@callable()
+	async beginIngest(request: IngestRequest): Promise<IngestState> {
+		return this.#runtime.runPromise(
+			runIngestStep("fetch", initialIngestState({ userId: this.name, request })),
+		);
+	}
+
+	@callable()
+	async continueIngest(
+		name: Exclude<IngestStepName, "fetch">,
+		state: IngestState,
+	): Promise<IngestState> {
+		return this.#runtime.runPromise(runIngestStep(name, state));
+	}
+
+	@callable()
+	async startIngest(request: IngestRequest): Promise<IngestResult & { instanceId?: string }> {
+		if (!this.env.INGEST_WORKFLOW) {
+			return this.ingest(request);
+		}
+		const instanceId = await this.runWorkflow("INGEST_WORKFLOW", {
+			userId: this.name,
+			request,
+		});
+		const result = await this.#waitForIngestWorkflow(instanceId);
+		this.setState({ ...this.state, lastIngest: result });
+		return { ...result, instanceId };
+	}
+
+	async #waitForIngestWorkflow(instanceId: string, timeoutMs = 60_000): Promise<IngestResult> {
+		const deadline = Date.now() + timeoutMs;
+		while (Date.now() < deadline) {
+			const status = await this.getWorkflowStatus("INGEST_WORKFLOW", instanceId);
+			if (status.status === "complete") {
+				if (status.output && typeof status.output === "object" && "documentId" in status.output) {
+					return status.output as IngestResult;
+				}
+				if (this.state.lastIngest) {
+					return this.state.lastIngest;
+				}
+			}
+			if (status.status === "errored" || status.status === "terminated") {
+				const message =
+					typeof status.error === "string"
+						? status.error
+						: status.error
+							? JSON.stringify(status.error)
+							: `ingest workflow ${status.status}`;
+				throw new Error(message);
+			}
+			await scheduler.wait(50);
+		}
+		throw new Error(`ingest workflow ${instanceId} timed out`);
+	}
+
+	@callable()
+	async search(query: {
+		query: string;
+		sources?: ReadonlyArray<string>;
+		kinds?: ReadonlyArray<FilterKind>;
+		since?: number | null;
+		limit?: number;
+	}) {
+		return this.#runtime.runPromise(
+			searchMemories({
+				query: query.query,
+				sources: query.sources ? [...query.sources] : [],
+				kinds: query.kinds ? [...query.kinds] : [],
+				since: query.since ?? null,
+				limit: query.limit ?? 20,
+				namespace: this.name,
+			}),
+		);
+	}
+
+	@callable()
+	async recall(query: {
+		query: string;
+		sources?: ReadonlyArray<string>;
+		kinds?: ReadonlyArray<FilterKind>;
+		since?: number | null;
+		budgetTokens?: number;
+		rerank?: boolean;
+	}): Promise<RecallResult> {
+		return this.#runtime.runPromise(
+			recallContext({
+				query: query.query,
+				sources: query.sources ? [...query.sources] : [],
+				kinds: query.kinds ? [...query.kinds] : [],
+				since: query.since ?? null,
+				budgetTokens: query.budgetTokens ?? 2000,
+				rerank: query.rerank ?? true,
+				namespace: this.name,
+			}),
+		);
+	}
+
+	@callable()
+	async getMemory(id: string) {
+		return this.#runtime.runPromise(Effect.flatMap(MemoryRepo, (repo) => repo.getMemory(id)));
+	}
+
+	@callable()
+	async getDocument(id: string) {
+		return this.#runtime.runPromise(loadDocument(id));
+	}
+
+	@callable()
+	async addMemory(input: AddMemoryRequest) {
+		const userId = this.name;
+		const request = input.sourceId ? input : { ...input, sourceId: `agent:${userId}` };
+		return this.#runtime.runPromise(
+			Effect.flatMap(MemoryRepo, (repo) => repo.addMemory(userId, request)),
+		);
+	}
+
+	@callable()
+	async listSources() {
+		const userId = this.name;
+		return this.#runtime.runPromise(Effect.flatMap(MemoryRepo, (repo) => repo.listSources(userId)));
+	}
+
+	@callable()
+	async listRecentMemories(limit = 20) {
+		return this.#runtime.runPromise(
+			Effect.flatMap(MemoryRepo, (repo) => repo.listRecentMemories(limit)),
+		);
+	}
+
+	override async onWorkflowComplete(
+		_workflowName: string,
+		_instanceId: string,
+		result?: unknown,
+	): Promise<void> {
+		if (result && typeof result === "object" && "documentId" in result) {
+			this.setState({ ...this.state, lastIngest: result as IngestResult });
+		}
 	}
 }

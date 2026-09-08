@@ -1,12 +1,17 @@
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
+import { Effect, Layer } from "effect";
 import {
 	type EvalSet,
 	scoreConsolidate,
 	scoreExtraction,
 	scoreRerank,
 	summarizeExtraction,
+	summarizeScores,
 } from "./eval.ts";
+import { evaluateExtraction } from "./eval-run.ts";
+import { extractorLayer } from "./extractor.ts";
+import { heuristicExtract, heuristicLlmLayer } from "./heuristic-llm.ts";
 
 const set = JSON.parse(
 	readFileSync(new URL("../../../docs/eval/m1-set.json", import.meta.url), "utf8"),
@@ -75,6 +80,30 @@ describe("extraction scoring", () => {
 		]);
 		expect(score.recall).toBe(1);
 		expect(score.precision).toBe(0.5);
+	});
+
+	test("heuristic extractor scores against the labeled set", () => {
+		const scores = set.documents.map((doc) =>
+			scoreExtraction(doc, heuristicExtract(`${doc.title}\n\n${doc.markdown}`)),
+		);
+		const summary = summarizeScores(scores);
+		expect(summary.documents).toBe(set.documents.length);
+		expect(summary.recall).toBeGreaterThan(0.3);
+		expect(summary.precision).toBeGreaterThan(0.2);
+	});
+
+	test("evaluateExtraction records zero tokens for the heuristic layer", async () => {
+		const layer = Layer.mergeAll(
+			heuristicLlmLayer,
+			Layer.provide(extractorLayer, heuristicLlmLayer),
+		);
+		const result = await Effect.runPromise(
+			evaluateExtraction(set.documents.slice(0, 2)).pipe(Effect.provide(layer)),
+		);
+		expect(result.documents.length).toBe(2);
+		expect(result.usage.inputTokens).toBe(0);
+		expect(result.usage.outputTokens).toBe(0);
+		expect(result.usage.reasoningTokens).toBe(0);
 	});
 
 	test("averages across the labeled set for a naive extractor", () => {

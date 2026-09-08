@@ -8,8 +8,7 @@
 	},
 	"scripts": {
 		"typecheck": "tsgo --pretty false",
-		"test": "bun test",
-		"eval:m1": "bun src/run-m1-eval.ts"
+		"test": "bun test"
 	},
 	"dependencies": {
 		"@yumeoi/domain": "workspace:*",

@@ -33,7 +33,7 @@ export type EvalSet = {
 	readonly rerank: ReadonlyArray<RerankCase>;
 };
 
-export type ExtractionScore = {
+export type EvalScore = {
 	readonly documentId: string;
 	readonly precision: number;
 	readonly recall: number;
@@ -42,6 +42,8 @@ export type ExtractionScore = {
 	readonly expected: number;
 	readonly hits: number;
 };
+
+export type ExtractionScore = EvalScore;
 
 export type ConsolidateScore = {
 	readonly caseId: string;
@@ -56,6 +58,39 @@ export type RerankScore = {
 	readonly top1: boolean;
 	readonly complete: boolean;
 };
+
+export type EvalTokenTotals = {
+	readonly inputTokens: number;
+	readonly outputTokens: number;
+	readonly reasoningTokens: number;
+	readonly cachedInputTokens: number;
+	readonly calls: number;
+};
+
+export const emptyTokenTotals = (): EvalTokenTotals => ({
+	inputTokens: 0,
+	outputTokens: 0,
+	reasoningTokens: 0,
+	cachedInputTokens: 0,
+	calls: 0,
+});
+
+export const addTokenTotals = (
+	left: EvalTokenTotals,
+	right: {
+		readonly inputTokens: number;
+		readonly outputTokens: number;
+		readonly reasoningTokens: number;
+		readonly cachedInputTokens?: number;
+		readonly calls?: number;
+	},
+): EvalTokenTotals => ({
+	inputTokens: left.inputTokens + right.inputTokens,
+	outputTokens: left.outputTokens + right.outputTokens,
+	reasoningTokens: left.reasoningTokens + right.reasoningTokens,
+	cachedInputTokens: left.cachedInputTokens + (right.cachedInputTokens ?? 0),
+	calls: left.calls + (right.calls ?? 1),
+});
 
 const normalize = (text: string): string => text.toLowerCase().replace(/\s+/g, " ").trim();
 
@@ -72,7 +107,7 @@ const f1 = (precision: number, recall: number): number =>
 export const scoreExtraction = (
 	document: EvalDocument,
 	extracted: ReadonlyArray<ExtractedMemory>,
-): ExtractionScore => {
+): EvalScore => {
 	const required = document.expected.filter((item) => !item.optional);
 	const hits = document.expected.filter((item) =>
 		extracted.some((memory) => matchesExpected(memory, item)),
@@ -140,12 +175,17 @@ export const scoreRerank = (item: RerankCase, predictedIds: ReadonlyArray<string
 export const mean = (values: ReadonlyArray<number>): number =>
 	values.length === 0 ? 0 : values.reduce((sum, value) => sum + value, 0) / values.length;
 
-export const summarizeExtraction = (scores: ReadonlyArray<ExtractionScore>) => ({
-	documents: scores.length,
-	precision: mean(scores.map((score) => score.precision)),
-	recall: mean(scores.map((score) => score.recall)),
-	f1: mean(scores.map((score) => score.f1)),
-});
+export const summarizeScores = (scores: ReadonlyArray<EvalScore>) => {
+	const n = scores.length || 1;
+	return {
+		documents: scores.length,
+		precision: scores.reduce((sum, score) => sum + score.precision, 0) / n,
+		recall: scores.reduce((sum, score) => sum + score.recall, 0) / n,
+		f1: scores.reduce((sum, score) => sum + score.f1, 0) / n,
+	};
+};
+
+export const summarizeExtraction = summarizeScores;
 
 export const summarizeConsolidate = (scores: ReadonlyArray<ConsolidateScore>) => ({
 	cases: scores.length,
@@ -158,24 +198,3 @@ export const summarizeRerank = (scores: ReadonlyArray<RerankScore>) => ({
 	top1: mean(scores.map((score) => (score.top1 ? 1 : 0))),
 	complete: mean(scores.map((score) => (score.complete ? 1 : 0))),
 });
-
-export const EXTRACT_SYSTEM = `You extract atomic memories from a document chunk.
-
-Rules:
-- Each memory is one self-contained statement that still makes sense without the chunk.
-- Prefer facts, preferences, decisions, tasks, relationships, and events.
-- Do not invent details that are not in the chunk.
-- confidence is 0-1.
-- validFrom is an ISO-8601 date when the chunk states one, otherwise null.
-- Return as many distinct memories as the chunk supports, including none.`;
-
-export const CONSOLIDATE_SYSTEM = `You decide how a candidate memory relates to existing memories.
-
-Return:
-- action=new if it is a distinct statement
-- action=duplicate and targetId=existing id if it repeats an existing memory
-- action=supersedes and targetId=existing id if it updates and replaces that memory
-
-Only use an id from the candidate list. If none apply, action=new and targetId=null.`;
-
-export const RERANK_SYSTEM = `Reorder memory ids by relevance to the query. Return every id exactly once.`;
