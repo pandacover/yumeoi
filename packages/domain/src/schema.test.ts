@@ -14,6 +14,7 @@ import {
 	parseResponseUsage,
 } from "./llm.ts";
 import {
+	ChatCitation,
 	ConsolidateDecision,
 	ExtractedMemories,
 	ExtractedMemory,
@@ -119,5 +120,18 @@ describe("domain schemas", () => {
 		});
 		expect(decoded.metadata).toEqual({ origin: "test" });
 		expect(decoded.sourceKind).toBe("notion");
+	});
+
+	test("ChatCitation carries provenance for inline chat marks", () => {
+		const citation = Schema.decodeUnknownSync(ChatCitation)({
+			index: 1,
+			memoryId: "mem-1",
+			documentId: "doc-1",
+			title: "Preferences",
+			url: null,
+			text: "Luv prefers Effect 4",
+			kind: "preference",
+		});
+		expect(citation.index).toBe(1);
 	});
 });

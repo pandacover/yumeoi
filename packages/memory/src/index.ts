@@ -1,3 +1,4 @@
+export * from "./chat.ts";
 export * from "./chunker.ts";
 export * from "./consolidator.ts";
 export * from "./cosine.ts";

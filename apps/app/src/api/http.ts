@@ -139,7 +139,12 @@ export async function handleApi(request: Request, env: Env): Promise<Response | 
 	if (url.pathname === "/api/health") {
 		return json({
 			ok: true,
-			milestone: "m2",
+			milestone: "m3",
+			chat: {
+				model: defaultLlmConfig.chat,
+				resumable: true,
+				tools: ["recall", "get_document"],
+			},
 			chatModel: defaultLlmConfig.chat,
 			extractModel: defaultLlmConfig.extract,
 			consolidateModel: defaultLlmConfig.consolidate,
