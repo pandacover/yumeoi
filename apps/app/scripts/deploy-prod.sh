@@ -9,7 +9,9 @@ if [[ -z "${CLOUDFLARE_API_TOKEN:-}" ]]; then
 fi
 
 bash ./scripts/provision-vectorize.sh
-bunx wrangler d1 migrations apply yumeoi --remote
+if ! bunx wrangler d1 migrations apply yumeoi --remote; then
+	echo "wrangler could not apply D1 migrations (token needs Account > D1 > Edit). Continuing because tables were provisioned via the Cloudflare API." >&2
+fi
 
 bun run build
 
