@@ -1,7 +1,9 @@
 import {
 	extractedMemoryJsonSchema,
 	type LlmConfig,
+	type LlmUsage,
 	ProviderUnavailable,
+	parseResponseUsage,
 	SchemaViolation,
 } from "@yumeoi/domain";
 import { Llm } from "@yumeoi/memory";
@@ -12,9 +14,16 @@ export const openaiGatewayLlmLayer = (options: {
 	readonly apiKey: string;
 	readonly baseURL: string;
 	readonly config: LlmConfig;
-}) =>
-	Layer.succeed(Llm, {
+}) => {
+	const recorded: LlmUsage[] = [];
+	return Layer.succeed(Llm, {
 		config: options.config,
+		drainUsage: () =>
+			Effect.sync(() => {
+				const snapshot = [...recorded];
+				recorded.length = 0;
+				return snapshot;
+			}),
 		structured: ({ job, schema, schemaName, jsonSchema, system, user }) =>
 			Effect.gen(function* () {
 				const jobConfig = options.config[job];
@@ -46,6 +55,7 @@ export const openaiGatewayLlmLayer = (options: {
 							cause,
 						}),
 				});
+				recorded.push(parseResponseUsage(job, jobConfig, response));
 				const text =
 					"output_text" in response && typeof response.output_text === "string"
 						? response.output_text
@@ -69,5 +79,6 @@ export const openaiGatewayLlmLayer = (options: {
 				);
 			}),
 	});
+};
 
 export { extractedMemoryJsonSchema };

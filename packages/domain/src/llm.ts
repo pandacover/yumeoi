@@ -34,9 +34,74 @@ export const EXTRACT_MODEL_ID = "gpt-5.6-luna";
 export const CONSOLIDATE_MODEL_ID = "gpt-5.6-luna";
 export const RERANK_MODEL_ID = "gpt-5.6-luna";
 
+export const TERRA_MODEL_ID = "gpt-5.6-terra";
+
 export const defaultLlmConfig: LlmConfig = {
 	chat: { model: CHAT_MODEL_ID, effort: "high" },
 	extract: { model: EXTRACT_MODEL_ID, effort: "low" },
 	consolidate: { model: CONSOLIDATE_MODEL_ID, effort: "low" },
 	rerank: { model: RERANK_MODEL_ID, effort: "none" },
 };
+
+export type LlmUsage = {
+	readonly job: LlmJobName;
+	readonly model: string;
+	readonly effort: LlmEffort;
+	readonly inputTokens: number;
+	readonly outputTokens: number;
+	readonly reasoningTokens: number;
+	readonly cachedInputTokens: number;
+};
+
+const asNumber = (value: unknown): number =>
+	typeof value === "number" && Number.isFinite(value) ? value : 0;
+
+/**
+ * Read Responses API `usage` (input, output, reasoning, cached input) from a model response.
+ */
+export const parseResponseUsage = (
+	job: LlmJobName,
+	config: LlmJobConfig,
+	response: unknown,
+): LlmUsage => {
+	const usage =
+		response && typeof response === "object" && "usage" in response
+			? (response as { usage?: unknown }).usage
+			: undefined;
+	const record = usage && typeof usage === "object" ? (usage as Record<string, unknown>) : {};
+	const outputDetails =
+		record.output_tokens_details && typeof record.output_tokens_details === "object"
+			? (record.output_tokens_details as Record<string, unknown>)
+			: {};
+	const inputDetails =
+		record.input_tokens_details && typeof record.input_tokens_details === "object"
+			? (record.input_tokens_details as Record<string, unknown>)
+			: {};
+	return {
+		job,
+		model: config.model,
+		effort: config.effort,
+		inputTokens: asNumber(record.input_tokens),
+		outputTokens: asNumber(record.output_tokens),
+		reasoningTokens: asNumber(outputDetails.reasoning_tokens),
+		cachedInputTokens: asNumber(inputDetails.cached_tokens),
+	};
+};
+
+/** Candidates measured at M1 for extract (volume job). Luna `high` is omitted from the default sweep. */
+export const EXTRACT_EVAL_CANDIDATES: ReadonlyArray<LlmJobConfig> = [
+	{ model: EXTRACT_MODEL_ID, effort: "none" },
+	{ model: EXTRACT_MODEL_ID, effort: "low" },
+	{ model: EXTRACT_MODEL_ID, effort: "medium" },
+	{ model: TERRA_MODEL_ID, effort: "low" },
+];
+
+export const CONSOLIDATE_EVAL_CANDIDATES: ReadonlyArray<LlmJobConfig> = [
+	{ model: CONSOLIDATE_MODEL_ID, effort: "none" },
+	{ model: CONSOLIDATE_MODEL_ID, effort: "low" },
+];
+
+export const RERANK_EVAL_CANDIDATES: ReadonlyArray<LlmJobConfig> = [
+	{ model: RERANK_MODEL_ID, effort: "none" },
+	{ model: RERANK_MODEL_ID, effort: "low" },
+];

@@ -28,6 +28,21 @@ describe("MemoryAgent", () => {
 		expect(hits.length).toBeGreaterThan(0);
 		expect(hits[0]?.memory.text).toMatch(/FTS5/);
 	});
+
+	it("startIngest runs the durable workflow and waits for completion", async () => {
+		const stub = env.MemoryAgent.getByName("workflow-user");
+		const ingest = await stub.startIngest({
+			externalId: "wf-doc",
+			title: "Workflow",
+			markdown: "Luv prefers Effect 4 for the yumeoi domain layer.",
+			sourceId: "generic",
+			sourceLabel: "Notes",
+			url: null,
+		});
+		expect(ingest.unchanged).toBe(false);
+		expect(ingest.memoryCount).toBeGreaterThan(0);
+		expect(ingest.instanceId).toBeTruthy();
+	});
 });
 
 describe("HTTP ingest and recall", () => {
@@ -63,6 +78,14 @@ describe("HTTP ingest and recall", () => {
 		});
 		expect(ingest.status).toBeGreaterThanOrEqual(200);
 		expect(ingest.status).toBeLessThan(300);
+		const ingestBody = (await ingest.json()) as {
+			instanceId?: string;
+			memoryCount: number;
+			unchanged: boolean;
+		};
+		expect(ingestBody.unchanged).toBe(false);
+		expect(ingestBody.memoryCount).toBeGreaterThan(0);
+		expect(typeof ingestBody.instanceId).toBe("string");
 
 		const search = await SELF.fetch("https://example.com/api/search", {
 			method: "POST",

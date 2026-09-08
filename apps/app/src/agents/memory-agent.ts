@@ -6,7 +6,16 @@ import type {
 	MemoryKind,
 	RecallResult,
 } from "@yumeoi/domain";
-import { ingestDocument, MemoryRepo, recallContext, searchMemories } from "@yumeoi/memory";
+import {
+	type IngestState,
+	type IngestStepName,
+	ingestDocument,
+	initialIngestState,
+	MemoryRepo,
+	recallContext,
+	runIngestStep,
+	searchMemories,
+} from "@yumeoi/memory";
 import { Agent, callable } from "agents";
 import { Effect } from "effect";
 
@@ -100,15 +109,58 @@ export class MemoryAgent extends Agent<Env, MemoryAgentState> {
 	}
 
 	@callable()
-	async startIngest(request: IngestRequest): Promise<{ instanceId: string } | IngestResult> {
-		if (this.env.INGEST_WORKFLOW) {
-			const instanceId = await this.runWorkflow("INGEST_WORKFLOW", {
-				userId: this.name,
-				request,
-			});
-			return { instanceId };
+	async beginIngest(request: IngestRequest): Promise<IngestState> {
+		return this.#runtime.runPromise(
+			runIngestStep("fetch", initialIngestState({ userId: this.name, request })),
+		);
+	}
+
+	@callable()
+	async continueIngest(
+		name: Exclude<IngestStepName, "fetch">,
+		state: IngestState,
+	): Promise<IngestState> {
+		return this.#runtime.runPromise(runIngestStep(name, state));
+	}
+
+	@callable()
+	async startIngest(request: IngestRequest): Promise<IngestResult & { instanceId?: string }> {
+		if (!this.env.INGEST_WORKFLOW) {
+			return this.ingest(request);
 		}
-		return this.ingest(request);
+		const instanceId = await this.runWorkflow("INGEST_WORKFLOW", {
+			userId: this.name,
+			request,
+		});
+		const result = await this.#waitForIngestWorkflow(instanceId);
+		this.setState({ ...this.state, lastIngest: result });
+		return { ...result, instanceId };
+	}
+
+	async #waitForIngestWorkflow(instanceId: string, timeoutMs = 60_000): Promise<IngestResult> {
+		const deadline = Date.now() + timeoutMs;
+		while (Date.now() < deadline) {
+			const status = await this.getWorkflowStatus("INGEST_WORKFLOW", instanceId);
+			if (status.status === "complete") {
+				if (status.output && typeof status.output === "object" && "documentId" in status.output) {
+					return status.output as IngestResult;
+				}
+				if (this.state.lastIngest) {
+					return this.state.lastIngest;
+				}
+			}
+			if (status.status === "errored" || status.status === "terminated") {
+				const message =
+					typeof status.error === "string"
+						? status.error
+						: status.error
+							? JSON.stringify(status.error)
+							: `ingest workflow ${status.status}`;
+				throw new Error(message);
+			}
+			await scheduler.wait(50);
+		}
+		throw new Error(`ingest workflow ${instanceId} timed out`);
 	}
 
 	@callable()

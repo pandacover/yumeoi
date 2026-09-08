@@ -2,10 +2,12 @@ import { describe, expect, test } from "bun:test";
 import { ProviderUnavailable } from "@yumeoi/domain";
 import {
 	consolidatorLayer,
+	Embeddings,
 	extractorLayer,
 	ingestDocument,
 	recallContext,
 	searchMemories,
+	similarExistingMemories,
 	VectorIndex,
 } from "@yumeoi/memory";
 import {
@@ -128,6 +130,67 @@ describe("ingest and recall", () => {
 				limit: 10,
 			});
 			expect(hits.some((hit) => hit.memory.text.includes("FTS5"))).toBe(true);
+		});
+		await Effect.runPromise(program.pipe(Effect.provide(fallback)));
+	});
+
+	test("consolidation candidates use vector search when the index is available", async () => {
+		const program = Effect.gen(function* () {
+			yield* ingestDocument({
+				userId: "test-user",
+				request: {
+					externalId: "vec-doc",
+					title: "Preferences",
+					markdown: "Luv prefers Effect 4 for the yumeoi domain layer.",
+					sourceId: "generic",
+					sourceLabel: "Notes",
+					url: null,
+				},
+			});
+			const embeddings = yield* Embeddings;
+			const [values] = yield* embeddings.embed(["Luv prefers Effect 4 for domain work"]);
+			const similar = yield* similarExistingMemories({
+				userId: "test-user",
+				text: "Luv prefers Effect 4 for domain work",
+				values: values ?? [],
+				inBatch: [],
+				inBatchValues: new Map(),
+			});
+			expect(similar.some((memory) => memory.text.toLowerCase().includes("effect"))).toBe(true);
+		});
+		await Effect.runPromise(program.pipe(Effect.provide(layer)));
+	});
+
+	test("falls back to substring overlap when Vectorize is unavailable", async () => {
+		const fallback = Layer.mergeAll(
+			memoryMemoryRepoLayer("overlap-user"),
+			FakeEmbeddings,
+			FakeLlm,
+			Layer.provide(extractorLayer, FakeLlm),
+			Layer.provide(consolidatorLayer, FakeLlm),
+			unavailableVectorIndexLayer,
+			inMemoryObjectStoreLayer,
+		);
+		const program = Effect.gen(function* () {
+			yield* ingestDocument({
+				userId: "overlap-user",
+				request: {
+					externalId: "overlap-doc",
+					title: "Preferences",
+					markdown: "Luv prefers Effect 4 for the yumeoi domain layer.",
+					sourceId: "generic",
+					sourceLabel: "Notes",
+					url: null,
+				},
+			});
+			const similar = yield* similarExistingMemories({
+				userId: "overlap-user",
+				text: "Luv prefers Effect 4 for the domain layer",
+				values: Array.from({ length: 8 }, () => 0),
+				inBatch: [],
+				inBatchValues: new Map(),
+			});
+			expect(similar.some((memory) => memory.text.toLowerCase().includes("effect"))).toBe(true);
 		});
 		await Effect.runPromise(program.pipe(Effect.provide(fallback)));
 	});

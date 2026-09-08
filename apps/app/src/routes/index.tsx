@@ -32,8 +32,8 @@ function Home() {
 			<section className="rounded-2xl border border-[var(--line)] bg-[var(--card)] p-6">
 				<h2 className="text-lg font-medium">MemoryAgent</h2>
 				<p className="mt-2 text-sm text-[var(--muted)]">
-					Ingest runs the realtime pipeline (chunk → embed → extract → consolidate → commit). Hybrid
-					search fuses Vectorize with DO SQLite FTS5.
+					Ingest runs <code>IngestWorkflow</code> (fetch → normalize → chunk → embed → extract →
+					consolidate → commit). Hybrid search fuses Vectorize with DO SQLite FTS5.
 				</p>
 				<p className="mt-4 font-mono text-[var(--accent)]">{hello.message}</p>
 				<p className="mt-1 text-sm text-[var(--muted)]">ready: {String(hello.ready)}</p>

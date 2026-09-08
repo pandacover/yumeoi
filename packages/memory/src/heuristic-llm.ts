@@ -46,6 +46,7 @@ export const heuristicExtract = (text: string): ReadonlyArray<ExtractedMemory> =
 
 export const heuristicLlmLayer = Layer.succeed(Llm, {
 	config: defaultLlmConfig,
+	drainUsage: () => Effect.succeed([]),
 	structured: ({ schema, schemaName, user }) =>
 		Effect.gen(function* () {
 			let payload: ExtractedMemories | ConsolidateDecision | RerankResult | ExtractedMemory;

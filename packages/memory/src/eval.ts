@@ -22,6 +22,39 @@ export type EvalScore = {
 	readonly hits: number;
 };
 
+export type EvalTokenTotals = {
+	readonly inputTokens: number;
+	readonly outputTokens: number;
+	readonly reasoningTokens: number;
+	readonly cachedInputTokens: number;
+	readonly calls: number;
+};
+
+export const emptyTokenTotals = (): EvalTokenTotals => ({
+	inputTokens: 0,
+	outputTokens: 0,
+	reasoningTokens: 0,
+	cachedInputTokens: 0,
+	calls: 0,
+});
+
+export const addTokenTotals = (
+	left: EvalTokenTotals,
+	right: {
+		readonly inputTokens: number;
+		readonly outputTokens: number;
+		readonly reasoningTokens: number;
+		readonly cachedInputTokens?: number;
+		readonly calls?: number;
+	},
+): EvalTokenTotals => ({
+	inputTokens: left.inputTokens + right.inputTokens,
+	outputTokens: left.outputTokens + right.outputTokens,
+	reasoningTokens: left.reasoningTokens + right.reasoningTokens,
+	cachedInputTokens: left.cachedInputTokens + (right.cachedInputTokens ?? 0),
+	calls: left.calls + (right.calls ?? 1),
+});
+
 const normalize = (text: string): string => text.toLowerCase().replace(/\s+/g, " ").trim();
 
 const matchesExpected = (memory: ExtractedMemory, expected: ExpectedMemory): boolean => {

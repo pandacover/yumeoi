@@ -23,4 +23,14 @@ describe("FakeLlm", () => {
 		expect(memory.kind).toBe("fact");
 		expect(memory.text.length).toBeGreaterThan(0);
 	});
+
+	test("drainUsage is empty for the heuristic layer", async () => {
+		const usage = await Effect.runPromise(
+			Effect.gen(function* () {
+				const llm = yield* Llm;
+				return yield* llm.drainUsage();
+			}).pipe(Effect.provide(FakeLlm)),
+		);
+		expect(usage).toEqual([]);
+	});
 });
