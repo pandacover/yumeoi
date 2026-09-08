@@ -1,10 +1,13 @@
+import { AIChatAgent, type OnChatMessageOptions } from "@cloudflare/ai-chat";
 import {
+	type GatewayLlmProvider,
 	makeMemoryAgentRuntime,
 	readUsableBinding,
 	resolveGatewayLlmProvidersFromKeys,
 } from "@yumeoi/cf-runtime";
 import type {
 	AddMemoryRequest,
+	ChatCitation,
 	IngestRequest,
 	IngestResult,
 	MemoryHit,
@@ -13,19 +16,34 @@ import type {
 	Source,
 	SourceView,
 } from "@yumeoi/domain";
+import { defaultLlmConfig } from "@yumeoi/domain";
 import {
+	CHAT_SYSTEM_PROMPT,
+	citationsFromRecall,
+	heuristicChatAnswer,
 	type IngestState,
 	type IngestStepName,
 	ingestDocument,
 	initialIngestState,
+	lastUserText,
 	loadDocument,
 	MemoryRepo,
 	recallContext,
 	runIngestStep,
 	searchMemories,
 } from "@yumeoi/memory";
-import { Agent, callable } from "agents";
+import { callable } from "agents";
+import {
+	convertToModelMessages,
+	type GenerateTextOnFinishCallback,
+	isStepCount,
+	streamText,
+	type ToolSet,
+} from "ai";
 import { Effect } from "effect";
+import { chatLanguageModel, chatProviderOptions } from "../chat/model.ts";
+import { heuristicChatResponse } from "../chat/stream.ts";
+import { createMemoryChatTools } from "../chat/tools.ts";
 
 export type MemoryAgentState = {
 	ready: boolean;
@@ -38,10 +56,13 @@ type AgentRuntime = ReturnType<typeof makeMemoryAgentRuntime>;
 
 type FilterKind = MemoryKind;
 
-export class MemoryAgent extends Agent<Env, MemoryAgentState> {
+export class MemoryAgent extends AIChatAgent<Env, MemoryAgentState> {
 	override initialState: MemoryAgentState = { ready: false, sources: [] };
+	override maxPersistedMessages = 200;
+	override waitForMcpConnections = false;
 
 	#runtime!: AgentRuntime;
+	#providers: ReadonlyArray<GatewayLlmProvider> = [];
 
 	constructor(ctx: DurableObjectState, env: Env) {
 		super(ctx, env);
@@ -52,6 +73,7 @@ export class MemoryAgent extends Agent<Env, MemoryAgentState> {
 					openrouterApiKey: env.OPENROUTER_API_KEY,
 					openaiApiKey: env.OPENAI_API_KEY,
 				});
+				this.#providers = providers;
 				const ai = readUsableBinding(() => env.AI, "run");
 				const vectorize = readUsableBinding(() => env.VECTORIZE, "query");
 				const docs = readUsableBinding(() => env.DOCS, "put");
@@ -69,6 +91,70 @@ export class MemoryAgent extends Agent<Env, MemoryAgentState> {
 				throw error;
 			}
 		});
+	}
+
+	override async onChatMessage(
+		onFinish: GenerateTextOnFinishCallback<ToolSet>,
+		options?: OnChatMessageOptions,
+	) {
+		const query = lastUserText(this.messages);
+		if (this.#providers.length === 0) {
+			return this.#heuristicChat(query);
+		}
+
+		const tools = createMemoryChatTools(this);
+		let lastError: unknown;
+		for (const provider of this.#providers) {
+			try {
+				const result = streamText({
+					model: chatLanguageModel(provider, defaultLlmConfig.chat),
+					system: CHAT_SYSTEM_PROMPT,
+					messages: await convertToModelMessages(this.messages),
+					tools,
+					stopWhen: isStepCount(5),
+					onFinish,
+					...(options?.abortSignal ? { abortSignal: options.abortSignal } : {}),
+					providerOptions: chatProviderOptions(defaultLlmConfig.chat.effort),
+				});
+				return result.toUIMessageStreamResponse();
+			} catch (error) {
+				lastError = error;
+				console.error(`chat provider ${provider.provider} failed`, error);
+			}
+		}
+		console.error("chat providers exhausted", lastError);
+		return this.#heuristicChat(query);
+	}
+
+	async #heuristicChat(query: string) {
+		const { text, citations } = await this.answerQuestion(query);
+		return heuristicChatResponse(text, citations);
+	}
+
+	@callable()
+	async answerQuestion(query: string): Promise<{ text: string; citations: ChatCitation[] }> {
+		const result = await this.recall({
+			query: query.trim() || "recent memories",
+			rerank: true,
+		});
+		return heuristicChatAnswer(query, citationsFromRecall(result));
+	}
+
+	@callable()
+	async startChatTurn(text: string) {
+		return this.saveMessages((messages) => [
+			...messages,
+			{
+				id: crypto.randomUUID(),
+				role: "user",
+				parts: [{ type: "text", text }],
+			},
+		]);
+	}
+
+	@callable()
+	listChatMessages() {
+		return this.messages;
 	}
 
 	@callable()

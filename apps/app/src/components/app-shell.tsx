@@ -5,6 +5,7 @@ const links = [
 	{ to: "/", label: "Home" },
 	{ to: "/sources", label: "Sources" },
 	{ to: "/memories", label: "Memories" },
+	{ to: "/chat", label: "Chat" },
 ] as const;
 
 export function AppShell({ children }: { children: ReactNode }) {

@@ -147,6 +147,18 @@ export const RecallResult = Schema.Struct({
 });
 export type RecallResult = typeof RecallResult.Type;
 
+/** Numbered citation shown inline in chat answers. */
+export const ChatCitation = Schema.Struct({
+	index: Schema.Int,
+	memoryId: Schema.NullOr(Schema.String),
+	documentId: Schema.NullOr(Schema.String),
+	title: Schema.String,
+	url: Schema.NullOr(Schema.String),
+	text: Schema.String,
+	kind: Schema.NullOr(Schema.String),
+});
+export type ChatCitation = typeof ChatCitation.Type;
+
 export const SearchQuery = Schema.Struct({
 	query: Schema.String,
 	sources: Schema.Array(Schema.String),

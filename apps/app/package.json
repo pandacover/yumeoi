@@ -16,6 +16,9 @@
 		"test": "vitest run"
 	},
 	"dependencies": {
+		"@ai-sdk/openai": "^4.0.60",
+		"@ai-sdk/react": "^4.0.96",
+		"@cloudflare/ai-chat": "^0.11.0",
 		"@modelcontextprotocol/server": "2.0.0",
 		"@tanstack/react-router": "^1.170.33",
 		"@tanstack/react-start": "^1.168.50",
@@ -24,6 +27,7 @@
 		"@yumeoi/domain": "workspace:*",
 		"@yumeoi/memory": "workspace:*",
 		"agents": "latest",
+		"ai": "^7.0.93",
 		"effect": "4.0.0-rc.112",
 		"openai": "^5.20.1",
 		"react": "^19.1.1",

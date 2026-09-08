@@ -2,7 +2,7 @@
 
 Memory infrastructure: connect apps, extract memories, chat with them, and serve them to agents over MCP.
 
-v0 plan: [`docs/v0-plan.md`](docs/v0-plan.md). This tree is **M2** — Notion connector, SourceAgent polling, and Sources/Memories UI. Model pins: [`docs/eval/m1.md`](docs/eval/m1.md).
+v0 plan: [`docs/v0-plan.md`](docs/v0-plan.md). This tree is **M3** — streaming chat on MemoryAgent with inline citations. Model pins: [`docs/eval/m1.md`](docs/eval/m1.md).
 
 ## Stack
 
@@ -18,10 +18,12 @@ bun run dev
 
 The Worker serves:
 
-- UI at `/`, `/sources`, `/memories`
+- UI at `/`, `/sources`, `/memories`, `/chat`
 - MCP at `/mcp` (API key required; tools: `search_memories`, `recall_context`, `get_memory`, `get_document`, `add_memory`, `list_sources`)
 - Agents at `/agents/memory-agent/:name` and `/agents/source-agent/:name`
 - `POST /ingest`, `/api/search`, `/api/recall`, `/api/sources` with `Authorization: Bearer ym_…`
+
+Chat uses `AIChatAgent` + `useAgentChat` with tools bound to `recall` and `get_document`. Streaming is resumable. Without an LLM key, chat answers from recalled memories with the same citation marks.
 
 Set `YUMEOI_API_KEY` (and optional `YUMEOI_USER_ID`) in `.dev.vars`. Set `OPENROUTER_API_KEY` (default LLM) and optionally `OPENAI_API_KEY` (fallback). Without either LLM key, ingest uses the heuristic extractor so the loop still runs.
 
