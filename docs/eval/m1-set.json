@@ -1,0 +1,359 @@
+{
+	"documents": [
+		{
+			"id": "doc-01",
+			"title": "Effect preference",
+			"markdown": "Luv prefers Effect 4 for the yumeoi domain layer. The team keeps Effect out of React components.",
+			"expected": [
+				{ "kind": "preference", "contains": "Effect 4" },
+				{ "kind": "fact", "contains": "React" }
+			]
+		},
+		{
+			"id": "doc-02",
+			"title": "Stack decision",
+			"markdown": "We decided to run ingest on Cloudflare Workflows. Chat will use GPT-5.6 Luna at high effort.",
+			"expected": [
+				{ "kind": "decision", "contains": "Workflows" },
+				{ "kind": "fact", "contains": "Luna" }
+			]
+		},
+		{
+			"id": "doc-03",
+			"title": "M1 task",
+			"markdown": "Luv needs to ship M1 this week. The todo is wiring POST /ingest to IngestWorkflow.",
+			"expected": [
+				{ "kind": "task", "contains": "M1" },
+				{ "kind": "task", "contains": "ingest", "optional": true }
+			]
+		},
+		{
+			"id": "doc-04",
+			"title": "Teammates",
+			"markdown": "Luv works with Cursor agents on yumeoi. Sam reports to Luv on connector work.",
+			"expected": [
+				{ "kind": "relationship", "contains": "Cursor" },
+				{ "kind": "relationship", "contains": "Sam" }
+			]
+		},
+		{
+			"id": "doc-05",
+			"title": "Kickoff",
+			"markdown": "The kickoff meeting is scheduled tomorrow at 10:00. Yesterday we reviewed the v0 plan.",
+			"expected": [
+				{ "kind": "event", "contains": "tomorrow" },
+				{ "kind": "event", "contains": "Yesterday" }
+			]
+		},
+		{
+			"id": "doc-06",
+			"title": "Editor",
+			"markdown": "Luv prefers dark mode in the editor at all times. Tabs are required in Biome output.",
+			"expected": [{ "kind": "preference", "contains": "dark mode" }]
+		},
+		{
+			"id": "doc-07",
+			"title": "Search",
+			"markdown": "We decided to use DO SQLite FTS5 for keyword search. Vectorize holds the embeddings.",
+			"expected": [
+				{ "kind": "decision", "contains": "FTS5" },
+				{ "kind": "fact", "contains": "Vectorize" }
+			]
+		},
+		{
+			"id": "doc-08",
+			"title": "Gmail later",
+			"markdown": "We need to add the Gmail connector in M5. Skip attachments for v0.",
+			"expected": [{ "kind": "task", "contains": "Gmail" }]
+		},
+		{
+			"id": "doc-09",
+			"title": "Auth",
+			"markdown": "API keys start with ym_ and are hashed in D1. MCP OAuth waits until M4.",
+			"expected": [{ "kind": "fact", "contains": "ym_" }, { "kind": "fact", "contains": "M4" }]
+		},
+		{
+			"id": "doc-10",
+			"title": "Embeddings",
+			"markdown": "Embeddings use Workers AI bge-m3 at 1024 dimensions. Namespaces are the user id.",
+			"expected": [{ "kind": "fact", "contains": "bge-m3" }, { "kind": "fact", "contains": "user" }]
+		},
+		{
+			"id": "doc-11",
+			"title": "Rerank",
+			"markdown": "We decided to skip LLM rerank on raw search_memories. recall_context still reranks.",
+			"expected": [{ "kind": "decision", "contains": "search_memories" }]
+		},
+		{
+			"id": "doc-12",
+			"title": "Obsidian",
+			"markdown": "The Obsidian plugin should POST changed files with a contentHash. Vaults are local files.",
+			"expected": [
+				{ "kind": "task", "contains": "Obsidian" },
+				{ "kind": "fact", "contains": "local" }
+			]
+		},
+		{
+			"id": "doc-13",
+			"title": "Notion poll",
+			"markdown": "Notion polling is scheduled every 10 minutes. Rate limit is about 3 requests per second.",
+			"expected": [
+				{ "kind": "event", "contains": "10 minutes" },
+				{ "kind": "fact", "contains": "3" }
+			]
+		},
+		{
+			"id": "doc-14",
+			"title": "Single worker",
+			"markdown": "We decided to ship one Worker for UI, agents, MCP, and the API. Split later only if the bundle hits 10 MB.",
+			"expected": [{ "kind": "decision", "contains": "one Worker" }]
+		},
+		{
+			"id": "doc-15",
+			"title": "Luv and Sam",
+			"markdown": "Sam is a teammate on connectors. Luv works with Sam on the Notion markdown converter.",
+			"expected": [{ "kind": "relationship", "contains": "Sam" }]
+		},
+		{
+			"id": "doc-16",
+			"title": "Coffee",
+			"markdown": "Luv prefers oat milk in coffee. Meetings after 4pm are a hard no.",
+			"expected": [{ "kind": "preference", "contains": "oat milk" }]
+		},
+		{
+			"id": "doc-17",
+			"title": "Budget",
+			"markdown": "Each source has a daily token budget. Polling pauses when the budget is exceeded.",
+			"expected": [{ "kind": "fact", "contains": "budget" }]
+		},
+		{
+			"id": "doc-18",
+			"title": "Reindex",
+			"markdown": "We need to add a reindex command in M6. Delete-source must cascade through DO, Vectorize, and R2.",
+			"expected": [{ "kind": "task", "contains": "reindex" }]
+		},
+		{
+			"id": "doc-19",
+			"title": "Chat model",
+			"markdown": "Chat is pinned to gpt-5.6-luna. Escape hatch is Terra if citation quality is insufficient.",
+			"expected": [
+				{ "kind": "fact", "contains": "gpt-5.6-luna" },
+				{ "kind": "fact", "contains": "Terra" }
+			]
+		},
+		{
+			"id": "doc-20",
+			"title": "Launch",
+			"markdown": "Public launch is scheduled for after Gmail verification. Yesterday we locked the v0 decisions.",
+			"expected": [
+				{ "kind": "event", "contains": "Gmail" },
+				{ "kind": "event", "contains": "Yesterday" }
+			]
+		},
+		{
+			"id": "doc-21",
+			"title": "Citations",
+			"markdown": "Every chat answer should cite memories and documents it used. Provenance includes source, url, and timestamp.",
+			"expected": [{ "kind": "fact", "contains": "cite" }]
+		},
+		{
+			"id": "doc-22",
+			"title": "Generic ingest",
+			"markdown": "POST /ingest accepts externalId, title, markdown, and metadata. This is how Zapier scripts plug in.",
+			"expected": [{ "kind": "fact", "contains": "externalId" }]
+		},
+		{
+			"id": "doc-23",
+			"title": "Manager",
+			"markdown": "Alex is the manager for the memory project. Luv reports to Alex on weekly progress.",
+			"expected": [{ "kind": "relationship", "contains": "Alex" }]
+		},
+		{
+			"id": "doc-24",
+			"title": "Chunking",
+			"markdown": "We decided on heading-aware chunks of about 500 tokens with 15 percent overlap. Unchanged chunks are never re-extracted.",
+			"expected": [
+				{ "kind": "decision", "contains": "500 tokens" },
+				{ "kind": "fact", "contains": "unchanged", "optional": true }
+			]
+		}
+	],
+	"consolidate": [
+		{
+			"id": "con-01",
+			"candidate": "Luv prefers Effect 4 for the yumeoi domain layer.",
+			"existing": [
+				{ "id": "m1", "text": "Luv prefers Effect 4 in the domain package." },
+				{ "id": "m2", "text": "Chat uses GPT-5.6 Luna at high effort." }
+			],
+			"expected": { "action": "duplicate", "targetId": "m1" }
+		},
+		{
+			"id": "con-02",
+			"candidate": "Luv now prefers Effect 4.0.0-rc.112 exactly, not earlier RCs.",
+			"existing": [{ "id": "m1", "text": "Luv prefers Effect 4 for the domain layer." }],
+			"expected": { "action": "supersedes", "targetId": "m1" }
+		},
+		{
+			"id": "con-03",
+			"candidate": "Embeddings use Workers AI bge-m3 at 1024 dimensions.",
+			"existing": [{ "id": "m1", "text": "Luv prefers dark mode in the editor." }],
+			"expected": { "action": "new", "targetId": null }
+		},
+		{
+			"id": "con-04",
+			"candidate": "We use DO SQLite FTS5 for keyword search.",
+			"existing": [
+				{ "id": "m1", "text": "Keyword search is implemented with Durable Object SQLite FTS5." },
+				{ "id": "m2", "text": "Vectorize stores embeddings." }
+			],
+			"expected": { "action": "duplicate", "targetId": "m1" }
+		},
+		{
+			"id": "con-05",
+			"candidate": "Notion now polls every 5 minutes instead of 10.",
+			"existing": [{ "id": "m1", "text": "Notion polling is scheduled every 10 minutes." }],
+			"expected": { "action": "supersedes", "targetId": "m1" }
+		},
+		{
+			"id": "con-06",
+			"candidate": "Sam reports to Luv on connector work.",
+			"existing": [],
+			"expected": { "action": "new", "targetId": null }
+		},
+		{
+			"id": "con-07",
+			"candidate": "API keys are prefixed with ym_ and stored hashed in D1.",
+			"existing": [{ "id": "m1", "text": "API keys start with ym_ and are hashed in D1." }],
+			"expected": { "action": "duplicate", "targetId": "m1" }
+		},
+		{
+			"id": "con-08",
+			"candidate": "Chat stays on GPT-5.6 Luna, but reasoning effort is now medium.",
+			"existing": [{ "id": "m1", "text": "Chat is pinned to GPT-5.6 Luna at high effort." }],
+			"expected": { "action": "supersedes", "targetId": "m1" }
+		},
+		{
+			"id": "con-09",
+			"candidate": "The Obsidian plugin POSTs changed files with a contentHash.",
+			"existing": [
+				{ "id": "m1", "text": "Gmail sync skips attachments in v0." },
+				{ "id": "m2", "text": "Each source has a daily token budget." }
+			],
+			"expected": { "action": "new", "targetId": null }
+		},
+		{
+			"id": "con-10",
+			"candidate": "Luv prefers oat milk in coffee.",
+			"existing": [{ "id": "m1", "text": "Luv prefers oat milk when drinking coffee." }],
+			"expected": { "action": "duplicate", "targetId": "m1" }
+		},
+		{
+			"id": "con-11",
+			"candidate": "Heading-aware chunks are now about 300 tokens with 10 percent overlap.",
+			"existing": [
+				{
+					"id": "m1",
+					"text": "Chunks are heading-aware, about 500 tokens, with 15 percent overlap."
+				}
+			],
+			"expected": { "action": "supersedes", "targetId": "m1" }
+		},
+		{
+			"id": "con-12",
+			"candidate": "Alex is the manager for the memory project.",
+			"existing": [{ "id": "m1", "text": "Sam is a teammate on connectors." }],
+			"expected": { "action": "new", "targetId": null }
+		}
+	],
+	"rerank": [
+		{
+			"id": "rr-01",
+			"query": "What model does chat use?",
+			"candidates": [
+				{ "id": "a", "text": "Chat is pinned to GPT-5.6 Luna at high effort." },
+				{ "id": "b", "text": "Luv prefers oat milk in coffee." },
+				{ "id": "c", "text": "Notion polls every 10 minutes." },
+				{ "id": "d", "text": "API keys start with ym_." }
+			],
+			"relevant": ["a"]
+		},
+		{
+			"id": "rr-02",
+			"query": "How do we search memories by keyword?",
+			"candidates": [
+				{ "id": "a", "text": "Luv reports to Alex weekly." },
+				{ "id": "b", "text": "Keyword search uses Durable Object SQLite FTS5." },
+				{ "id": "c", "text": "Public launch waits on Gmail verification." },
+				{ "id": "d", "text": "Vaults are local files." }
+			],
+			"relevant": ["b"]
+		},
+		{
+			"id": "rr-03",
+			"query": "Who works on connectors?",
+			"candidates": [
+				{ "id": "a", "text": "Embeddings use Workers AI bge-m3." },
+				{ "id": "b", "text": "Chat answers must cite memories." },
+				{ "id": "c", "text": "Sam reports to Luv on connector work." },
+				{ "id": "d", "text": "Unchanged chunks are never re-extracted." }
+			],
+			"relevant": ["c"]
+		},
+		{
+			"id": "rr-04",
+			"query": "What is the ingest HTTP shape?",
+			"candidates": [
+				{ "id": "a", "text": "POST /ingest accepts externalId, title, markdown, and metadata." },
+				{ "id": "b", "text": "Meetings after 4pm are a hard no." },
+				{ "id": "c", "text": "Tabs are required in Biome output." },
+				{ "id": "d", "text": "Vectorize holds the embeddings." }
+			],
+			"relevant": ["a"]
+		},
+		{
+			"id": "rr-05",
+			"query": "When does Notion polling run?",
+			"candidates": [
+				{ "id": "a", "text": "Rate limit is about 3 requests per second." },
+				{ "id": "b", "text": "The kickoff meeting is tomorrow at 10:00." },
+				{ "id": "c", "text": "Notion polling is scheduled every 10 minutes." },
+				{ "id": "d", "text": "MCP OAuth waits until M4." }
+			],
+			"relevant": ["c"]
+		},
+		{
+			"id": "rr-06",
+			"query": "What editor preference does Luv have?",
+			"candidates": [
+				{ "id": "a", "text": "Each source has a daily token budget." },
+				{ "id": "b", "text": "Luv prefers dark mode in the editor at all times." },
+				{ "id": "c", "text": "We ship one Worker for UI, agents, MCP, and the API." },
+				{ "id": "d", "text": "Skip attachments for v0 Gmail." }
+			],
+			"relevant": ["b"]
+		},
+		{
+			"id": "rr-07",
+			"query": "How are embeddings stored per user?",
+			"candidates": [
+				{ "id": "a", "text": "Namespaces for Vectorize embeddings are the user id." },
+				{ "id": "b", "text": "Yesterday we reviewed the v0 plan." },
+				{ "id": "c", "text": "Luv works with Cursor agents on yumeoi." },
+				{ "id": "d", "text": "The todo is wiring POST /ingest." }
+			],
+			"relevant": ["a"]
+		},
+		{
+			"id": "rr-08",
+			"query": "What still needs to ship for Gmail?",
+			"candidates": [
+				{ "id": "a", "text": "Chat escape hatch is Terra if citation quality is insufficient." },
+				{ "id": "b", "text": "Provenance includes source, url, and timestamp." },
+				{ "id": "c", "text": "We need to add the Gmail connector in M5." },
+				{ "id": "d", "text": "Luv prefers Effect 4 for the domain layer." }
+			],
+			"relevant": ["c"]
+		}
+	]
+}

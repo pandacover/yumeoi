@@ -23,9 +23,13 @@ export type LlmConfig = typeof LlmConfig.Type;
 /**
  * Exact OpenAI API id for GPT-5.6 Luna (confirmed against the GPT-5.6 Luna model page).
  * Chat is pinned here at reasoning effort `high`. Extract / consolidate / rerank stay
- * on the same placeholder until M1 evals pick winners.
+ * on the same placeholder until live M1 evals pin winners (`docs/eval/m1.md`).
+ *
+ * OpenRouter slugs are `openai/${model}`. Runtime calls prefer OpenRouter and fall
+ * back to the OpenAI API.
  */
 export const CHAT_MODEL_ID = "gpt-5.6-luna";
+export const TERRA_MODEL_ID = "gpt-5.6-terra";
 
 export const defaultLlmConfig: LlmConfig = {
 	chat: { model: CHAT_MODEL_ID, effort: "high" },

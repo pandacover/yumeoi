@@ -19,6 +19,25 @@ export const ExtractedMemory = Schema.Struct({
 });
 export type ExtractedMemory = typeof ExtractedMemory.Type;
 
+export const ExtractedMemories = Schema.Struct({
+	memories: Schema.Array(ExtractedMemory),
+});
+export type ExtractedMemories = typeof ExtractedMemories.Type;
+
+export const ConsolidateAction = Schema.Literals(["new", "duplicate", "supersedes"]);
+export type ConsolidateAction = typeof ConsolidateAction.Type;
+
+export const ConsolidateDecision = Schema.Struct({
+	action: ConsolidateAction,
+	targetId: Schema.NullOr(Schema.String),
+});
+export type ConsolidateDecision = typeof ConsolidateDecision.Type;
+
+export const RerankResult = Schema.Struct({
+	ids: Schema.Array(Schema.String),
+});
+export type RerankResult = typeof RerankResult.Type;
+
 export const Memory = Schema.Struct({
 	id: Schema.String,
 	kind: MemoryKind,

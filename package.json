@@ -13,6 +13,7 @@
 		"lint:fix": "biome check --write .",
 		"typecheck": "tsgo -b --pretty false",
 		"test": "bun test packages && bun run --filter @yumeoi/app test",
+		"eval:m1": "bun scripts/m1-eval.ts",
 		"deploy:dry-run": "bun run --filter @yumeoi/app deploy:dry-run",
 		"deploy:preview": "bun run --filter @yumeoi/app deploy:preview"
 	},
