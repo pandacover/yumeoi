@@ -2,6 +2,7 @@ import handler from "@tanstack/react-start/server-entry";
 import { dispatch } from "./dispatch.ts";
 
 export { MemoryAgent } from "./agents/memory-agent.ts";
+export { SourceAgent } from "./agents/source-agent.ts";
 export { IngestWorkflow } from "./workflows/ingest-workflow.ts";
 
 export default {

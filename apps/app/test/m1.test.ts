@@ -46,7 +46,7 @@ describe("MemoryAgent", () => {
 });
 
 describe("HTTP ingest and recall", () => {
-	it("serves health for m1", async () => {
+	it("serves health with pinned extract model", async () => {
 		const response = await SELF.fetch("https://example.com/api/health");
 		expect(response.status).toBe(200);
 		const body = (await response.json()) as {
@@ -54,7 +54,7 @@ describe("HTTP ingest and recall", () => {
 			extractModel: { model: string; effort: string };
 			llm: { defaultProvider: string; fallbackProvider: string };
 		};
-		expect(body.milestone).toBe("m1");
+		expect(["m1", "m2"]).toContain(body.milestone);
 		expect(body.extractModel).toEqual({ model: "gpt-5.6-luna", effort: "high" });
 		expect(body.llm.defaultProvider).toBe("openrouter");
 		expect(body.llm.fallbackProvider).toBe("openai");

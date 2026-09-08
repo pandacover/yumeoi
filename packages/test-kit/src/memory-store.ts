@@ -159,6 +159,22 @@ export const memoryMemoryRepoLayer = (userId = "test-user") => {
 					.map((memory) => ({ id: memory.id, createdAt: memory.createdAt })),
 			),
 		listSources: () => Effect.succeed(db.sources.map((source) => ({ ...source, userId }))),
+		upsertSource: (source) =>
+			Effect.sync(() => {
+				const index = db.sources.findIndex((item) => item.id === source.id);
+				if (index >= 0) {
+					db.sources[index] = source;
+				} else {
+					db.sources.push(source);
+				}
+			}),
+		listMemories: (filters) =>
+			Effect.succeed(
+				filterMemories(db, "", filters)
+					.sort((left, right) => right.createdAt - left.createdAt)
+					.slice(0, filters.limit)
+					.map(strip),
+			),
 		similarMemoryCandidates: (_exclude, limit) =>
 			Effect.succeed(db.memories.slice(0, limit).map(strip)),
 		listRecentMemories: (limit) =>
@@ -292,7 +308,7 @@ const needle = (match: string, text: string): boolean => {
 
 const filterMemories = (db: Stored, match: string, filters: SearchFilters) =>
 	db.memories.filter((memory) => {
-		if (!needle(match, memory.text)) {
+		if (match.trim().length > 0 && !needle(match, memory.text)) {
 			return false;
 		}
 		if (filters.kinds.length > 0 && !filters.kinds.includes(memory.kind)) {

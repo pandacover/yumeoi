@@ -1,17 +1,42 @@
-import type { Document, SourceKind } from "@yumeoi/domain";
-import { Context, type Effect, type Stream } from "effect";
-
-export interface ExternalRef {
-	readonly externalId: string;
-	readonly contentHash: string;
-}
-
-export class Connector extends Context.Service<
+export { ConnectorHttp, type FetchFn, fetchHttpLayer } from "./http.ts";
+export {
+	blocksToMarkdown,
+	blockToMarkdown,
+	type NotionBlock,
+	type NotionRichText,
+	richTextToMarkdown,
+	titleFromRichText,
+} from "./notion/blocks.ts";
+export {
+	fetchNotionPage,
+	isNotionPagePayload,
+	notionHeaders,
+	pageTitleFromProperties,
+	propertiesToMarkdown,
+	searchNotionPages,
+} from "./notion/client.ts";
+export { normalizeNotionPage, notionConnectorLayer } from "./notion/connector.ts";
+export {
+	FIXTURE_PAGES,
+	type FixturePage,
+	fixtureNotionLayer,
+	isFixtureToken,
+} from "./notion/fixture.ts";
+export {
+	exchangeNotionCode,
+	NOTION_API_BASE,
+	NOTION_AUTHORIZE_URL,
+	NOTION_TOKEN_URL,
+	NOTION_VERSION,
+	type NotionOAuthConfig,
+	type NotionTokenResponse,
+	notionAuthorizeUrl,
+	refreshNotionToken,
+} from "./notion/oauth.ts";
+export {
 	Connector,
-	{
-		readonly kind: SourceKind;
-		readonly listChanged: (cursor: string | null) => Stream.Stream<ExternalRef>;
-		readonly fetch: (ref: ExternalRef) => Effect.Effect<unknown>;
-		readonly normalize: (raw: unknown) => Effect.Effect<Document>;
-	}
->()("@yumeoi/connectors/Connector") {}
+	type ConnectorAuth,
+	type ConnectorError,
+	type ExternalRef,
+	type NormalizedDocument,
+} from "./types.ts";

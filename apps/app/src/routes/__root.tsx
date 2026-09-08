@@ -1,5 +1,6 @@
 import { createRootRoute, HeadContent, Scripts } from "@tanstack/react-router";
 import type { ReactNode } from "react";
+import { AppShell } from "../components/app-shell.tsx";
 import appCss from "../styles/app.css?url";
 
 export const Route = createRootRoute({
@@ -7,11 +8,10 @@ export const Route = createRootRoute({
 		meta: [
 			{ charSet: "utf-8" },
 			{ name: "viewport", content: "width=device-width, initial-scale=1" },
-			{ title: "yumeoi — m1" },
+			{ title: "yumeoi — m2" },
 			{
 				name: "description",
-				content:
-					"Memory infrastructure: ingest documents, extract memories, recall over MCP and HTTP.",
+				content: "Connect Notion, extract memories, and recall them from the UI, MCP, and HTTP.",
 			},
 		],
 		links: [{ rel: "stylesheet", href: appCss }],
@@ -26,7 +26,7 @@ function RootDocument({ children }: { children: ReactNode }) {
 				<HeadContent />
 			</head>
 			<body>
-				{children}
+				<AppShell>{children}</AppShell>
 				<Scripts />
 			</body>
 		</html>

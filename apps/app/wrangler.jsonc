@@ -40,6 +40,10 @@
 			{
 				"name": "MemoryAgent",
 				"class_name": "MemoryAgent"
+			},
+			{
+				"name": "SourceAgent",
+				"class_name": "SourceAgent"
 			}
 		]
 	},
@@ -54,6 +58,10 @@
 		{
 			"tag": "v1",
 			"new_sqlite_classes": ["MemoryAgent"]
+		},
+		{
+			"tag": "v2",
+			"new_sqlite_classes": ["SourceAgent"]
 		}
 	]
 }

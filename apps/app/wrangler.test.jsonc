@@ -6,7 +6,8 @@
 	"vars": {
 		"AI_GATEWAY_ID": "default",
 		"YUMEOI_API_KEY": "ym_test_key",
-		"YUMEOI_USER_ID": "test-user"
+		"YUMEOI_USER_ID": "test-user",
+		"TOKEN_ENCRYPTION_KEY": "test-token-key-32-bytes-long!!"
 	},
 	"r2_buckets": [
 		{
@@ -27,6 +28,10 @@
 			{
 				"name": "MemoryAgent",
 				"class_name": "MemoryAgent"
+			},
+			{
+				"name": "SourceAgent",
+				"class_name": "SourceAgent"
 			}
 		]
 	},
@@ -41,6 +46,10 @@
 		{
 			"tag": "v1",
 			"new_sqlite_classes": ["MemoryAgent"]
+		},
+		{
+			"tag": "v2",
+			"new_sqlite_classes": ["SourceAgent"]
 		}
 	]
 }

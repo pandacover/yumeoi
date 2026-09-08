@@ -7,8 +7,11 @@ import type {
 	AddMemoryRequest,
 	IngestRequest,
 	IngestResult,
+	MemoryHit,
 	MemoryKind,
 	RecallResult,
+	Source,
+	SourceView,
 } from "@yumeoi/domain";
 import {
 	type IngestState,
@@ -27,6 +30,8 @@ import { Effect } from "effect";
 export type MemoryAgentState = {
 	ready: boolean;
 	lastIngest?: IngestResult;
+	sources: SourceView[];
+	ingestProgress?: { step: string; percent: number; sourceId?: string };
 };
 
 type AgentRuntime = ReturnType<typeof makeMemoryAgentRuntime>;
@@ -34,7 +39,7 @@ type AgentRuntime = ReturnType<typeof makeMemoryAgentRuntime>;
 type FilterKind = MemoryKind;
 
 export class MemoryAgent extends Agent<Env, MemoryAgentState> {
-	override initialState: MemoryAgentState = { ready: false };
+	override initialState: MemoryAgentState = { ready: false, sources: [] };
 
 	#runtime!: AgentRuntime;
 
@@ -58,7 +63,7 @@ export class MemoryAgent extends Agent<Env, MemoryAgentState> {
 					...(providers.length > 0 ? { providers } : {}),
 				});
 				await this.#runtime.context();
-				this.setState({ ready: true });
+				this.setState({ ...this.state, ready: true });
 			} catch (error) {
 				console.error("MemoryAgent init failed", error);
 				throw error;
@@ -228,7 +233,57 @@ export class MemoryAgent extends Agent<Env, MemoryAgentState> {
 	@callable()
 	async listSources() {
 		const userId = this.name;
-		return this.#runtime.runPromise(Effect.flatMap(MemoryRepo, (repo) => repo.listSources(userId)));
+		const rows = await this.#runtime.runPromise(
+			Effect.flatMap(MemoryRepo, (repo) => repo.listSources(userId)),
+		);
+		const live = new Map(this.state.sources.map((source) => [source.id, source]));
+		const merged = new Map<string, SourceView>();
+		for (const row of rows) {
+			merged.set(row.id, live.get(row.id) ?? idleSource(row));
+		}
+		for (const source of this.state.sources) {
+			merged.set(source.id, source);
+		}
+		return [...merged.values()];
+	}
+
+	@callable()
+	async registerSource(source: Source): Promise<SourceView> {
+		await this.#runtime.runPromise(Effect.flatMap(MemoryRepo, (repo) => repo.upsertSource(source)));
+		const view = this.state.sources.find((item) => item.id === source.id) ?? idleSource(source);
+		const next = { ...view, label: source.label, kind: source.kind };
+		this.setState({
+			...this.state,
+			sources: upsertSourceView(this.state.sources, next),
+		});
+		return next;
+	}
+
+	@callable()
+	async reportSourceStatus(source: SourceView): Promise<SourceView> {
+		await this.#runtime.runPromise(
+			Effect.flatMap(MemoryRepo, (repo) =>
+				repo.upsertSource({
+					id: source.id,
+					userId: source.userId,
+					kind: source.kind,
+					label: source.label,
+				}),
+			),
+		);
+		this.setState({
+			...this.state,
+			sources: upsertSourceView(this.state.sources, source),
+		});
+		return source;
+	}
+
+	@callable()
+	async getDocumentHash(sourceId: string, externalId: string): Promise<string | null> {
+		const document = await this.#runtime.runPromise(
+			Effect.flatMap(MemoryRepo, (repo) => repo.getDocumentByExternalId(sourceId, externalId)),
+		);
+		return document?.contentHash ?? null;
 	}
 
 	@callable()
@@ -236,6 +291,76 @@ export class MemoryAgent extends Agent<Env, MemoryAgentState> {
 		return this.#runtime.runPromise(
 			Effect.flatMap(MemoryRepo, (repo) => repo.listRecentMemories(limit)),
 		);
+	}
+
+	@callable()
+	async browseMemories(query: {
+		query?: string;
+		sources?: ReadonlyArray<string>;
+		kinds?: ReadonlyArray<FilterKind>;
+		since?: number | null;
+		limit?: number;
+	}): Promise<MemoryHit[]> {
+		const sources = query.sources ? [...query.sources] : [];
+		const kinds = query.kinds ? [...query.kinds] : [];
+		const since = query.since ?? null;
+		const limit = query.limit ?? 40;
+		if (query.query && query.query.trim().length > 0) {
+			return this.search({
+				query: query.query,
+				sources,
+				kinds,
+				since,
+				limit,
+			});
+		}
+		return this.#runtime.runPromise(
+			Effect.gen(function* () {
+				const repo = yield* MemoryRepo;
+				const memories = yield* repo.listMemories({ sources, kinds, since, limit });
+				const provenances = yield* repo.provenanceFor(memories.map((memory) => memory.id));
+				const byMemory = new Map<string, Array<MemoryHit["provenance"][number]>>();
+				for (const row of provenances) {
+					const list = byMemory.get(row.memoryId) ?? [];
+					byMemory.set(row.memoryId, [
+						...list,
+						{
+							sourceId: row.sourceId,
+							documentId: row.documentId,
+							chunkId: row.chunkId,
+							title: row.title,
+							url: row.url,
+						},
+					]);
+				}
+				return memories.map((memory) => ({
+					memory,
+					score: 1,
+					provenance: byMemory.get(memory.id) ?? [],
+				}));
+			}),
+		);
+	}
+
+	override async onWorkflowProgress(
+		_workflowName: string,
+		_workflowId: string,
+		progress: unknown,
+	): Promise<void> {
+		if (!progress || typeof progress !== "object") {
+			return;
+		}
+		const record = progress as { step?: string; percent?: number; sourceId?: string };
+		if (typeof record.step === "string") {
+			this.setState({
+				...this.state,
+				ingestProgress: {
+					step: record.step,
+					percent: typeof record.percent === "number" ? record.percent : 0,
+					...(typeof record.sourceId === "string" ? { sourceId: record.sourceId } : {}),
+				},
+			});
+		}
 	}
 
 	override async onWorkflowComplete(
@@ -248,3 +373,20 @@ export class MemoryAgent extends Agent<Env, MemoryAgentState> {
 		}
 	}
 }
+
+const idleSource = (source: Source): SourceView => ({
+	id: source.id,
+	userId: source.userId,
+	kind: source.kind,
+	label: source.label,
+	status: "idle",
+	lastSyncedAt: null,
+	lastError: null,
+	documentsSeen: 0,
+	documentsIngested: 0,
+});
+
+const upsertSourceView = (sources: ReadonlyArray<SourceView>, next: SourceView): SourceView[] => {
+	const others = sources.filter((source) => source.id !== next.id);
+	return [...others, next];
+};

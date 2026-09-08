@@ -8,10 +8,20 @@ import {
 	type MemoryKind,
 	RecallQuery,
 	SearchQuery,
+	type SourceKind,
 } from "@yumeoi/domain";
 import { Schema } from "effect";
 import { authenticateRequest, unauthorized } from "../auth/api-key.ts";
 import { listApiKeys, mintApiKey, revokeApiKey } from "../auth/api-keys.ts";
+import {
+	appUserId,
+	connectFixtureSource,
+	disconnectSource,
+	finishNotionCallback,
+	isFixtureConnect,
+	startNotionAuthorize,
+	syncSource,
+} from "./sources.ts";
 import { handleSpikes } from "./spikes.ts";
 
 const json = (body: unknown, status = 200) =>
@@ -41,6 +51,13 @@ const asKinds = (value: unknown): MemoryKind[] => {
 const asStrings = (value: unknown): string[] =>
 	Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
 
+const SOURCE_KINDS = ["notion", "gmail", "obsidian", "generic", "agent"] as const;
+
+const asSourceKind = (value: unknown): SourceKind | undefined =>
+	typeof value === "string" && (SOURCE_KINDS as readonly string[]).includes(value)
+		? (value as SourceKind)
+		: undefined;
+
 const ingestRequestFromUnknown = (raw: unknown): IngestRequest | null => {
 	if (!raw || typeof raw !== "object") {
 		return null;
@@ -60,6 +77,7 @@ const ingestRequestFromUnknown = (raw: unknown): IngestRequest | null => {
 		sourceId: typeof body.sourceId === "string" ? body.sourceId : "generic",
 		sourceLabel: typeof body.sourceLabel === "string" ? body.sourceLabel : "Generic ingest",
 		url: typeof body.url === "string" ? body.url : null,
+		...(asSourceKind(body.sourceKind) ? { sourceKind: asSourceKind(body.sourceKind) } : {}),
 		...(metadata ? { metadata } : {}),
 	});
 };
@@ -121,7 +139,7 @@ export async function handleApi(request: Request, env: Env): Promise<Response | 
 	if (url.pathname === "/api/health") {
 		return json({
 			ok: true,
-			milestone: "m1",
+			milestone: "m2",
 			chatModel: defaultLlmConfig.chat,
 			extractModel: defaultLlmConfig.extract,
 			consolidateModel: defaultLlmConfig.consolidate,
@@ -135,6 +153,30 @@ export async function handleApi(request: Request, env: Env): Promise<Response | 
 
 	if (url.pathname.startsWith("/api/spikes/")) {
 		return handleSpikes(request, env);
+	}
+
+	if (url.pathname === "/api/sources/notion/authorize" && request.method === "GET") {
+		try {
+			const location = await startNotionAuthorize(env, request, appUserId(env));
+			return Response.redirect(location, 302);
+		} catch (error) {
+			return json({ error: error instanceof Error ? error.message : String(error) }, 503);
+		}
+	}
+
+	if (url.pathname === "/api/sources/notion/callback" && request.method === "GET") {
+		const code = url.searchParams.get("code");
+		const state = url.searchParams.get("state");
+		if (!code || !state) {
+			return json({ error: "code and state are required" }, 400);
+		}
+		try {
+			const source = await finishNotionCallback(env, request, code, state);
+			await syncSource(env, source.id);
+			return Response.redirect(new URL("/sources?connected=1", request.url), 302);
+		} catch (error) {
+			return json({ error: error instanceof Error ? error.message : String(error) }, 400);
+		}
 	}
 
 	const needsAuth =
@@ -187,6 +229,17 @@ export async function handleApi(request: Request, env: Env): Promise<Response | 
 		return json(result);
 	}
 
+	if (url.pathname === "/api/memories" && request.method === "GET") {
+		const queryText = url.searchParams.get("query");
+		const hits = await agent.browseMemories({
+			...(queryText ? { query: queryText } : {}),
+			sources: asStrings(url.searchParams.getAll("sources")),
+			kinds: asKinds(url.searchParams.getAll("kinds")),
+			limit: Number(url.searchParams.get("limit") ?? 40) || 40,
+		});
+		return json({ memories: hits });
+	}
+
 	if (url.pathname === "/api/memories" && request.method === "POST") {
 		const body = addMemoryFromUnknown(await request.json().catch(() => null));
 		if (!body) {
@@ -219,6 +272,36 @@ export async function handleApi(request: Request, env: Env): Promise<Response | 
 
 	if (url.pathname === "/api/sources" && request.method === "GET") {
 		return json({ sources: await agent.listSources() });
+	}
+
+	if (url.pathname === "/api/sources" && request.method === "POST") {
+		const body = ((await request.json().catch(() => ({}))) ?? {}) as Record<string, unknown>;
+		const kind = body.kind === "notion" ? "notion" : null;
+		if (!kind) {
+			return json({ error: "kind must be notion" }, 400);
+		}
+		if (isFixtureConnect(body) || body.mode === "fixture") {
+			const source = await connectFixtureSource(env, auth.userId);
+			return json({ source }, 201);
+		}
+		try {
+			const authorizeUrl = await startNotionAuthorize(env, request, auth.userId);
+			return json({ authorizeUrl });
+		} catch (error) {
+			return json({ error: error instanceof Error ? error.message : String(error) }, 503);
+		}
+	}
+
+	const sourceSync = url.pathname.match(/^\/api\/sources\/([^/]+)\/sync$/);
+	if (sourceSync && request.method === "POST") {
+		const sourceId = decodeURIComponent(sourceSync[1] ?? "");
+		return json(await syncSource(env, sourceId));
+	}
+
+	const sourceIdMatch = url.pathname.match(/^\/api\/sources\/([^/]+)$/);
+	if (sourceIdMatch && request.method === "DELETE") {
+		const sourceId = decodeURIComponent(sourceIdMatch[1] ?? "");
+		return json(await disconnectSource(env, sourceId));
 	}
 
 	if (url.pathname === "/api/keys" && request.method === "GET") {

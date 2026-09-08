@@ -318,6 +318,40 @@ export const sqlMemoryRepoLayer = Layer.effect(
 						})),
 					),
 				),
+			upsertSource: (source) =>
+				sql`
+					INSERT INTO sources (id, kind, label, created_at)
+					VALUES (${source.id}, ${source.kind}, ${source.label}, ${Date.now()})
+					ON CONFLICT(id) DO UPDATE SET label = excluded.label, kind = excluded.kind
+				`.pipe(Effect.asVoid),
+			listMemories: (filters) =>
+				Effect.gen(function* () {
+					const rows = yield* sql<MemoryRow>`
+						SELECT * FROM memories ORDER BY created_at DESC LIMIT 80
+					`;
+					const kept: Memory[] = [];
+					for (const row of rows) {
+						if (filters.kinds.length > 0 && !filters.kinds.includes(row.kind)) {
+							continue;
+						}
+						if (filters.since !== null && row.created_at < filters.since) {
+							continue;
+						}
+						if (filters.sources.length > 0) {
+							const links = yield* sql<{ source_id: string }>`
+								SELECT source_id FROM memory_sources WHERE memory_id = ${row.id}
+							`;
+							if (!links.some((link) => filters.sources.includes(link.source_id))) {
+								continue;
+							}
+						}
+						kept.push(toMemory(row));
+						if (kept.length >= filters.limit) {
+							break;
+						}
+					}
+					return kept;
+				}),
 			similarMemoryCandidates: (_excludeIds, limit) =>
 				sql<MemoryRow>`SELECT * FROM memories ORDER BY created_at DESC LIMIT ${limit}`.pipe(
 					Effect.map((rows) => rows.map(toMemory)),

@@ -113,6 +113,10 @@ export class MemoryRepo extends Context.Service<
 			memoryIds: ReadonlyArray<string>,
 		) => Effect.Effect<ReadonlyArray<{ readonly id: string; readonly createdAt: number }>, unknown>;
 		readonly listSources: (userId: string) => Effect.Effect<ReadonlyArray<Source>, unknown>;
+		readonly upsertSource: (source: Source) => Effect.Effect<void, unknown>;
+		readonly listMemories: (
+			filters: SearchFilters,
+		) => Effect.Effect<ReadonlyArray<Memory>, unknown>;
 		readonly similarMemoryCandidates: (
 			excludeIds: ReadonlyArray<string>,
 			limit: number,

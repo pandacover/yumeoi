@@ -5,6 +5,7 @@ declare namespace Cloudflare {
 		AI: Ai;
 		VECTORIZE: Vectorize;
 		MemoryAgent: DurableObjectNamespace<import("./src/agents/memory-agent").MemoryAgent>;
+		SourceAgent: DurableObjectNamespace<import("./src/agents/source-agent").SourceAgent>;
 		INGEST_WORKFLOW: Workflow<{
 			userId: string;
 			request: import("@yumeoi/domain").IngestRequest;
@@ -16,6 +17,10 @@ declare namespace Cloudflare {
 		OPENAI_API_KEY?: string;
 		YUMEOI_API_KEY?: string;
 		YUMEOI_USER_ID?: string;
+		TOKEN_ENCRYPTION_KEY?: string;
+		NOTION_CLIENT_ID?: string;
+		NOTION_CLIENT_SECRET?: string;
+		NOTION_REDIRECT_URI?: string;
 	}
 }
 

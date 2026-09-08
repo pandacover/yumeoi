@@ -106,7 +106,7 @@ describe("domain schemas", () => {
 		expect(decision.action).toBe("new");
 	});
 
-	test("IngestRequest accepts optional metadata", () => {
+	test("IngestRequest accepts optional sourceKind and metadata", () => {
 		const decoded = Schema.decodeUnknownSync(IngestRequest)({
 			externalId: "doc-1",
 			title: "Notes",
@@ -114,8 +114,10 @@ describe("domain schemas", () => {
 			sourceId: "generic",
 			sourceLabel: "Notes",
 			url: null,
+			sourceKind: "notion",
 			metadata: { origin: "test" },
 		});
 		expect(decoded.metadata).toEqual({ origin: "test" });
+		expect(decoded.sourceKind).toBe("notion");
 	});
 });
