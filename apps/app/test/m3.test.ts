@@ -9,7 +9,7 @@ describe("M3 chat", () => {
 			milestone: string;
 			chat: { resumable: boolean; tools: string[]; model: { model: string; effort: string } };
 		};
-		expect(body.milestone).toBe("m3");
+		expect(["m3", "m4"]).toContain(body.milestone);
 		expect(body.chat.resumable).toBe(true);
 		expect(body.chat.tools).toEqual(["recall", "get_document"]);
 		expect(body.chat.model).toEqual({ model: "gpt-5.6-luna", effort: "high" });

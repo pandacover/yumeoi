@@ -2,7 +2,6 @@ import { McpServer } from "@modelcontextprotocol/server";
 import { MEMORY_KINDS, type MemoryKind } from "@yumeoi/domain";
 import { createMcpHandler, getMcpAuthContext } from "agents/mcp/server";
 import { z } from "zod";
-import { authenticateRequest, unauthorized } from "../auth/api-key.ts";
 
 const kinds = z.enum(MEMORY_KINDS);
 
@@ -10,12 +9,16 @@ const jsonText = (value: unknown) => ({
 	content: [{ type: "text" as const, text: JSON.stringify(value, null, 2) }],
 });
 
-const authUserId = () => {
+const authProps = () => {
 	const auth = getMcpAuthContext();
-	return typeof auth?.props.userId === "string" ? auth.props.userId : "default";
+	const props = auth?.props ?? {};
+	return {
+		userId: typeof props.userId === "string" ? props.userId : "default",
+		clientId: typeof props.clientId === "string" ? props.clientId : "unknown",
+	};
 };
 
-const agentFor = (env: Env) => env.MemoryAgent.getByName(authUserId());
+const agentFor = (env: Env) => env.MemoryAgent.getByName(authProps().userId);
 
 export function createYumeoiMcpServer(env: Env) {
 	const server = new McpServer({
@@ -103,13 +106,13 @@ export function createYumeoiMcpServer(env: Env) {
 			},
 		},
 		async ({ text, kind, confidence }) => {
-			const userId = authUserId();
+			const { clientId } = authProps();
 			return jsonText(
 				await agentFor(env).addMemory({
 					text,
 					kind: kind ?? "fact",
 					confidence: confidence ?? 1,
-					sourceId: `agent:${userId}`,
+					sourceId: `agent:${clientId}`,
 				}),
 			);
 		},
@@ -165,18 +168,10 @@ export function createYumeoiMcpServer(env: Env) {
 	return server;
 }
 
-export async function handleMcp(
-	request: Request,
-	env: Env,
-	ctx: ExecutionContext,
-): Promise<Response> {
-	const auth = await authenticateRequest(request, env);
-	if (!auth) {
-		return unauthorized();
-	}
-	const handler = createMcpHandler(() => createYumeoiMcpServer(env), {
-		route: "/mcp",
-		authContext: { props: { userId: auth.userId } },
-	});
-	return handler(request, env, ctx);
-}
+export const mcpApiHandler = {
+	async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+		return createMcpHandler(() => createYumeoiMcpServer(env), {
+			route: "/mcp",
+		})(request, env, ctx);
+	},
+} satisfies ExportedHandler<Env>;

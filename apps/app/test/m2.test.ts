@@ -44,7 +44,7 @@ describe("M2 HTTP sources and memories", () => {
 		const response = await SELF.fetch("https://example.com/api/health");
 		expect(response.status).toBe(200);
 		const body = (await response.json()) as { milestone: string };
-		expect(["m2", "m3"]).toContain(body.milestone);
+		expect(["m2", "m3", "m4"]).toContain(body.milestone);
 	});
 
 	it("returns a Notion authorize URL when credentials are missing", async () => {

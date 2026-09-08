@@ -1,16 +1,16 @@
 import { routeAgentRequest } from "agents";
 import { handleApi } from "./api/http.ts";
-import { handleMcp } from "./mcp/server.ts";
+import { handleAuthorize } from "./auth/consent.ts";
 
 export async function dispatch(
 	request: Request,
 	env: Env,
-	ctx: ExecutionContext,
+	_ctx: ExecutionContext,
 ): Promise<Response | null> {
 	const url = new URL(request.url);
 
-	if (url.pathname === "/mcp" || url.pathname.startsWith("/mcp/")) {
-		return handleMcp(request, env, ctx);
+	if (url.pathname === "/authorize") {
+		return handleAuthorize(request, env);
 	}
 
 	const agentResponse = await routeAgentRequest(request, env);

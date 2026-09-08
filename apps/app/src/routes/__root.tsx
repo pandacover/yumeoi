@@ -8,11 +8,11 @@ export const Route = createRootRoute({
 		meta: [
 			{ charSet: "utf-8" },
 			{ name: "viewport", content: "width=device-width, initial-scale=1" },
-			{ title: "yumeoi — m3" },
+			{ title: "yumeoi — m4" },
 			{
 				name: "description",
 				content:
-					"Connect sources, extract memories, and chat with them from the UI, MCP, and HTTP.",
+					"Connect sources, extract memories, chat with them, and share them with agents over MCP OAuth.",
 			},
 		],
 		links: [{ rel: "stylesheet", href: appCss }],
