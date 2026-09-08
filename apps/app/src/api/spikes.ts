@@ -1,6 +1,7 @@
 import {
 	extractedMemoryJsonSchema,
 	openaiGatewayLlmLayer,
+	openrouterLlmLayer,
 	vectorizeLayer,
 	workersAiEmbeddingsLayer,
 } from "@yumeoi/cf-runtime";
@@ -26,16 +27,21 @@ const gatewayBaseUrl = async (env: Env) => {
 const spikeRuntime = (env: Env, baseURL: string | undefined) => {
 	const embeddings = workersAiEmbeddingsLayer(env.AI);
 	const vectors = vectorizeLayer(env.VECTORIZE);
-	const llm = baseURL
-		? openaiGatewayLlmLayer({
-				apiKey: env.OPENAI_API_KEY ?? "sk-placeholder",
-				baseURL,
+	const llm = env.OPENROUTER_API_KEY
+		? openrouterLlmLayer({
+				apiKey: env.OPENROUTER_API_KEY,
 				config: defaultLlmConfig,
 			})
-		: Layer.succeed(Llm, {
-				config: defaultLlmConfig,
-				structured: () => Effect.fail(new ProviderUnavailable({ provider: "openai" })),
-			});
+		: baseURL && env.OPENAI_API_KEY
+			? openaiGatewayLlmLayer({
+					apiKey: env.OPENAI_API_KEY,
+					baseURL,
+					config: defaultLlmConfig,
+				})
+			: Layer.succeed(Llm, {
+					config: defaultLlmConfig,
+					structured: () => Effect.fail(new ProviderUnavailable({ provider: "openai" })),
+				});
 	return ManagedRuntime.make(Layer.mergeAll(embeddings, vectors, llm));
 };
 
@@ -91,10 +97,11 @@ export async function handleApi(request: Request, env: Env): Promise<Response | 
 		const body = (await request.json().catch(() => ({}))) as { text?: string };
 		const text = body.text ?? "Luv is building yumeoi on Cloudflare Workers.";
 		const baseURL = await gatewayBaseUrl(env);
-		if (!baseURL || !env.OPENAI_API_KEY) {
+		if (!env.OPENROUTER_API_KEY && !(baseURL && env.OPENAI_API_KEY)) {
 			return json(
 				{
-					error: "OPENAI_API_KEY and AI Gateway are required for the extract spike",
+					error:
+						"OPENROUTER_API_KEY, or OPENAI_API_KEY plus AI Gateway, is required for the extract spike",
 					schema: extractedMemoryJsonSchema(),
 				},
 				503,

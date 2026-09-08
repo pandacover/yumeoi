@@ -22,18 +22,21 @@ export type LlmConfig = typeof LlmConfig.Type;
 
 /**
  * Exact OpenAI API id for GPT-5.6 Luna (confirmed against the GPT-5.6 Luna model page).
- * Chat is pinned here at reasoning effort `high`. Extract / consolidate / rerank stay
- * on the same placeholder until live M1 evals pin winners (`docs/eval/m1.md`).
+ * Chat is pinned here at reasoning effort `high`. Extract / consolidate / rerank were
+ * pinned from the live OpenRouter eval in `docs/eval/m1.md`.
  *
  * OpenRouter slugs are `openai/${model}`. Runtime calls prefer OpenRouter and fall
- * back to the OpenAI API.
+ * back to the OpenAI API / AI Gateway.
  */
 export const CHAT_MODEL_ID = "gpt-5.6-luna";
 export const TERRA_MODEL_ID = "gpt-5.6-terra";
+export const EXTRACT_MODEL_ID = CHAT_MODEL_ID;
+export const CONSOLIDATE_MODEL_ID = CHAT_MODEL_ID;
+export const RERANK_MODEL_ID = CHAT_MODEL_ID;
 
 export const defaultLlmConfig: LlmConfig = {
 	chat: { model: CHAT_MODEL_ID, effort: "high" },
-	extract: { model: CHAT_MODEL_ID, effort: "high" },
-	consolidate: { model: CHAT_MODEL_ID, effort: "high" },
-	rerank: { model: CHAT_MODEL_ID, effort: "high" },
+	extract: { model: EXTRACT_MODEL_ID, effort: "high" },
+	consolidate: { model: CONSOLIDATE_MODEL_ID, effort: "none" },
+	rerank: { model: RERANK_MODEL_ID, effort: "none" },
 };

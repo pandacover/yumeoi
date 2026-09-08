@@ -7,6 +7,7 @@ declare namespace Cloudflare {
 		MemoryAgent: DurableObjectNamespace<import("./src/agents/memory-agent").MemoryAgent>;
 		AI_GATEWAY_ID: string;
 		OPENAI_API_KEY?: string;
+		OPENROUTER_API_KEY?: string;
 	}
 }
 

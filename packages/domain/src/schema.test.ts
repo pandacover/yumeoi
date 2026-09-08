@@ -13,7 +13,9 @@ describe("domain schemas", () => {
 	test("chat is pinned to gpt-5.6-luna high", () => {
 		expect(CHAT_MODEL_ID).toBe("gpt-5.6-luna");
 		expect(defaultLlmConfig.chat).toEqual({ model: "gpt-5.6-luna", effort: "high" });
-		expect(defaultLlmConfig.extract.model).toBe(CHAT_MODEL_ID);
+		expect(defaultLlmConfig.extract).toEqual({ model: "gpt-5.6-luna", effort: "high" });
+		expect(defaultLlmConfig.consolidate).toEqual({ model: "gpt-5.6-luna", effort: "none" });
+		expect(defaultLlmConfig.rerank).toEqual({ model: "gpt-5.6-luna", effort: "none" });
 	});
 
 	test("ExtractedMemory JSON Schema is an object with required fields", () => {

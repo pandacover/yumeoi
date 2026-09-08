@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 /**
  * Live M1 model eval. Prefers OpenRouter; falls back to the OpenAI API.
- * Usage: bun scripts/m1-eval.ts
+ * Usage: bun run eval:m1
  */
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
@@ -15,6 +15,7 @@ import {
 	RerankResult,
 	rerankResultJsonSchema,
 } from "@yumeoi/domain";
+import { Schema } from "effect";
 import {
 	CONSOLIDATE_SYSTEM,
 	type EvalSet,
@@ -26,10 +27,9 @@ import {
 	summarizeConsolidate,
 	summarizeExtraction,
 	summarizeRerank,
-} from "@yumeoi/memory";
-import { Schema } from "effect";
+} from "./eval.ts";
 
-const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+const root = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
 const set = JSON.parse(readFileSync(resolve(root, "docs/eval/m1-set.json"), "utf8")) as EvalSet;
 
 type Candidate = { readonly model: string; readonly effort: LlmEffort };
