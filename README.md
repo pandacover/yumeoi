@@ -25,6 +25,16 @@ The Worker serves:
 
 Set `YUMEOI_API_KEY` (and optional `YUMEOI_USER_ID`) in `.dev.vars`. OpenAI is optional; without a key, ingest uses the heuristic extractor so the loop still runs.
 
+`POST /ingest` starts `IngestWorkflow` (realtime lane) and waits for the durable steps to finish.
+
+## Eval (model pins)
+
+```sh
+OPENAI_API_KEY=… bun run eval:m1
+```
+
+Writes per-document input/output/reasoning tokens plus precision/recall to `docs/eval/m1-results.json` and refreshes `docs/eval/m1.md`.
+
 ## Vectorize (remote)
 
 ```sh

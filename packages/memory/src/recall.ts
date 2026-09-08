@@ -301,4 +301,4 @@ export const recallContext = (input: Partial<RecallQuery> & { query: string; nam
 		return result;
 	});
 
-export { chunkVectorId, memoryVectorId, VECTOR_KIND_CHUNK };
+export { chunkVectorId, memoryVectorId, parseVectorId, VECTOR_KIND_CHUNK };

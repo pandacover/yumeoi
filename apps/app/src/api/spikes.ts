@@ -34,6 +34,7 @@ const spikeRuntime = (env: Env, baseURL: string | undefined) => {
 			})
 		: Layer.succeed(Llm, {
 				config: defaultLlmConfig,
+				drainUsage: () => Effect.succeed([]),
 				structured: () => Effect.fail(new ProviderUnavailable({ provider: "openai" })),
 			});
 	return ManagedRuntime.make(Layer.mergeAll(embeddings, vectors, llm));

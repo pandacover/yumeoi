@@ -81,7 +81,7 @@ export async function handleApi(request: Request, env: Env): Promise<Response | 
 		if (!body) {
 			return json({ error: "externalId and markdown are required" }, 400);
 		}
-		const result = await agent.ingest(body);
+		const result = await agent.startIngest(body);
 		return json(result, result.unchanged ? 200 : 201);
 	}
 
