@@ -50,27 +50,29 @@ export const resolveGatewayLlmProviders = (input: {
 	return providers;
 };
 
-export const resolveGatewayLlmProvidersFromKeys = async (options: {
-	readonly getUrl: (provider: LlmProviderName) => Promise<string>;
+export const OPENROUTER_API_BASE = "https://openrouter.ai/api/v1";
+export const OPENAI_API_BASE = "https://api.openai.com/v1";
+
+/**
+ * Bind OpenRouter / OpenAI keys to their native API bases.
+ *
+ * This Worker enables `global_fetch_strictly_public`, so `fetch()` to
+ * `gateway.ai.cloudflare.com` (from `env.AI.gateway(...).getUrl(...)`) is
+ * treated as a public-internet request and fails (Cloudflare 1010 /
+ * ProviderUnavailable). The eval harness already uses these same URLs.
+ */
+export const resolveGatewayLlmProvidersFromKeys = (options: {
 	readonly openrouterApiKey?: string | undefined;
 	readonly openaiApiKey?: string | undefined;
-}): Promise<ReadonlyArray<GatewayLlmProvider>> => {
-	const urlFor = async (provider: LlmProviderName) => {
-		try {
-			return await options.getUrl(provider);
-		} catch {
-			return undefined;
-		}
-	};
-	const [openrouter, openai] = await Promise.all([
-		options.openrouterApiKey ? urlFor("openrouter") : Promise.resolve(undefined),
-		options.openaiApiKey ? urlFor("openai") : Promise.resolve(undefined),
-	]);
-	return resolveGatewayLlmProviders({
-		openrouter: { apiKey: options.openrouterApiKey, baseURL: openrouter },
-		openai: { apiKey: options.openaiApiKey, baseURL: openai },
+}): ReadonlyArray<GatewayLlmProvider> =>
+	resolveGatewayLlmProviders({
+		openrouter: options.openrouterApiKey
+			? { apiKey: options.openrouterApiKey, baseURL: OPENROUTER_API_BASE }
+			: undefined,
+		openai: options.openaiApiKey
+			? { apiKey: options.openaiApiKey, baseURL: OPENAI_API_BASE }
+			: undefined,
 	});
-};
 
 const httpStatusOf = (cause: unknown): number | undefined => {
 	if (!cause || typeof cause !== "object") {
@@ -96,8 +98,16 @@ export const classifyGatewayError = (
 	return new ProviderUnavailable({ provider, cause });
 };
 
-const isTransientLlmError = (error: StructuredError): boolean =>
-	error._tag === "RateLimited" || error._tag === "ProviderUnavailable";
+const isTransientLlmError = (error: StructuredError): boolean => {
+	if (error._tag === "RateLimited") {
+		return true;
+	}
+	if (error._tag !== "ProviderUnavailable") {
+		return false;
+	}
+	const status = httpStatusOf(error.cause);
+	return status === undefined || status >= 500 || status === 429;
+};
 
 const withLlmResilience = <A>(
 	provider: LlmProviderName,
@@ -154,6 +164,14 @@ const structuredFromProvider = <A, I>(
 		const client = new OpenAI({
 			apiKey: provider.apiKey,
 			baseURL: provider.baseURL,
+			...(provider.provider === "openrouter"
+				? {
+						defaultHeaders: {
+							"HTTP-Referer": "https://yumeoi.luvmakin01.workers.dev",
+							"X-Title": "yumeoi",
+						},
+					}
+				: {}),
 		});
 		const response = yield* Effect.tryPromise({
 			try: () =>

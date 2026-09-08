@@ -15,14 +15,20 @@ const demoIngest = createServerFn({ method: "POST" })
 	.validator((data: { title: string; markdown: string }) => data)
 	.handler(async ({ data }) => {
 		const agent = env.MemoryAgent.getByName(appUserId(env));
-		return agent.ingest({
-			externalId: `ui-${crypto.randomUUID()}`,
-			title: data.title.trim() || "Untitled",
-			markdown: data.markdown,
-			sourceId: "generic",
-			sourceLabel: "Home UI",
-			url: null,
-		});
+		try {
+			return await agent.startIngest({
+				externalId: `ui-${crypto.randomUUID()}`,
+				title: data.title.trim() || "Untitled",
+				markdown: data.markdown,
+				sourceId: "generic",
+				sourceLabel: "Home UI",
+				url: null,
+			});
+		} catch (error) {
+			throw error instanceof Error && error.message.trim()
+				? error
+				: new Error(error instanceof Error ? "ingest failed" : String(error));
+		}
 	});
 
 const demoRecall = createServerFn({ method: "POST" })
