@@ -96,7 +96,7 @@ const pageShell = (title: string, inner: string) => `<!doctype html>
 		.client { font-size: 1.1rem; color: var(--fg); margin-top: 1rem; }
 		.scopes { margin: 1rem 0 0; padding-left: 1.2rem; }
 		.actions { display: flex; gap: 0.75rem; margin-top: 1.5rem; }
-		button, .ghost { border-radius: 0.6rem; padding: 0.6rem 1rem; font-size: 0.9rem; cursor: pointer; }
+		button, .ghost { border-radius: 0.6rem; padding: 0.75rem 1.25rem; font-size: 1rem; cursor: pointer; min-width: 8rem; }
 		button[name="decision"][value="approve"] { background: var(--accent); color: var(--bg); border: 0; font-weight: 600; }
 		button[name="decision"][value="deny"] { background: transparent; color: var(--fg); border: 1px solid var(--line); }
 		.ghost { color: var(--accent); text-decoration: none; display: inline-block; margin-top: 1.5rem; }
@@ -109,7 +109,18 @@ const pageShell = (title: string, inner: string) => `<!doctype html>
 </body>
 </html>`;
 
-const errorRedirect = (request: AuthRequest, code: string, description: string) => {
+const redirectResponse = (location: string, headers?: HeadersInit) =>
+	new Response(null, {
+		status: 302,
+		headers: { location, ...headers },
+	});
+
+const errorRedirect = (
+	request: AuthRequest,
+	code: string,
+	description: string,
+	headers?: HeadersInit,
+) => {
 	const redirect = new URL(request.redirectUri);
 	redirect.searchParams.set("error", code);
 	redirect.searchParams.set("error_description", description);
@@ -119,7 +130,7 @@ const errorRedirect = (request: AuthRequest, code: string, description: string) 
 	if (request.issuer) {
 		redirect.searchParams.set("iss", request.issuer);
 	}
-	return Response.redirect(redirect.toString(), 302);
+	return redirectResponse(redirect.toString(), headers);
 };
 
 const renderConsent = (
@@ -128,6 +139,7 @@ const renderConsent = (
 	userId: string,
 	csrfToken: string,
 	secure: boolean,
+	formAction: string,
 ) => {
 	const name = sanitizeText(client.clientName || client.clientId);
 	const clientUri = client.clientUri ? sanitizeUrl(client.clientUri) : "";
@@ -142,7 +154,7 @@ const renderConsent = (
 		<ul class="scopes">
 			${scopes.map((scope) => `<li><code>${sanitizeText(scope)}</code></li>`).join("")}
 		</ul>
-		<form method="post">
+		<form method="post" action="${sanitizeText(formAction)}">
 			<input type="hidden" name="csrf_token" value="${sanitizeText(csrfToken)}" />
 			<div class="actions">
 				<button type="submit" name="decision" value="approve">Approve</button>
@@ -238,7 +250,14 @@ export async function handleAuthorize(request: Request, env: Env): Promise<Respo
 	const userId = appUserId(env);
 
 	if (request.method === "GET") {
-		return renderConsent(parsed, client, userId, crypto.randomUUID(), secure);
+		return renderConsent(
+			parsed,
+			client,
+			userId,
+			crypto.randomUUID(),
+			secure,
+			`${url.pathname}${url.search}`,
+		);
 	}
 
 	if (request.method !== "POST") {
@@ -267,9 +286,9 @@ export async function handleAuthorize(request: Request, env: Env): Promise<Respo
 
 	const decision = String(form.get("decision") ?? "");
 	if (decision !== "approve") {
-		const denied = errorRedirect(parsed, "access_denied", "The user denied the request");
-		denied.headers.append("set-cookie", clearCsrfCookie(secure));
-		return denied;
+		return errorRedirect(parsed, "access_denied", "The user denied the request", {
+			"set-cookie": clearCsrfCookie(secure),
+		});
 	}
 
 	const scope = grantedScopes(parsed.scope);
@@ -286,7 +305,5 @@ export async function handleAuthorize(request: Request, env: Env): Promise<Respo
 		},
 	});
 	await recordGrant(env, userId, client.clientId, clientName);
-	const approved = Response.redirect(redirectTo, 302);
-	approved.headers.append("set-cookie", clearCsrfCookie(secure));
-	return approved;
+	return redirectResponse(redirectTo, { "set-cookie": clearCsrfCookie(secure) });
 }

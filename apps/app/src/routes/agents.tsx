@@ -49,6 +49,13 @@ const revokeGrant = createServerFn({ method: "POST" })
 		return { ok: true, id: data.id };
 	});
 
+const formatTimestamp = (timestamp: number): string =>
+	new Intl.DateTimeFormat("en-GB", {
+		dateStyle: "medium",
+		timeStyle: "short",
+		timeZone: "UTC",
+	}).format(new Date(timestamp));
+
 export const Route = createFileRoute("/agents")({
 	loader: () => getAgentsContext(),
 	component: AgentsPage,
@@ -207,7 +214,7 @@ function AgentsPage() {
 								<div>
 									<p className="font-mono text-sm">{key.prefix}…</p>
 									<p className="text-xs text-[var(--muted)]">
-										created {new Date(key.createdAt).toISOString()}
+										created {formatTimestamp(key.createdAt)}
 									</p>
 								</div>
 								<button
@@ -257,7 +264,7 @@ function AgentsPage() {
 									<p className="text-sm">{grant.clientName}</p>
 									<p className="font-mono text-xs text-[var(--muted)]">{grant.clientId}</p>
 									<p className="mt-1 text-xs text-[var(--muted)]">
-										{grant.scopes.join(", ")} · {new Date(grant.createdAt).toISOString()}
+										{grant.scopes.join(", ")} · {formatTimestamp(grant.createdAt)}
 									</p>
 								</div>
 								<button

@@ -98,7 +98,10 @@ export const listMcpGrantRows = async (
 		clientName: row.client_name || row.client_id,
 		scopes: parseScopes(row.scopes),
 		redirectUri: row.redirect_uri,
-		createdAt: row.created_at,
+		createdAt:
+			row.created_at > 0 && row.created_at < 1_000_000_000_000
+				? row.created_at * 1000
+				: row.created_at,
 	}));
 };
 

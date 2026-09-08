@@ -6,6 +6,9 @@ import {
 } from "./grants.ts";
 import { oauthHelpers } from "./oauth.ts";
 
+const asMillis = (timestamp: number): number =>
+	timestamp > 0 && timestamp < 1_000_000_000_000 ? timestamp * 1000 : timestamp;
+
 const toView = (grant: {
 	id: string;
 	userId: string;
@@ -26,7 +29,7 @@ const toView = (grant: {
 		clientName: metadata.clientName || grant.clientId,
 		scopes: grant.scope,
 		redirectUri: grant.redirectUri ?? null,
-		createdAt: grant.createdAt,
+		createdAt: asMillis(grant.createdAt),
 	};
 };
 

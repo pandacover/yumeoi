@@ -1,7 +1,7 @@
-import { SELF } from "cloudflare:test";
+import { env, SELF } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
 
-const auth = { authorization: "Bearer ym_test_key" };
+const auth = { authorization: `Bearer ${env.YUMEOI_API_KEY}` };
 const redirectUri = "http://127.0.0.1:9999/callback";
 
 const b64url = (bytes: Uint8Array) =>
@@ -184,11 +184,13 @@ describe("M4 MCP OAuth", () => {
 		const grants = await SELF.fetch("https://example.com/api/grants", { headers: auth });
 		expect(grants.ok).toBe(true);
 		const grantBody = (await grants.json()) as {
-			grants: Array<{ id: string; clientName: string; clientId: string }>;
+			grants: Array<{ id: string; clientName: string; clientId: string; createdAt: number }>;
 		};
 		const grant = grantBody.grants.find((item) => item.clientId === clientId);
 		expect(grant?.clientName).toBe("Cursor Test");
 		expect(grant?.id).toBeTruthy();
+		expect(grant?.createdAt).toBeGreaterThan(1_600_000_000_000);
+		expect(grant?.createdAt).toBeLessThan(2_000_000_000_000);
 
 		const revoked = await SELF.fetch(`https://example.com/api/grants/${grant?.id}`, {
 			method: "DELETE",

@@ -1,7 +1,7 @@
 import { env, SELF } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
 
-const auth = { authorization: "Bearer ym_test_key" };
+const auth = { authorization: `Bearer ${env.YUMEOI_API_KEY}` };
 
 describe("MemoryAgent", () => {
 	it("returns hello from RPC", async () => {

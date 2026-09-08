@@ -10,29 +10,14 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as SourcesRouteImport } from './routes/sources'
-import { Route as MemoriesRouteImport } from './routes/memories'
-import { Route as ChatRouteImport } from './routes/chat'
 import { Route as AgentsRouteImport } from './routes/agents'
+import { Route as ChatRouteImport } from './routes/chat'
+import { Route as MemoriesRouteImport } from './routes/memories'
+import { Route as SourcesRouteImport } from './routes/sources'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const SourcesRoute = SourcesRouteImport.update({
-  id: '/sources',
-  path: '/sources',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const MemoriesRoute = MemoriesRouteImport.update({
-  id: '/memories',
-  path: '/memories',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ChatRoute = ChatRouteImport.update({
-  id: '/chat',
-  path: '/chat',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AgentsRoute = AgentsRouteImport.update({
@@ -40,43 +25,58 @@ const AgentsRoute = AgentsRouteImport.update({
   path: '/agents',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ChatRoute = ChatRouteImport.update({
+  id: '/chat',
+  path: '/chat',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MemoriesRoute = MemoriesRouteImport.update({
+  id: '/memories',
+  path: '/memories',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SourcesRoute = SourcesRouteImport.update({
+  id: '/sources',
+  path: '/sources',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/sources': typeof SourcesRoute
-  '/memories': typeof MemoriesRoute
-  '/chat': typeof ChatRoute
   '/agents': typeof AgentsRoute
+  '/chat': typeof ChatRoute
+  '/memories': typeof MemoriesRoute
+  '/sources': typeof SourcesRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/sources': typeof SourcesRoute
-  '/memories': typeof MemoriesRoute
-  '/chat': typeof ChatRoute
   '/agents': typeof AgentsRoute
+  '/chat': typeof ChatRoute
+  '/memories': typeof MemoriesRoute
+  '/sources': typeof SourcesRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/sources': typeof SourcesRoute
-  '/memories': typeof MemoriesRoute
-  '/chat': typeof ChatRoute
   '/agents': typeof AgentsRoute
+  '/chat': typeof ChatRoute
+  '/memories': typeof MemoriesRoute
+  '/sources': typeof SourcesRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/sources' | '/memories' | '/chat' | '/agents'
+  fullPaths: '/' | '/agents' | '/chat' | '/memories' | '/sources'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/sources' | '/memories' | '/chat' | '/agents'
-  id: '__root__' | '/' | '/sources' | '/memories' | '/chat' | '/agents'
+  to: '/' | '/agents' | '/chat' | '/memories' | '/sources'
+  id: '__root__' | '/' | '/agents' | '/chat' | '/memories' | '/sources'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  SourcesRoute: typeof SourcesRoute
-  MemoriesRoute: typeof MemoriesRoute
-  ChatRoute: typeof ChatRoute
   AgentsRoute: typeof AgentsRoute
+  ChatRoute: typeof ChatRoute
+  MemoriesRoute: typeof MemoriesRoute
+  SourcesRoute: typeof SourcesRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -88,18 +88,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/sources': {
-      id: '/sources'
-      path: '/sources'
-      fullPath: '/sources'
-      preLoaderRoute: typeof SourcesRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/memories': {
-      id: '/memories'
-      path: '/memories'
-      fullPath: '/memories'
-      preLoaderRoute: typeof MemoriesRouteImport
+    '/agents': {
+      id: '/agents'
+      path: '/agents'
+      fullPath: '/agents'
+      preLoaderRoute: typeof AgentsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/chat': {
@@ -109,11 +102,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ChatRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/agents': {
-      id: '/agents'
-      path: '/agents'
-      fullPath: '/agents'
-      preLoaderRoute: typeof AgentsRouteImport
+    '/memories': {
+      id: '/memories'
+      path: '/memories'
+      fullPath: '/memories'
+      preLoaderRoute: typeof MemoriesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sources': {
+      id: '/sources'
+      path: '/sources'
+      fullPath: '/sources'
+      preLoaderRoute: typeof SourcesRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -121,10 +121,10 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  SourcesRoute: SourcesRoute,
-  MemoriesRoute: MemoriesRoute,
-  ChatRoute: ChatRoute,
   AgentsRoute: AgentsRoute,
+  ChatRoute: ChatRoute,
+  MemoriesRoute: MemoriesRoute,
+  SourcesRoute: SourcesRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

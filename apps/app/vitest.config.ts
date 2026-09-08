@@ -8,6 +8,12 @@ export default defineConfig({
 		cloudflareTest({
 			remoteBindings: false,
 			wrangler: { configPath: "./wrangler.test.jsonc" },
+			miniflare: {
+				bindings: {
+					YUMEOI_API_KEY: "ym_test_key",
+					YUMEOI_USER_ID: "test-user",
+				},
+			},
 		}),
 	],
 	test: {
