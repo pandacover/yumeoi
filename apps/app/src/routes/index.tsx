@@ -6,11 +6,11 @@ export const Route = createFileRoute("/")({
 
 function Home() {
 	return (
-		<main className="flex min-h-screen items-center justify-center">
-			<div className="flex flex-col items-center gap-3 text-center">
-				<h1 className="text-5xl font-semibold tracking-tight sm:text-6xl">yumeoi</h1>
-				<p className="text-lg sm:text-xl">memory engine for agents and humans</p>
-			</div>
+		<main className="flex min-h-screen items-center justify-center px-6">
+			<p className="max-w-3xl text-center text-lg sm:text-xl">
+				<strong className="font-semibold text-[var(--brand)]">yumeoi</strong> is memory engine for
+				agents and humans
+			</p>
 		</main>
 	);
 }
