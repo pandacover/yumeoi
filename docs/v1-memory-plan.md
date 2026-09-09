@@ -6,6 +6,20 @@ This plan **replaces** the remaining v0 milestones (M5 Gmail, M6 Obsidian) as th
 
 Stack is unchanged: Cloudflare Workers + Agents SDK, Effect `4.0.0-rc.112`, DO SQLite + FTS5 per user, Vectorize (`namespace = userId`), Workers AI `bge-m3`, OpenAI GPT-5.6 Luna via OpenRouter/AI Gateway. Nothing here requires a new binding except Vectorize metadata indexes (§2.5).
 
+Implementation is tracked as GitHub issues. This document stays the design source of truth; pick up work from the spec issues, not by re-deriving the plan.
+
+**Epic:** [#2](https://github.com/pandacover/yumeoi/issues/2)
+
+| Phase | Issue | Specs |
+|---|---|---|
+| P0 Measure first | [#3](https://github.com/pandacover/yumeoi/issues/3) | [#10](https://github.com/pandacover/yumeoi/issues/10) recall eval, [#11](https://github.com/pandacover/yumeoi/issues/11) D1–D5/D7 |
+| P1 Memory model v2 | [#4](https://github.com/pandacover/yumeoi/issues/4) | [#12](https://github.com/pandacover/yumeoi/issues/12) schema, [#13](https://github.com/pandacover/yumeoi/issues/13) extraction/types, [#14](https://github.com/pandacover/yumeoi/issues/14) remember(), [#15](https://github.com/pandacover/yumeoi/issues/15) Vectorize |
+| P2 Agent experience | [#5](https://github.com/pandacover/yumeoi/issues/5) | [#16](https://github.com/pandacover/yumeoi/issues/16) tools, [#17](https://github.com/pandacover/yumeoi/issues/17) markdown packing, [#18](https://github.com/pandacover/yumeoi/issues/18) AX eval |
+| P3 Retrieval quality | [#6](https://github.com/pandacover/yumeoi/issues/6) | [#19](https://github.com/pandacover/yumeoi/issues/19) pipeline, [#20](https://github.com/pandacover/yumeoi/issues/20) reranker |
+| P4 Graph RAG | [#7](https://github.com/pandacover/yumeoi/issues/7) | [#21](https://github.com/pandacover/yumeoi/issues/21) graph writes, [#22](https://github.com/pandacover/yumeoi/issues/22) graph recall |
+| P5 Temporal and layers | [#8](https://github.com/pandacover/yumeoi/issues/8) | [#23](https://github.com/pandacover/yumeoi/issues/23) asOf/timeline, [#24](https://github.com/pandacover/yumeoi/issues/24) promotion/L3 |
+| P6 Decay and lifecycle | [#9](https://github.com/pandacover/yumeoi/issues/9) | [#25](https://github.com/pandacover/yumeoi/issues/25) retention/sweep |
+
 ---
 
 ## 0. Scope and shape
@@ -447,7 +461,7 @@ P0 ─▶ P1 ─▶ P2 (AX)
          └▶ P5 (temporal/layers) ────────▶ P6
 ```
 
-### P0 — Measure first, fix the obvious
+### P0 — Measure first, fix the obvious ([#3](https://github.com/pandacover/yumeoi/issues/3))
 
 No schema change. Deliverables:
 
@@ -457,7 +471,7 @@ No schema change. Deliverables:
 
 Done when: baseline table exists, `bun run test` and `bun run --filter @yumeoi/app test` pass, recall numbers after the fixes are recorded alongside the baseline (they should already improve).
 
-### P1 — Memory model v2
+### P1 — Memory model v2 ([#4](https://github.com/pandacover/yumeoi/issues/4))
 
 - Migration `0004_memory_model_v2` (§2.2, §2.3) with backfill; `Memory`/`ExtractedMemory` schemas (§2.1, §2.4); `json-schema.ts` nested support; short ids.
 - Extraction v2 prompt and schema; `packages/memory/src/types.ts` (type/kind matrix, coercion); `classify` job; `docs/eval/types-set.json` + scorer.
@@ -467,7 +481,7 @@ Done when: baseline table exists, `bun run test` and `bun run --filter @yumeoi/a
 
 Gate: types accuracy ≥ 0.85 (live), extraction F1 ≥ 0.65 (live), all tests green, `reindex` verified in workerd against the local Vectorize emulator.
 
-### P2 — Agent experience
+### P2 — Agent experience ([#5](https://github.com/pandacover/yumeoi/issues/5))
 
 - `packages/domain/src/tools.ts`, tool contract v2 across MCP/HTTP/chat (§3.1), markdown packer, annotations, `instructions`, resources, prompt, typed errors, `clientRef` idempotency; old tool names kept as aliases and marked deprecated in descriptions.
 - `docs/eval/ax-scenarios.json`, `eval-ax.ts`, `bun run eval:ax`.
@@ -475,27 +489,27 @@ Gate: types accuracy ≥ 0.85 (live), extraction F1 ≥ 0.65 (live), all tests g
 
 Gate: AX success ≥ 0.9, tokens per recall −40 % vs M4, `m4.test.ts` extended to cover `remember`/`forget` via MCP with OAuth and API key.
 
-### P3 — Retrieval quality
+### P3 — Retrieval quality ([#6](https://github.com/pandacover/yumeoi/issues/6))
 
 - `0005_fts_porter` migration; `retrieval/` pipeline (§3.2); `Reranker` service + Workers AI layer; `RetrievalConfig` with tunable weights; access tracking; `query_cache`.
 - Weight/half-life tuning against `recall-set.json`; decide reranker default from the eval.
 
 Gate: nDCG@10 ≥ baseline + 0.10 and Recall@10 ≥ 0.85 (live), context precision ≥ 0.7, p50 non-LLM recall latency < 800 ms in workerd, zero superseded memories in any result.
 
-### P4 — Graph RAG
+### P4 — Graph RAG ([#7](https://github.com/pandacover/yumeoi/issues/7))
 
 - Resolver, `graph/` write path in `remember`, relation supersession, entity summaries (`summarize` job), expansion CTE, graph candidate list in fusion, relation lines in packing, `get_entity`, `memory://entities`, Memories UI entity chips.
 - `docs/eval/entities-set.json`, multi-hop queries.
 
 Gate: multi-hop Recall@10 ≥ 0.75, resolution precision ≥ 0.9, no single-hop regression > 0.02, extraction cost per document recorded (entities/relations ride in the same call, so expect output tokens up, calls flat).
 
-### P5 — Temporal and layers
+### P5 — Temporal and layers ([#8](https://github.com/pandacover/yumeoi/issues/8))
 
 - `asOf` end to end (SQL + Vectorize + packing), `timeline`, `changes_since`, `memory_history` surfaced in `get_memory`, promotion and procedural induction jobs, chat session episodics, profile/procedures resources backed by L3.
 
 Gate: temporal cases 100 %, promotion test in workerd, `memory://profile` returns stable semantic memories only.
 
-### P6 — Decay and lifecycle
+### P6 — Decay and lifecycle ([#9](https://github.com/pandacover/yumeoi/issues/9))
 
 - `Clock` service, retention scoring, sweep with slices and scheduling policy, `memories_archive`, `deleteByIds`, orphan/duplicate handling, budget, `memory_stats`, Memories UI stats card and restore action, `forget` hard-delete path.
 

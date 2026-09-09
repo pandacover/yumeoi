@@ -4,7 +4,7 @@ Memory infrastructure: connect apps, extract memories, chat with them, and serve
 
 v0 plan: [`docs/v0-plan.md`](docs/v0-plan.md). This tree is **M4** — MCP OAuth, consent, and the Agents screen. Model pins: [`docs/eval/m1.md`](docs/eval/m1.md).
 
-Next up is the memory v1 plan, [`docs/v1-memory-plan.md`](docs/v1-memory-plan.md) — agent experience, retrieval quality, memory types (semantic / episodic / procedural), graph RAG, temporal and layered tracking, and decay. It takes precedence over v0 M5/M6, which resume after it.
+Next up is the memory v1 plan, [`docs/v1-memory-plan.md`](docs/v1-memory-plan.md) — agent experience, retrieval quality, memory types (semantic / episodic / procedural), graph RAG, temporal and layered tracking, and decay. It takes precedence over v0 M5/M6, which resume after it. Tracking: [issue #2](https://github.com/pandacover/yumeoi/issues/2).
 
 ## Stack
 
