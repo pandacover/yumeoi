@@ -1,5 +1,6 @@
 import {
 	type ExtractedMemory,
+	fillMemory,
 	type IngestRequest,
 	type IngestResult,
 	MEMORY_KINDS,
@@ -12,10 +13,12 @@ import { cosineSimilarity } from "./cosine.ts";
 import { Embeddings } from "./embeddings.ts";
 import { Extractor } from "./extractor.ts";
 import { sha256Hex } from "./hasher.ts";
+import { newShortId } from "./ids.ts";
 import { type CommitBatch, MemoryRepo } from "./memory-repo.ts";
 import { documentObjectKey, ObjectStore } from "./object-store.ts";
 import { chunkVectorId, memoryVectorId, parseVectorId, VECTOR_KIND_CHUNK } from "./recall.ts";
-import { VectorIndex } from "./vector-index.ts";
+import { coerceTypeKind } from "./types.ts";
+import { VALID_TO_SENTINEL, VectorIndex } from "./vector-index.ts";
 
 const newId = () => crypto.randomUUID();
 
@@ -353,10 +356,12 @@ const consolidateIngest = (state: IngestState) =>
 				if (decision.action === "duplicate") {
 					continue;
 				}
-				const id = newId();
+				const coerced = coerceTypeKind(memory.type, memory.kind);
+				const id = newShortId("m");
+				const eventAt = memory.eventAt ? Date.parse(memory.eventAt) : Number.NaN;
 				const row = {
 					id,
-					kind: memory.kind,
+					kind: coerced.kind,
 					text: memory.text,
 					confidence: memory.confidence,
 					validFrom: memory.validFrom,
@@ -364,17 +369,30 @@ const consolidateIngest = (state: IngestState) =>
 					supersedes: decision.action === "supersedes" ? decision.targetId : null,
 					chunkIds: [group.chunkId],
 					values: values ?? null,
+					type: coerced.type,
+					state: "active" as const,
+					importance: memory.importance,
+					eventAt: Number.isFinite(eventAt) ? eventAt : null,
+					origin: "extracted" as const,
+					entities: memory.entities,
+					relations: memory.relations,
 				};
 				commitMemories.push(row);
-				known.push({
-					id,
-					kind: memory.kind,
-					text: memory.text,
-					confidence: memory.confidence,
-					validFrom: memory.validFrom,
-					validTo: null,
-					supersedes: row.supersedes,
-				});
+				known.push(
+					fillMemory({
+						id,
+						kind: coerced.kind,
+						text: memory.text,
+						confidence: memory.confidence,
+						validFrom: memory.validFrom,
+						validTo: null,
+						supersedes: row.supersedes,
+						type: coerced.type,
+						importance: memory.importance,
+						eventAt: row.eventAt,
+						origin: "extracted",
+					}),
+				);
 				if (values) {
 					knownValues.set(id, values);
 				}
@@ -429,7 +447,11 @@ const commitIngest = (state: IngestState) =>
 								sourceId: state.sourceId,
 								documentId: state.documentId,
 								kind: memory.kind,
+								type: memory.type ?? "semantic",
+								state: memory.state ?? "active",
 								ts,
+								eventAt: memory.eventAt ?? ts,
+								validTo: VALID_TO_SENTINEL,
 							},
 						},
 					]
