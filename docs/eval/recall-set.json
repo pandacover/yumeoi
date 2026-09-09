@@ -1,0 +1,1072 @@
+{
+	"documents": [
+		{
+			"id": "d01",
+			"title": "Effect preference Jan",
+			"markdown": "Luv prefers Effect 3 for the yumeoi domain layer. The team keeps Effect out of React components.",
+			"date": "2026-01-12",
+			"sourceId": "notion",
+			"sourceLabel": "Notion"
+		},
+		{
+			"id": "d02",
+			"title": "Effect upgrade Jun",
+			"markdown": "Luv prefers Effect 4 for the yumeoi domain layer. The team decided to upgrade from Effect 3 after the RC landed.",
+			"date": "2026-06-18",
+			"sourceId": "notion",
+			"sourceLabel": "Notion"
+		},
+		{
+			"id": "d03",
+			"title": "Effect stay Aug",
+			"markdown": "Luv decided to stay on Effect 4 for the domain layer. React components still must not import Effect.",
+			"date": "2026-08-03",
+			"sourceId": "notion",
+			"sourceLabel": "Notion"
+		},
+		{
+			"id": "d04",
+			"title": "Editor",
+			"markdown": "Luv prefers dark mode in the editor at all times. Tabs are required in Biome output.",
+			"date": "2026-02-02",
+			"sourceId": "notion",
+			"sourceLabel": "Notion"
+		},
+		{
+			"id": "d05",
+			"title": "Chat model Mar",
+			"markdown": "Chat will use GPT-5.6 Terra at high effort. OpenAI remains the fallback vendor.",
+			"date": "2026-03-04",
+			"sourceId": "notion",
+			"sourceLabel": "Notion"
+		},
+		{
+			"id": "d06",
+			"title": "Chat model Jul",
+			"markdown": "Chat is pinned to GPT-5.6 Luna at high effort. Terra is only an escape hatch if citation quality is insufficient.",
+			"date": "2026-07-21",
+			"sourceId": "notion",
+			"sourceLabel": "Notion"
+		},
+		{
+			"id": "d07",
+			"title": "Polling Feb",
+			"markdown": "Notion polling is scheduled every 15 minutes. SourceAgent owns the cursor for each workspace.",
+			"date": "2026-02-14",
+			"sourceId": "notion",
+			"sourceLabel": "Notion"
+		},
+		{
+			"id": "d08",
+			"title": "Polling May",
+			"markdown": "Notion polling is scheduled every 10 minutes. Faster polls were needed after missed page edits.",
+			"date": "2026-05-09",
+			"sourceId": "notion",
+			"sourceLabel": "Notion"
+		},
+		{
+			"id": "d09",
+			"title": "Anna leads Aurora",
+			"markdown": "Anna leads Project Aurora for the Hamburg launch. Luv works with Anna on the memory model.",
+			"date": "2026-04-02",
+			"sourceId": "notion",
+			"sourceLabel": "Notion"
+		},
+		{
+			"id": "d10",
+			"title": "Aurora kickoff",
+			"markdown": "The Aurora kickoff meeting is scheduled on 2026-04-08 at 10:00. Luv and Anna agreed to ship M4 before the Gmail connector.",
+			"date": "2026-04-08",
+			"sourceId": "notion",
+			"sourceLabel": "Notion"
+		},
+		{
+			"id": "d11",
+			"title": "Sam connectors",
+			"markdown": "Sam reports to Luv on connector work. Sam works with Cursor agents on the Notion OAuth flow.",
+			"date": "2026-04-15",
+			"sourceId": "notion",
+			"sourceLabel": "Notion"
+		},
+		{
+			"id": "d12",
+			"title": "Alex reviews",
+			"markdown": "Luv reports to Alex weekly. Alex prefers short written updates over standups.",
+			"date": "2026-05-01",
+			"sourceId": "notion",
+			"sourceLabel": "Notion"
+		},
+		{
+			"id": "d13",
+			"title": "Deploy procedure",
+			"markdown": "When deploying yumeoi, run bun run deploy:dry-run before deploy:prod. Always wait for CI to go green first.",
+			"date": "2026-06-01",
+			"sourceId": "obsidian",
+			"sourceLabel": "Vault"
+		},
+		{
+			"id": "d14",
+			"title": "Citation rule",
+			"markdown": "Always cite memories with numbered marks in chat answers. Never invent a memory that is not in recall.",
+			"date": "2026-06-02",
+			"sourceId": "obsidian",
+			"sourceLabel": "Vault"
+		},
+		{
+			"id": "d15",
+			"title": "Vectorize",
+			"markdown": "Namespaces for Vectorize embeddings are the user id. Embeddings use Workers AI bge-m3.",
+			"date": "2026-03-20",
+			"sourceId": "notion",
+			"sourceLabel": "Notion"
+		},
+		{
+			"id": "d16",
+			"title": "FTS",
+			"markdown": "Keyword search uses Durable Object SQLite FTS5. Each user store lives in a MemoryAgent durable object.",
+			"date": "2026-03-21",
+			"sourceId": "notion",
+			"sourceLabel": "Notion"
+		},
+		{
+			"id": "d17",
+			"title": "Ingest HTTP",
+			"markdown": "POST /ingest accepts externalId, title, markdown, and metadata. Ingest runs as IngestWorkflow on Cloudflare.",
+			"date": "2026-03-22",
+			"sourceId": "notion",
+			"sourceLabel": "Notion"
+		},
+		{
+			"id": "d18",
+			"title": "API keys",
+			"markdown": "API keys start with ym_ and are shown once. Headless agents send Authorization Bearer ym_ tokens.",
+			"date": "2026-03-23",
+			"sourceId": "notion",
+			"sourceLabel": "Notion"
+		},
+		{
+			"id": "d19",
+			"title": "M4 ship",
+			"markdown": "Luv and Anna agreed to ship M4 before the Gmail connector. MCP OAuth and the Agents screen are in M4.",
+			"date": "2026-09-01",
+			"sourceId": "notion",
+			"sourceLabel": "Notion"
+		},
+		{
+			"id": "d20",
+			"title": "Gmail task",
+			"markdown": "We need to add the Gmail connector in M5. Skip attachments for v0 Gmail to keep ingest cheap.",
+			"date": "2026-09-02",
+			"sourceId": "notion",
+			"sourceLabel": "Notion"
+		},
+		{
+			"id": "d21",
+			"title": "Meetings policy",
+			"markdown": "Meetings after 4pm are a hard no. Luv prefers written decisions in Notion over chat threads.",
+			"date": "2026-01-20",
+			"sourceId": "notion",
+			"sourceLabel": "Notion"
+		},
+		{
+			"id": "d22",
+			"title": "Coffee",
+			"markdown": "Luv prefers oat milk in coffee. Anna prefers tea during afternoon planning sessions.",
+			"date": "2026-01-21",
+			"sourceId": "notion",
+			"sourceLabel": "Notion"
+		},
+		{
+			"id": "d23",
+			"title": "Hamburg",
+			"markdown": "Project Aurora targets a Hamburg launch in October. Anna owns the customer interviews for Hamburg.",
+			"date": "2026-04-20",
+			"sourceId": "notion",
+			"sourceLabel": "Notion"
+		},
+		{
+			"id": "d24",
+			"title": "Luv Anna meet",
+			"markdown": "On 2026-08-12 Luv met Anna about the project Anna leads. They decided to freeze the v1 memory schema before graph work.",
+			"date": "2026-08-12",
+			"sourceId": "notion",
+			"sourceLabel": "Notion"
+		},
+		{
+			"id": "d25",
+			"title": "Rate limit",
+			"markdown": "Notion rate limit is about 3 requests per second. SourceAgent backs off when Notion returns 429.",
+			"date": "2026-05-12",
+			"sourceId": "notion",
+			"sourceLabel": "Notion"
+		},
+		{
+			"id": "d26",
+			"title": "Provenance",
+			"markdown": "Provenance includes source, url, and timestamp. Memories without provenance should not be trusted as facts.",
+			"date": "2026-05-13",
+			"sourceId": "notion",
+			"sourceLabel": "Notion"
+		},
+		{
+			"id": "d27",
+			"title": "One Worker",
+			"markdown": "We ship one Worker for UI, agents, MCP, and the API. Splitting Workers is postponed until the bundle crowds 10 MB.",
+			"date": "2026-02-28",
+			"sourceId": "notion",
+			"sourceLabel": "Notion"
+		},
+		{
+			"id": "d28",
+			"title": "Workflows decision",
+			"markdown": "We decided to run ingest on Cloudflare Workflows. Durable steps survive Worker isolate restarts.",
+			"date": "2026-03-01",
+			"sourceId": "notion",
+			"sourceLabel": "Notion"
+		},
+		{
+			"id": "d29",
+			"title": "M1 task",
+			"markdown": "Luv needs to ship M1 this week. The todo is wiring POST /ingest to IngestWorkflow.",
+			"date": "2026-03-08",
+			"sourceId": "notion",
+			"sourceLabel": "Notion"
+		},
+		{
+			"id": "d30",
+			"title": "Obsidian vaults",
+			"markdown": "Vaults are local files so Obsidian sync is push-based. The plugin posts markdown to POST /ingest.",
+			"date": "2026-06-20",
+			"sourceId": "obsidian",
+			"sourceLabel": "Vault"
+		},
+		{
+			"id": "d31",
+			"title": "Newsletter cloud",
+			"markdown": "This week in cloud: a vendor shipped a new object store region in Sydney. Subscribe for more product updates and partner webinars.",
+			"date": "2026-07-01",
+			"sourceId": "gmail",
+			"sourceLabel": "Gmail"
+		},
+		{
+			"id": "d32",
+			"title": "Newsletter ai",
+			"markdown": "AI roundup: five startups announced retrieval plugins this week. None of them mention yumeoi or Project Aurora.",
+			"date": "2026-07-08",
+			"sourceId": "gmail",
+			"sourceLabel": "Gmail"
+		},
+		{
+			"id": "d33",
+			"title": "Newsletter jobs",
+			"markdown": "Hiring digest: a marketplace is looking for a staff designer in Austin. Apply by Friday for the remote illustration role.",
+			"date": "2026-07-15",
+			"sourceId": "gmail",
+			"sourceLabel": "Gmail"
+		},
+		{
+			"id": "d34",
+			"title": "Newsletter travel",
+			"markdown": "Flight deals to Lisbon start at four hundred dollars round trip. Book with the promo code SUMMER26 before it expires.",
+			"date": "2026-07-22",
+			"sourceId": "gmail",
+			"sourceLabel": "Gmail"
+		},
+		{
+			"id": "d35",
+			"title": "Newsletter snacks",
+			"markdown": "Office snacks newsletter recommends roasted almonds and sparkling water. The vending machine in building B is still broken.",
+			"date": "2026-08-01",
+			"sourceId": "gmail",
+			"sourceLabel": "Gmail"
+		},
+		{
+			"id": "d36",
+			"title": "Newsletter sports",
+			"markdown": "Weekend scores: the local club won two to one under heavy rain. Tickets for the replay go on sale Monday morning.",
+			"date": "2026-08-08",
+			"sourceId": "gmail",
+			"sourceLabel": "Gmail"
+		},
+		{
+			"id": "d37",
+			"title": "Cursor agents",
+			"markdown": "Luv works with Cursor agents on yumeoi. Agent writes must still go through consolidation and embeddings.",
+			"date": "2026-05-20",
+			"sourceId": "notion",
+			"sourceLabel": "Notion"
+		},
+		{
+			"id": "d38",
+			"title": "Budget",
+			"markdown": "Each source has a daily token budget. Extraction stays on Luna high until cost per document is measured.",
+			"date": "2026-05-21",
+			"sourceId": "notion",
+			"sourceLabel": "Notion"
+		},
+		{
+			"id": "d39",
+			"title": "Unchanged chunks",
+			"markdown": "Unchanged chunks are never re-extracted. Hash-diff skips embedding when content_hash matches.",
+			"date": "2026-05-22",
+			"sourceId": "notion",
+			"sourceLabel": "Notion"
+		},
+		{
+			"id": "d40",
+			"title": "Public launch",
+			"markdown": "Public launch waits on Gmail verification. Anna wants Aurora interviews finished before the launch blog.",
+			"date": "2026-08-20",
+			"sourceId": "notion",
+			"sourceLabel": "Notion"
+		}
+	],
+	"queries": [
+		{
+			"id": "q01",
+			"query": "What does Luv prefer for the domain layer?",
+			"expected": [
+				{
+					"contains": "Effect 4",
+					"kind": "preference"
+				}
+			]
+		},
+		{
+			"id": "q02",
+			"query": "Does Luv still want Effect 3?",
+			"expected": [
+				{
+					"contains": "Effect 4"
+				}
+			]
+		},
+		{
+			"id": "q03",
+			"query": "What Effect version did the team use in January?",
+			"expected": [
+				{
+					"contains": "Effect 3"
+				}
+			],
+			"asOf": "2026-02-01",
+			"tags": ["asOf"]
+		},
+		{
+			"id": "q04",
+			"query": "What editor preference does Luv have?",
+			"expected": [
+				{
+					"contains": "dark mode",
+					"kind": "preference"
+				}
+			]
+		},
+		{
+			"id": "q05",
+			"query": "Are tabs or spaces required?",
+			"expected": [
+				{
+					"contains": "Tabs"
+				}
+			]
+		},
+		{
+			"id": "q06",
+			"query": "What model does chat use?",
+			"expected": [
+				{
+					"contains": "Luna"
+				}
+			]
+		},
+		{
+			"id": "q07",
+			"query": "Is Terra the chat model?",
+			"expected": [
+				{
+					"contains": "Luna"
+				}
+			]
+		},
+		{
+			"id": "q08",
+			"query": "What chat model was chosen in March?",
+			"expected": [
+				{
+					"contains": "Terra"
+				}
+			],
+			"asOf": "2026-03-15",
+			"tags": ["asOf"]
+		},
+		{
+			"id": "q09",
+			"query": "How often does Notion polling run?",
+			"expected": [
+				{
+					"contains": "10 minutes"
+				}
+			]
+		},
+		{
+			"id": "q10",
+			"query": "What was the Notion poll interval in February?",
+			"expected": [
+				{
+					"contains": "15 minutes"
+				}
+			],
+			"asOf": "2026-03-01",
+			"tags": ["asOf"]
+		},
+		{
+			"id": "q11",
+			"query": "Who leads Project Aurora?",
+			"expected": [
+				{
+					"contains": "Anna",
+					"kind": "relationship"
+				}
+			]
+		},
+		{
+			"id": "q12",
+			"query": "Who does Luv work with on the memory model?",
+			"expected": [
+				{
+					"contains": "Anna"
+				}
+			]
+		},
+		{
+			"id": "q13",
+			"query": "When was the Aurora kickoff?",
+			"expected": [
+				{
+					"contains": "2026-04-08",
+					"kind": "event"
+				}
+			]
+		},
+		{
+			"id": "q14",
+			"query": "What did Luv and Anna agree to ship first?",
+			"expected": [
+				{
+					"contains": "M4"
+				}
+			]
+		},
+		{
+			"id": "q15",
+			"query": "Who reports to Luv on connectors?",
+			"expected": [
+				{
+					"contains": "Sam",
+					"kind": "relationship"
+				}
+			]
+		},
+		{
+			"id": "q16",
+			"query": "Who does Sam work with on Notion OAuth?",
+			"expected": [
+				{
+					"contains": "Cursor"
+				}
+			]
+		},
+		{
+			"id": "q17",
+			"query": "Who does Luv report to?",
+			"expected": [
+				{
+					"contains": "Alex",
+					"kind": "relationship"
+				}
+			]
+		},
+		{
+			"id": "q18",
+			"query": "What kind of updates does Alex prefer?",
+			"expected": [
+				{
+					"contains": "written updates",
+					"kind": "preference"
+				}
+			]
+		},
+		{
+			"id": "q19",
+			"query": "How do I deploy yumeoi?",
+			"expected": [
+				{
+					"contains": "deploy:dry-run"
+				}
+			],
+			"tags": ["howto"]
+		},
+		{
+			"id": "q20",
+			"query": "What should I run before deploy:prod?",
+			"expected": [
+				{
+					"contains": "dry-run"
+				}
+			]
+		},
+		{
+			"id": "q21",
+			"query": "How should chat answers cite memories?",
+			"expected": [
+				{
+					"contains": "numbered marks"
+				}
+			]
+		},
+		{
+			"id": "q22",
+			"query": "Should the assistant invent memories?",
+			"expected": [
+				{
+					"contains": "Never invent"
+				}
+			]
+		},
+		{
+			"id": "q23",
+			"query": "How are embeddings stored per user?",
+			"expected": [
+				{
+					"contains": "user id"
+				}
+			]
+		},
+		{
+			"id": "q24",
+			"query": "Which embedding model do we use?",
+			"expected": [
+				{
+					"contains": "bge-m3"
+				}
+			]
+		},
+		{
+			"id": "q25",
+			"query": "How do we search memories by keyword?",
+			"expected": [
+				{
+					"contains": "FTS5"
+				}
+			]
+		},
+		{
+			"id": "q26",
+			"query": "Where does each user store live?",
+			"expected": [
+				{
+					"contains": "MemoryAgent"
+				}
+			]
+		},
+		{
+			"id": "q27",
+			"query": "What is the ingest HTTP shape?",
+			"expected": [
+				{
+					"contains": "externalId"
+				}
+			]
+		},
+		{
+			"id": "q28",
+			"query": "What runs ingest on Cloudflare?",
+			"expected": [
+				{
+					"contains": "IngestWorkflow"
+				}
+			]
+		},
+		{
+			"id": "q29",
+			"query": "What prefix do API keys use?",
+			"expected": [
+				{
+					"contains": "ym_"
+				}
+			]
+		},
+		{
+			"id": "q30",
+			"query": "How do headless agents authenticate?",
+			"expected": [
+				{
+					"contains": "Bearer"
+				}
+			]
+		},
+		{
+			"id": "q31",
+			"query": "What still needs to ship for Gmail?",
+			"expected": [
+				{
+					"contains": "Gmail connector"
+				}
+			]
+		},
+		{
+			"id": "q32",
+			"query": "Should v0 Gmail ingest attachments?",
+			"expected": [
+				{
+					"contains": "Skip attachments"
+				}
+			]
+		},
+		{
+			"id": "q33",
+			"query": "Are late meetings allowed?",
+			"expected": [
+				{
+					"contains": "4pm"
+				}
+			]
+		},
+		{
+			"id": "q34",
+			"query": "Where does Luv prefer written decisions?",
+			"expected": [
+				{
+					"contains": "Notion"
+				}
+			]
+		},
+		{
+			"id": "q35",
+			"query": "What milk does Luv prefer in coffee?",
+			"expected": [
+				{
+					"contains": "oat milk",
+					"kind": "preference"
+				}
+			]
+		},
+		{
+			"id": "q36",
+			"query": "What does Anna prefer in the afternoon?",
+			"expected": [
+				{
+					"contains": "tea"
+				}
+			]
+		},
+		{
+			"id": "q37",
+			"query": "Where will Aurora launch?",
+			"expected": [
+				{
+					"contains": "Hamburg"
+				}
+			]
+		},
+		{
+			"id": "q38",
+			"query": "Who owns Hamburg customer interviews?",
+			"expected": [
+				{
+					"contains": "Anna"
+				}
+			]
+		},
+		{
+			"id": "q39",
+			"query": "Who did Luv meet about Aurora in August?",
+			"expected": [
+				{
+					"contains": "Anna"
+				}
+			],
+			"tags": ["graph"]
+		},
+		{
+			"id": "q40",
+			"query": "What did they freeze before graph work?",
+			"expected": [
+				{
+					"contains": "v1 memory schema"
+				}
+			]
+		},
+		{
+			"id": "q41",
+			"query": "What is the Notion rate limit?",
+			"expected": [
+				{
+					"contains": "3 requests"
+				}
+			]
+		},
+		{
+			"id": "q42",
+			"query": "What happens on Notion 429?",
+			"expected": [
+				{
+					"contains": "backs off"
+				}
+			]
+		},
+		{
+			"id": "q43",
+			"query": "What does provenance include?",
+			"expected": [
+				{
+					"contains": "source"
+				}
+			]
+		},
+		{
+			"id": "q44",
+			"query": "Should we trust memories without provenance?",
+			"expected": [
+				{
+					"contains": "should not be trusted"
+				}
+			]
+		},
+		{
+			"id": "q45",
+			"query": "How many Workers do we ship?",
+			"expected": [
+				{
+					"contains": "one Worker"
+				}
+			]
+		},
+		{
+			"id": "q46",
+			"query": "When would we split Workers?",
+			"expected": [
+				{
+					"contains": "10 MB"
+				}
+			]
+		},
+		{
+			"id": "q47",
+			"query": "Did we decide to run ingest on Workflows?",
+			"expected": [
+				{
+					"contains": "Workflows",
+					"kind": "decision"
+				}
+			]
+		},
+		{
+			"id": "q48",
+			"query": "Why durable ingest steps?",
+			"expected": [
+				{
+					"contains": "isolate restarts"
+				}
+			]
+		},
+		{
+			"id": "q49",
+			"query": "What does Luv need to ship this week in March?",
+			"expected": [
+				{
+					"contains": "M1",
+					"kind": "task"
+				}
+			]
+		},
+		{
+			"id": "q50",
+			"query": "What todo is left for ingest?",
+			"expected": [
+				{
+					"contains": "POST /ingest"
+				}
+			]
+		},
+		{
+			"id": "q51",
+			"query": "How does Obsidian sync work?",
+			"expected": [
+				{
+					"contains": "push-based"
+				}
+			]
+		},
+		{
+			"id": "q52",
+			"query": "Where does the Obsidian plugin post markdown?",
+			"expected": [
+				{
+					"contains": "POST /ingest"
+				}
+			]
+		},
+		{
+			"id": "q53",
+			"query": "Who works on yumeoi with Cursor agents?",
+			"expected": [
+				{
+					"contains": "Luv"
+				}
+			]
+		},
+		{
+			"id": "q54",
+			"query": "Must agent writes skip consolidation?",
+			"expected": [
+				{
+					"contains": "consolidation"
+				}
+			]
+		},
+		{
+			"id": "q55",
+			"query": "Is there a daily token budget?",
+			"expected": [
+				{
+					"contains": "daily token budget"
+				}
+			]
+		},
+		{
+			"id": "q56",
+			"query": "Which extract model until cost is measured?",
+			"expected": [
+				{
+					"contains": "Luna high"
+				}
+			]
+		},
+		{
+			"id": "q57",
+			"query": "Are unchanged chunks re-extracted?",
+			"expected": [
+				{
+					"contains": "never re-extracted"
+				}
+			]
+		},
+		{
+			"id": "q58",
+			"query": "When does hash-diff skip embedding?",
+			"expected": [
+				{
+					"contains": "content_hash"
+				}
+			]
+		},
+		{
+			"id": "q59",
+			"query": "What blocks public launch?",
+			"expected": [
+				{
+					"contains": "Gmail verification"
+				}
+			]
+		},
+		{
+			"id": "q60",
+			"query": "What does Anna want finished before the launch blog?",
+			"expected": [
+				{
+					"contains": "Aurora interviews"
+				}
+			]
+		},
+		{
+			"id": "q61",
+			"query": "who did Luv meet about the project Anna leads?",
+			"expected": [
+				{
+					"contains": "Anna"
+				}
+			],
+			"graph": true,
+			"tags": ["graph"]
+		},
+		{
+			"id": "q62",
+			"query": "Who is on connector work with Luv?",
+			"expected": [
+				{
+					"contains": "Sam"
+				}
+			],
+			"tags": ["graph"]
+		},
+		{
+			"id": "q63",
+			"query": "What happened last week in sports?",
+			"expected": [
+				{
+					"contains": "two to one"
+				}
+			]
+		},
+		{
+			"id": "q64",
+			"query": "Any flight deals mentioned?",
+			"expected": [
+				{
+					"contains": "Lisbon"
+				}
+			]
+		},
+		{
+			"id": "q65",
+			"query": "What snacks were recommended?",
+			"expected": [
+				{
+					"contains": "roasted almonds"
+				}
+			]
+		},
+		{
+			"id": "q66",
+			"query": "Is there a designer job in Austin?",
+			"expected": [
+				{
+					"contains": "staff designer"
+				}
+			]
+		},
+		{
+			"id": "q67",
+			"query": "Did a vendor ship an object store in Sydney?",
+			"expected": [
+				{
+					"contains": "Sydney"
+				}
+			]
+		},
+		{
+			"id": "q68",
+			"query": "Did the AI roundup mention yumeoi?",
+			"expected": [
+				{
+					"contains": "None of them mention yumeoi"
+				}
+			]
+		},
+		{
+			"id": "q69",
+			"query": "What is MCP OAuth part of?",
+			"expected": [
+				{
+					"contains": "M4"
+				}
+			]
+		},
+		{
+			"id": "q70",
+			"query": "What screen shipped in M4?",
+			"expected": [
+				{
+					"contains": "Agents screen"
+				}
+			]
+		},
+		{
+			"id": "q71",
+			"query": "What coffee preference should recall ignore from newsletters?",
+			"expected": [
+				{
+					"contains": "oat milk"
+				}
+			]
+		},
+		{
+			"id": "q72",
+			"query": "How do I cite sources in chat?",
+			"expected": [
+				{
+					"contains": "numbered marks"
+				}
+			],
+			"tags": ["howto"]
+		},
+		{
+			"id": "q73",
+			"query": "When did Luv and Anna meet in August?",
+			"expected": [
+				{
+					"contains": "2026-08-12",
+					"kind": "event"
+				}
+			],
+			"from": "2026-08-01",
+			"to": "2026-08-31",
+			"tags": ["temporal"]
+		},
+		{
+			"id": "q74",
+			"query": "What is the current Notion poll interval, not the old one?",
+			"expected": [
+				{
+					"contains": "10 minutes"
+				}
+			]
+		},
+		{
+			"id": "q75",
+			"query": "What is the current chat model, not Terra?",
+			"expected": [
+				{
+					"contains": "Luna"
+				}
+			]
+		},
+		{
+			"id": "q76",
+			"query": "What is the current Effect preference, not Effect 3?",
+			"expected": [
+				{
+					"contains": "Effect 4"
+				}
+			]
+		},
+		{
+			"id": "q77",
+			"query": "Who owns Aurora customer interviews?",
+			"expected": [
+				{
+					"contains": "customer interviews"
+				}
+			]
+		},
+		{
+			"id": "q78",
+			"query": "Does SourceAgent own the Notion cursor?",
+			"expected": [
+				{
+					"contains": "cursor"
+				}
+			]
+		},
+		{
+			"id": "q79",
+			"query": "What must chat never invent?",
+			"expected": [
+				{
+					"contains": "memory"
+				}
+			]
+		},
+		{
+			"id": "q80",
+			"query": "What launch city is Aurora targeting?",
+			"expected": [
+				{
+					"contains": "Hamburg"
+				}
+			]
+		}
+	]
+}

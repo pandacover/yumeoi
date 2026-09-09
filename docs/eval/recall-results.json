@@ -1,0 +1,17 @@
+{
+	"baseline": {
+		"live": false,
+		"generatedAt": "2026-09-09T09:03:17.242Z",
+		"embeddings": "hash",
+		"summary": {
+			"queries": 80,
+			"recallAt5": 0.35,
+			"recallAt10": 0.55,
+			"mrr": 0.22117347640892643,
+			"ndcgAt10": 0.3333595746962458,
+			"contextPrecision": 0.036110548807917205,
+			"tokensPerRecall": 743,
+			"p50LatencyMs": 1
+		}
+	}
+}
