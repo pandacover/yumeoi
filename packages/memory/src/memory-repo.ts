@@ -2,9 +2,15 @@ import type {
 	AddMemoryRequest,
 	Chunk,
 	Document,
+	EntityType,
+	ExtractedEntity,
+	ExtractedRelation,
 	IngestResult,
 	Memory,
 	MemoryKind,
+	MemoryOrigin,
+	MemoryState,
+	MemoryType,
 	NotFound,
 	Provenance,
 	Source,
@@ -25,6 +31,35 @@ export type CommitMemory = {
 	readonly validTo: string | null;
 	readonly supersedes: string | null;
 	readonly chunkIds: ReadonlyArray<string>;
+	readonly type?: MemoryType;
+	readonly state?: MemoryState;
+	readonly importance?: number;
+	readonly eventAt?: number | null;
+	readonly origin?: MemoryOrigin;
+	readonly clientRef?: string | null;
+	readonly entities?: ReadonlyArray<ExtractedEntity>;
+	readonly relations?: ReadonlyArray<ExtractedRelation>;
+};
+
+export type InsertMemoryInput = AddMemoryRequest & {
+	readonly id?: string;
+	readonly type?: MemoryType;
+	readonly state?: MemoryState;
+	readonly importance?: number;
+	readonly eventAt?: number | null;
+	readonly validFrom?: string | null;
+	readonly validTo?: string | null;
+	readonly origin?: MemoryOrigin;
+	readonly documentId?: string;
+	readonly chunkId?: string;
+};
+
+export type MemoryPatch = {
+	readonly text?: string;
+	readonly validTo?: string | null;
+	readonly state?: MemoryState;
+	readonly confidence?: number;
+	readonly importance?: number;
 };
 
 export type CommitBatch = {
@@ -123,10 +158,49 @@ export class MemoryRepo extends Context.Service<
 		) => Effect.Effect<ReadonlyArray<Memory>, unknown>;
 		readonly listRecentMemories: (limit: number) => Effect.Effect<ReadonlyArray<Memory>, unknown>;
 		readonly commit: (batch: CommitBatch) => Effect.Effect<IngestResult, unknown>;
-		readonly addMemory: (
+		readonly insertMemory: (
 			userId: string,
-			input: AddMemoryRequest,
+			input: InsertMemoryInput,
 			options?: { readonly supersedes?: string | null },
 		) => Effect.Effect<Memory, unknown>;
+		readonly updateMemory: (id: string, patch: MemoryPatch) => Effect.Effect<Memory, unknown>;
+		readonly insertEdge: (
+			src: string,
+			dst: string,
+			relation: string,
+		) => Effect.Effect<void, unknown>;
+		readonly insertHistory: (row: {
+			readonly memoryId: string;
+			readonly text: string;
+			readonly type: MemoryType;
+			readonly kind: MemoryKind;
+			readonly confidence: number;
+			readonly validFrom: string | null;
+			readonly validTo: string | null;
+			readonly state: MemoryState;
+			readonly reason: string;
+		}) => Effect.Effect<void, unknown>;
+		readonly getMemoryByClientRef: (clientRef: string) => Effect.Effect<Memory | null, unknown>;
+		readonly upsertEntity: (input: {
+			readonly name: string;
+			readonly canonical: string;
+			readonly type: EntityType;
+			readonly now: number;
+		}) => Effect.Effect<{ readonly id: string }, unknown>;
+		readonly linkMemoryEntity: (
+			memoryId: string,
+			entityId: string,
+			role: string,
+		) => Effect.Effect<void, unknown>;
+		readonly listMemoriesPage: (options: {
+			readonly afterId: string | null;
+			readonly limit: number;
+			readonly activeOnly: boolean;
+		}) => Effect.Effect<ReadonlyArray<Memory>, unknown>;
+		readonly listChunksPage: (options: {
+			readonly afterId: string | null;
+			readonly limit: number;
+		}) => Effect.Effect<ReadonlyArray<Chunk & { readonly sourceId: string }>, unknown>;
+		readonly listInactiveMemoryIds: () => Effect.Effect<ReadonlyArray<string>, unknown>;
 	}
 >()("@yumeoi/memory/MemoryRepo") {}

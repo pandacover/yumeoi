@@ -29,6 +29,7 @@ export const FakeEmbeddings = Layer.succeed(Embeddings, {
 export const FakeVectorIndex = Layer.succeed(VectorIndex, {
 	upsert: () => Effect.void,
 	query: () => Effect.succeed([]),
+	deleteByIds: () => Effect.void,
 });
 
 export { defaultLlmConfig, Effect, Layer, Llm, Schema, SchemaViolation };

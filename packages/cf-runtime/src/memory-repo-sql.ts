@@ -1,13 +1,6 @@
-import type {
-	AddMemoryRequest,
-	Chunk,
-	Document,
-	IngestResult,
-	Memory,
-	Source,
-} from "@yumeoi/domain";
-import { NotFound } from "@yumeoi/domain";
-import { MemoryRepo } from "@yumeoi/memory";
+import type { Chunk, Document, IngestResult, Memory, Source } from "@yumeoi/domain";
+import { fillMemory, NotFound } from "@yumeoi/domain";
+import { MemoryRepo, newShortId } from "@yumeoi/memory";
 import { Effect, Layer } from "effect";
 import { SqlClient } from "effect/unstable/sql/SqlClient";
 
@@ -20,6 +13,17 @@ type MemoryRow = {
 	valid_to: string | null;
 	supersedes: string | null;
 	created_at: number;
+	type?: Memory["type"] | null;
+	state?: Memory["state"] | null;
+	importance?: number | null;
+	event_at?: number | null;
+	observed_at?: number | null;
+	updated_at?: number | null;
+	last_accessed_at?: number | null;
+	access_count?: number | null;
+	retention?: number | null;
+	origin?: Memory["origin"] | null;
+	client_ref?: string | null;
 };
 
 type DocumentRow = {
@@ -42,15 +46,27 @@ type ChunkRow = {
 	byte_end: number;
 };
 
-const toMemory = (row: MemoryRow): Memory => ({
-	id: row.id,
-	kind: row.kind,
-	text: row.text,
-	confidence: row.confidence,
-	validFrom: row.valid_from,
-	validTo: row.valid_to,
-	supersedes: row.supersedes,
-});
+const toMemory = (row: MemoryRow): Memory =>
+	fillMemory({
+		id: row.id,
+		kind: row.kind,
+		text: row.text,
+		confidence: row.confidence,
+		validFrom: row.valid_from,
+		validTo: row.valid_to,
+		supersedes: row.supersedes,
+		type: row.type ?? undefined,
+		state: row.state ?? undefined,
+		importance: row.importance ?? undefined,
+		eventAt: row.event_at ?? null,
+		observedAt: row.observed_at ?? row.created_at,
+		updatedAt: row.updated_at ?? row.created_at,
+		lastAccessedAt: row.last_accessed_at ?? null,
+		accessCount: row.access_count ?? 0,
+		retention: row.retention ?? 1,
+		origin: row.origin ?? "extracted",
+		clientRef: row.client_ref ?? null,
+	});
 
 const toDocument = (row: DocumentRow): Document => ({
 	id: row.id,
@@ -97,7 +113,11 @@ export const sqlMemoryRepoLayer = Layer.effect(
 				),
 			searchMemoryFts: (match, filters) =>
 				Effect.gen(function* () {
-					const clauses = [sql`memories_fts MATCH ${match}`, sql`memories.valid_to IS NULL`];
+					const clauses = [
+						sql`memories_fts MATCH ${match}`,
+						sql`memories.valid_to IS NULL`,
+						sql`memories.state = ${"active"}`,
+					];
 					if (filters.kinds.length > 0) {
 						clauses.push(sql.in("memories.kind", [...filters.kinds]));
 					}
@@ -294,7 +314,7 @@ export const sqlMemoryRepoLayer = Layer.effect(
 				`.pipe(Effect.asVoid),
 			listMemories: (filters) =>
 				Effect.gen(function* () {
-					const clauses = [sql`valid_to IS NULL`];
+					const clauses = [sql`valid_to IS NULL`, sql`state = ${"active"}`];
 					if (filters.kinds.length > 0) {
 						clauses.push(sql.in("kind", [...filters.kinds]));
 					}
@@ -318,11 +338,15 @@ export const sqlMemoryRepoLayer = Layer.effect(
 				}),
 			similarMemoryCandidates: (_excludeIds, limit) =>
 				sql<MemoryRow>`
-					SELECT * FROM memories WHERE valid_to IS NULL ORDER BY created_at DESC LIMIT ${limit}
+					SELECT * FROM memories
+					WHERE valid_to IS NULL AND state = ${"active"}
+					ORDER BY created_at DESC LIMIT ${limit}
 				`.pipe(Effect.map((rows) => rows.map(toMemory))),
 			listRecentMemories: (limit) =>
 				sql<MemoryRow>`
-					SELECT * FROM memories WHERE valid_to IS NULL ORDER BY created_at DESC LIMIT ${limit}
+					SELECT * FROM memories
+					WHERE valid_to IS NULL AND state = ${"active"}
+					ORDER BY created_at DESC LIMIT ${limit}
 				`.pipe(Effect.map((rows) => rows.map(toMemory))),
 			commit: (batch) =>
 				sql.withTransaction(
@@ -413,15 +437,35 @@ export const sqlMemoryRepoLayer = Layer.effect(
 						}
 						for (const memory of batch.memories) {
 							if (memory.supersedes) {
-								yield* sql`UPDATE memories SET valid_to = ${new Date(now).toISOString()} WHERE id = ${memory.supersedes}`;
+								yield* sql`UPDATE memories SET valid_to = ${new Date(now).toISOString()}, state = ${"superseded"} WHERE id = ${memory.supersedes}`;
 							}
+							const memoryType =
+								memory.type ??
+								(memory.kind === "event" || memory.kind === "task"
+									? "episodic"
+									: memory.kind === "procedure" || memory.kind === "rule"
+										? "procedural"
+										: "semantic");
+							const memoryState = memory.state ?? "active";
+							const importance = memory.importance ?? memory.confidence;
 							yield* sql`
-								INSERT INTO memories (id, kind, text, confidence, valid_from, valid_to, supersedes, created_at)
+								INSERT INTO memories (
+									id, kind, text, confidence, valid_from, valid_to, supersedes, created_at,
+									type, state, importance, event_at, observed_at, updated_at, origin, client_ref
+								)
 								VALUES (
 									${memory.id}, ${memory.kind}, ${memory.text}, ${memory.confidence},
-									${memory.validFrom}, ${memory.validTo}, ${memory.supersedes}, ${now}
+									${memory.validFrom}, ${memory.validTo}, ${memory.supersedes}, ${now},
+									${memoryType}, ${memoryState}, ${importance}, ${memory.eventAt ?? null},
+									${now}, ${now}, ${memory.origin ?? "extracted"}, ${memory.clientRef ?? null}
 								)
 							`;
+							if (memory.supersedes) {
+								yield* sql`
+									INSERT OR IGNORE INTO memory_edges (src, dst, relation, created_at)
+									VALUES (${memory.id}, ${memory.supersedes}, ${"supersedes"}, ${now})
+								`;
+							}
 							for (const chunkId of memory.chunkIds) {
 								yield* sql`
 									INSERT OR IGNORE INTO memory_sources (memory_id, source_id, document_id, chunk_id)
@@ -441,16 +485,24 @@ export const sqlMemoryRepoLayer = Layer.effect(
 						return result;
 					}),
 				),
-			addMemory: (userId, input: AddMemoryRequest, options) =>
+			insertMemory: (userId, input, options) =>
 				Effect.gen(function* () {
 					const now = Date.now();
 					const sourceId = input.sourceId ?? `agent:${userId}`;
-					const documentId = `${sourceId}:notes`;
-					const chunkId = crypto.randomUUID();
-					const memoryId = crypto.randomUUID();
+					const documentId = input.documentId ?? `${sourceId}:notes`;
+					const chunkId = input.chunkId ?? crypto.randomUUID();
+					const memoryId = input.id ?? newShortId("m");
 					const supersedes = options?.supersedes ?? null;
+					const memoryType =
+						input.type ??
+						(input.kind === "event" || input.kind === "task"
+							? "episodic"
+							: input.kind === "procedure" || input.kind === "rule"
+								? "procedural"
+								: "semantic");
+					const memoryState = input.state ?? (input.validTo ? "superseded" : "active");
 					if (supersedes) {
-						yield* sql`UPDATE memories SET valid_to = ${new Date(now).toISOString()} WHERE id = ${supersedes}`;
+						yield* sql`UPDATE memories SET valid_to = ${new Date(now).toISOString()}, state = ${"superseded"} WHERE id = ${supersedes}`;
 					}
 					yield* sql`
 						INSERT INTO sources (id, kind, label, created_at)
@@ -465,25 +517,160 @@ export const sqlMemoryRepoLayer = Layer.effect(
 					yield* sql`
 						INSERT INTO chunks (id, document_id, text, content_hash, byte_start, byte_end)
 						VALUES (${chunkId}, ${documentId}, ${input.text}, ${memoryId}, ${0}, ${input.text.length})
+						ON CONFLICT(id) DO NOTHING
 					`;
 					yield* sql`
-						INSERT INTO memories (id, kind, text, confidence, valid_from, valid_to, supersedes, created_at)
-						VALUES (${memoryId}, ${input.kind}, ${input.text}, ${input.confidence}, ${null}, ${null}, ${supersedes}, ${now})
+						INSERT INTO memories (
+							id, kind, text, confidence, valid_from, valid_to, supersedes, created_at,
+							type, state, importance, event_at, observed_at, updated_at, origin, client_ref
+						)
+						VALUES (
+							${memoryId}, ${input.kind}, ${input.text}, ${input.confidence},
+							${input.validFrom ?? null}, ${input.validTo ?? null}, ${supersedes}, ${now},
+							${memoryType}, ${memoryState}, ${input.importance ?? input.confidence},
+							${input.eventAt ?? null}, ${now}, ${now}, ${input.origin ?? "agent"},
+							${input.clientRef ?? null}
+						)
 					`;
 					yield* sql`
 						INSERT INTO memory_sources (memory_id, source_id, document_id, chunk_id)
 						VALUES (${memoryId}, ${sourceId}, ${documentId}, ${chunkId})
 					`;
-					return {
-						id: memoryId,
-						kind: input.kind,
-						text: input.text,
-						confidence: input.confidence,
-						validFrom: null,
-						validTo: null,
-						supersedes,
-					};
+					if (supersedes) {
+						yield* sql`
+							INSERT OR IGNORE INTO memory_edges (src, dst, relation, created_at)
+							VALUES (${memoryId}, ${supersedes}, ${"supersedes"}, ${now})
+						`;
+					}
+					const rows = yield* sql<MemoryRow>`SELECT * FROM memories WHERE id = ${memoryId} LIMIT 1`;
+					const row = rows[0];
+					return row
+						? toMemory(row)
+						: fillMemory({
+								id: memoryId,
+								kind: input.kind,
+								text: input.text,
+								confidence: input.confidence,
+								validFrom: input.validFrom ?? null,
+								validTo: input.validTo ?? null,
+								supersedes,
+								type: memoryType,
+								state: memoryState,
+								origin: input.origin ?? "agent",
+								clientRef: input.clientRef ?? null,
+							});
 				}),
+			updateMemory: (id, patch) =>
+				Effect.gen(function* () {
+					const now = Date.now();
+					if (patch.text !== undefined) {
+						yield* sql`UPDATE memories SET text = ${patch.text}, updated_at = ${now} WHERE id = ${id}`;
+					}
+					if (patch.validTo !== undefined) {
+						yield* sql`UPDATE memories SET valid_to = ${patch.validTo}, updated_at = ${now} WHERE id = ${id}`;
+					}
+					if (patch.state !== undefined) {
+						yield* sql`UPDATE memories SET state = ${patch.state}, updated_at = ${now} WHERE id = ${id}`;
+					}
+					if (patch.confidence !== undefined) {
+						yield* sql`UPDATE memories SET confidence = ${patch.confidence}, updated_at = ${now} WHERE id = ${id}`;
+					}
+					if (patch.importance !== undefined) {
+						yield* sql`UPDATE memories SET importance = ${patch.importance}, updated_at = ${now} WHERE id = ${id}`;
+					}
+					const rows = yield* sql<MemoryRow>`SELECT * FROM memories WHERE id = ${id} LIMIT 1`;
+					const row = rows[0];
+					if (!row) {
+						return yield* Effect.fail(new NotFound({ entity: "memory", id }));
+					}
+					return toMemory(row);
+				}),
+			insertEdge: (src, dst, relation) =>
+				sql`
+					INSERT OR IGNORE INTO memory_edges (src, dst, relation, created_at)
+					VALUES (${src}, ${dst}, ${relation}, ${Date.now()})
+				`.pipe(Effect.asVoid),
+			insertHistory: (row) =>
+				sql`
+					INSERT INTO memory_history (
+						id, memory_id, text, type, kind, confidence, valid_from, valid_to, state, changed_at, reason
+					) VALUES (
+						${crypto.randomUUID()}, ${row.memoryId}, ${row.text}, ${row.type}, ${row.kind},
+						${row.confidence}, ${row.validFrom}, ${row.validTo}, ${row.state}, ${Date.now()}, ${row.reason}
+					)
+				`.pipe(Effect.asVoid),
+			getMemoryByClientRef: (clientRef) =>
+				Effect.gen(function* () {
+					const rows = yield* sql<MemoryRow>`
+						SELECT * FROM memories WHERE client_ref = ${clientRef} LIMIT 1
+					`;
+					const row = rows[0];
+					return row ? toMemory(row) : null;
+				}),
+			upsertEntity: (input) =>
+				Effect.gen(function* () {
+					const existing = yield* sql<{ id: string }>`
+						SELECT id FROM entities WHERE canonical = ${input.canonical} AND type = ${input.type} LIMIT 1
+					`;
+					const found = existing[0];
+					if (found) {
+						yield* sql`
+							UPDATE entities SET last_seen = ${input.now}, mention_count = mention_count + 1
+							WHERE id = ${found.id}
+						`;
+						return { id: found.id };
+					}
+					const id = newShortId("e");
+					yield* sql`
+						INSERT INTO entities (id, name, canonical, type, description, first_seen, last_seen, mention_count, state)
+						VALUES (${id}, ${input.name}, ${input.canonical}, ${input.type}, ${null}, ${input.now}, ${input.now}, ${1}, ${"active"})
+					`;
+					return { id };
+				}),
+			linkMemoryEntity: (memoryId, entityId, role) =>
+				sql`
+					INSERT OR IGNORE INTO memory_entities (memory_id, entity_id, role)
+					VALUES (${memoryId}, ${entityId}, ${role})
+				`.pipe(Effect.asVoid),
+			listMemoriesPage: (options) =>
+				Effect.gen(function* () {
+					const clauses = options.activeOnly
+						? [sql`valid_to IS NULL`, sql`state = ${"active"}`]
+						: [];
+					if (options.afterId) {
+						clauses.push(sql`id > ${options.afterId}`);
+					}
+					const rows =
+						clauses.length > 0
+							? yield* sql<MemoryRow>`
+								SELECT * FROM memories WHERE ${sql.and(clauses)}
+								ORDER BY id LIMIT ${options.limit}
+							`
+							: yield* sql<MemoryRow>`
+								SELECT * FROM memories ORDER BY id LIMIT ${options.limit}
+							`;
+					return rows.map(toMemory);
+				}),
+			listChunksPage: (options) =>
+				Effect.gen(function* () {
+					const rows = options.afterId
+						? yield* sql<ChunkRow & { source_id: string }>`
+							SELECT chunks.*, documents.source_id FROM chunks
+							JOIN documents ON documents.id = chunks.document_id
+							WHERE chunks.id > ${options.afterId}
+							ORDER BY chunks.id LIMIT ${options.limit}
+						`
+						: yield* sql<ChunkRow & { source_id: string }>`
+							SELECT chunks.*, documents.source_id FROM chunks
+							JOIN documents ON documents.id = chunks.document_id
+							ORDER BY chunks.id LIMIT ${options.limit}
+						`;
+					return rows.map((row) => ({ ...toChunk(row), sourceId: row.source_id }));
+				}),
+			listInactiveMemoryIds: () =>
+				sql<{ id: string }>`
+					SELECT id FROM memories WHERE valid_to IS NOT NULL OR state != ${"active"}
+				`.pipe(Effect.map((rows) => rows.map((row) => row.id))),
 		});
 	}),
 );
