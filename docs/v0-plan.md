@@ -288,6 +288,8 @@ Monorepo; `apps/app` as a TanStack Start project with custom `src/server.ts` exp
 **M4 — MCP OAuth + Agents screen**
 `OAuthProvider` in front of `/mcp`, consent page, grant list/revoke, tested against Claude Desktop and Cursor.
 
+> **Status after M4:** M5 and M6 are paused. The next body of work is `docs/v1-memory-plan.md` (agent experience, retrieval quality, memory types, graph RAG, temporal/layered tracking, decay); M5/M6 resume on top of that model.
+
 **M5 — Gmail connector + Batch backfill lane**
 Google OAuth, initial backfill window via the OpenAI Batch API lane, `historyId` incremental sync on the realtime lane, thread normalization. This is the volume source, so it is also where the per-source daily budget and cost accounting get exercised for real. (The Batch lane is built here rather than at M2 because Notion workspaces are usually small enough that realtime backfill is acceptable.)
 
