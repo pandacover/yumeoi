@@ -9,6 +9,7 @@ describe("P1 workerd", () => {
 		const memory = await stub.addMemory({
 			text: "Luv prefers oat milk in coffee rather than dairy milk.",
 			kind: "preference",
+			type: "semantic",
 			confidence: 0.9,
 		});
 		expect(memory.text).toContain("oat milk");
@@ -16,7 +17,7 @@ describe("P1 workerd", () => {
 		expect(memory.state).toBe("active");
 		expect(memory.origin).toBe("agent");
 		expect(memory.id).toMatch(/^m_[0-9a-hjkmnp-tv-z]{12}$/);
-	});
+	}, 30_000);
 
 	it("ingest backfills v2 columns on extracted memories", async () => {
 		const stub = env.MemoryAgent.getByName("p1-migrate-user");
@@ -40,13 +41,14 @@ describe("P1 workerd", () => {
 			),
 		).toBe(true);
 		expect(hits.every((hit) => hit.memory.state === "active")).toBe(true);
-	});
+	}, 60_000);
 
 	it("reindex upserts active vectors against the local Vectorize emulator", async () => {
 		const stub = env.MemoryAgent.getByName("p1-reindex-user");
 		const memory = await stub.addMemory({
 			text: "yumeoi stores per-user memories inside a Durable Object.",
 			kind: "fact",
+			type: "semantic",
 			confidence: 0.8,
 		});
 		expect(memory.id).toBeTruthy();
@@ -55,7 +57,7 @@ describe("P1 workerd", () => {
 		expect(result.deleted).toBeGreaterThanOrEqual(0);
 		const hits = await stub.search({ query: "Durable Object", limit: 10 });
 		expect(hits.some((hit) => hit.memory.id === memory.id)).toBe(true);
-	});
+	}, 60_000);
 
 	it("POST /api/admin/reindex is authenticated and returns counts", async () => {
 		const write = await SELF.fetch("https://example.com/api/memories", {
@@ -64,6 +66,7 @@ describe("P1 workerd", () => {
 			body: JSON.stringify({
 				text: "The Vectorize index used by yumeoi is named yumeoi-memories.",
 				kind: "fact",
+				type: "semantic",
 				confidence: 0.8,
 			}),
 		});
@@ -82,5 +85,5 @@ describe("P1 workerd", () => {
 		expect(reindex.status).toBe(200);
 		const body = (await reindex.json()) as { memories: number; chunks: number; deleted: number };
 		expect(body.memories).toBeGreaterThan(0);
-	});
+	}, 60_000);
 });

@@ -11,15 +11,16 @@ Raw numbers: `docs/eval/types-results.json`. Set `EVAL_STAGE=heuristic` or `EVAL
 | Stage | Live | Accuracy | Cases | Model | Effort |
 |---|---|---:|---:|---|---|
 | heuristic | no | 0.975 | 80 | gpt-5.6-luna | none |
+| live | yes | 0.913 | 80 | gpt-5.6-luna | none |
 
-Current stage `heuristic` accuracy **0.975**.
+Current stage `live` accuracy **0.913**.
 
-## Confusion (heuristic)
+## Confusion (live)
 
 | expected \ predicted | semantic | episodic | procedural |
 |---|---|---|---|
-| semantic | 27 | 0 | 0 |
-| episodic | 2 | 25 | 0 |
+| semantic | 25 | 1 | 1 |
+| episodic | 4 | 22 | 1 |
 | procedural | 0 | 0 | 26 |
 
 Classify job pin: Luna `none` (`defaultLlmConfig.classify`). Re-run with `EVAL_LIVE=1` before changing the pin.

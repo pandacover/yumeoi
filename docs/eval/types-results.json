@@ -32,5 +32,39 @@
       "cachedInputTokens": 0,
       "calls": 0
     }
+  },
+  "live": {
+    "live": true,
+    "generatedAt": "2026-09-09T12:30:32.025Z",
+    "model": "gpt-5.6-luna",
+    "effort": "none",
+    "summary": {
+      "cases": 80,
+      "accuracy": 0.9125,
+      "confusion": {
+        "semantic": {
+          "semantic": 25,
+          "episodic": 1,
+          "procedural": 1
+        },
+        "episodic": {
+          "semantic": 4,
+          "episodic": 22,
+          "procedural": 1
+        },
+        "procedural": {
+          "semantic": 0,
+          "episodic": 0,
+          "procedural": 26
+        }
+      }
+    },
+    "usage": {
+      "inputTokens": 22135,
+      "outputTokens": 12514,
+      "reasoningTokens": 4602,
+      "cachedInputTokens": 0,
+      "calls": 80
+    }
   }
 }
