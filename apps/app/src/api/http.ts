@@ -264,6 +264,9 @@ export async function handleApi(request: Request, env: Env): Promise<Response | 
 		url.pathname === "/ingest" ||
 		url.pathname.startsWith("/api/search") ||
 		url.pathname.startsWith("/api/recall") ||
+		url.pathname.startsWith("/api/remember") ||
+		url.pathname.startsWith("/api/forget") ||
+		url.pathname.startsWith("/api/feedback") ||
 		url.pathname.startsWith("/api/memories") ||
 		url.pathname.startsWith("/api/documents") ||
 		(url.pathname.startsWith("/api/sources") && !isPublicNotionOAuth) ||

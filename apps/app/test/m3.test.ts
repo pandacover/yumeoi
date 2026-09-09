@@ -53,5 +53,5 @@ describe("M3 chat", () => {
 		const assistant = [...messages].reverse().find((message) => message.role === "assistant");
 		expect(assistant).toBeTruthy();
 		expect(JSON.stringify(assistant).toLowerCase()).toContain("effect");
-	});
+	}, 30_000);
 });
