@@ -11,6 +11,7 @@ import {
 	identityRerankerLayer,
 	jsonDumpTokens,
 	markdownTokens,
+	profileLines,
 	recallContext,
 	recordFeedback,
 	remember,
@@ -71,6 +72,7 @@ const runScenario = (scenario: Scenario) =>
 		let jsonFormat = false;
 		let sourcesOk = false;
 		let rememberIds: string[] = [];
+		let profileText = "";
 
 		for (const step of scenario.steps) {
 			if (step.tool === "remember") {
@@ -140,6 +142,8 @@ const runScenario = (scenario: Scenario) =>
 				searchHit = hits.length > 0;
 			} else if (step.tool === "list_sources") {
 				sourcesOk = true;
+			} else if (step.tool === "profile") {
+				profileText = yield* profileLines(userId);
 			}
 		}
 
@@ -180,6 +184,10 @@ const runScenario = (scenario: Scenario) =>
 		}
 		if (assert.sourcesOk) {
 			checks.push(sourcesOk);
+		}
+		if (typeof assert.profileContains === "string") {
+			checks.push(profileText.toLowerCase().includes(String(assert.profileContains).toLowerCase()));
+			checks.push(!/Standing summary|origin = chat/i.test(profileText));
 		}
 
 		return {

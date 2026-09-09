@@ -1,4 +1,12 @@
-import type { Chunk, Document, Memory, Provenance, QueryPlan, Source } from "@yumeoi/domain";
+import type {
+	Chunk,
+	Document,
+	EntityType,
+	Memory,
+	Provenance,
+	QueryPlan,
+	Source,
+} from "@yumeoi/domain";
 import { fillMemory, NotFound } from "@yumeoi/domain";
 import {
 	type CommitBatch,
@@ -59,8 +67,9 @@ type Stored = {
 		id: string;
 		name: string;
 		canonical: string;
-		type: string;
+		type: EntityType;
 		mentionCount: number;
+		description: string | null;
 	}>;
 	memoryEntities: Array<{ memoryId: string; entityId: string; role: string }>;
 	history: Array<{
@@ -77,6 +86,17 @@ type Stored = {
 		reason: string;
 	}>;
 	queryCache: Map<string, { plan: QueryPlan; expiresAt: number }>;
+	aliases: Map<string, string>;
+	relations: Array<{
+		id: string;
+		srcEntity: string;
+		dstEntity: string;
+		predicate: string;
+		memoryId: string;
+		validFrom: string | null;
+		validTo: string | null;
+		confidence: number;
+	}>;
 };
 
 const empty = (): Stored => ({
@@ -91,6 +111,8 @@ const empty = (): Stored => ({
 	memoryEntities: [],
 	history: [],
 	queryCache: new Map(),
+	aliases: new Map(),
+	relations: [],
 });
 
 export const inMemoryObjectStoreLayer = () => {
@@ -111,6 +133,7 @@ export const inMemoryObjectStoreLayer = () => {
 
 export const memoryMemoryRepoLayer = (userId = "test-user") => {
 	const db = empty();
+	const toMemory = (memory: StoredMemory) => strip(memory, db);
 	return Layer.succeed(MemoryRepo, {
 		getDocumentByExternalId: (sourceId, externalId) =>
 			Effect.succeed(
@@ -143,7 +166,7 @@ export const memoryMemoryRepoLayer = (userId = "test-user") => {
 		getMemory: (id) => {
 			const memory = db.memories.find((item) => item.id === id);
 			return memory
-				? Effect.succeed(strip(memory))
+				? Effect.succeed(toMemory(memory))
 				: Effect.fail(new NotFound({ entity: "memory", id }));
 		},
 		getDocument: (id) => {
@@ -160,7 +183,7 @@ export const memoryMemoryRepoLayer = (userId = "test-user") => {
 			Effect.succeed(
 				ids.flatMap((id) => {
 					const memory = db.memories.find((item) => item.id === id);
-					return memory ? [strip(memory)] : [];
+					return memory ? [toMemory(memory)] : [];
 				}),
 			),
 		listChunksByIds: (ids) =>
@@ -214,7 +237,7 @@ export const memoryMemoryRepoLayer = (userId = "test-user") => {
 				filterMemories(db, "", filters)
 					.sort((left, right) => right.createdAt - left.createdAt)
 					.slice(0, filters.limit)
-					.map(strip),
+					.map(toMemory),
 			),
 		similarMemoryCandidates: (excludeIds, limit) =>
 			Effect.succeed(
@@ -226,7 +249,7 @@ export const memoryMemoryRepoLayer = (userId = "test-user") => {
 							!excludeIds.includes(memory.id),
 					)
 					.slice(0, limit)
-					.map(strip),
+					.map(toMemory),
 			),
 		listRecentMemories: (limit) =>
 			Effect.succeed(
@@ -234,7 +257,7 @@ export const memoryMemoryRepoLayer = (userId = "test-user") => {
 					.filter((memory) => memory.validTo === null && memory.state === "active")
 					.sort((left, right) => right.createdAt - left.createdAt)
 					.slice(0, limit)
-					.map(strip),
+					.map(toMemory),
 			),
 		commit: (batch: CommitBatch) =>
 			Effect.sync(() => {
@@ -399,7 +422,7 @@ export const memoryMemoryRepoLayer = (userId = "test-user") => {
 					state: input.state ?? (input.validTo ? "superseded" : "active"),
 					importance: input.importance ?? input.confidence,
 					eventAt: input.eventAt ?? null,
-					observedAt: now,
+					observedAt: input.observedAt ?? now,
 					origin: input.origin ?? "agent",
 					clientRef: input.clientRef ?? null,
 					accessCount: 0,
@@ -415,7 +438,7 @@ export const memoryMemoryRepoLayer = (userId = "test-user") => {
 					title: "Agent notes",
 					url: null,
 				});
-				return strip(memory);
+				return toMemory(memory);
 			}),
 		updateMemory: (id, patch) =>
 			Effect.gen(function* () {
@@ -444,8 +467,11 @@ export const memoryMemoryRepoLayer = (userId = "test-user") => {
 				if (patch.eventAt !== undefined) {
 					memory.eventAt = patch.eventAt;
 				}
+				if (patch.observedAt !== undefined) {
+					memory.observedAt = patch.observedAt;
+				}
 				memory.updatedAt = Date.now();
-				return strip(memory);
+				return toMemory(memory);
 			}),
 		insertEdge: (src, dst, relation) =>
 			Effect.sync(() => {
@@ -477,7 +503,7 @@ export const memoryMemoryRepoLayer = (userId = "test-user") => {
 			Effect.succeed(
 				(() => {
 					const memory = db.memories.find((item) => item.clientRef === clientRef);
-					return memory ? strip(memory) : null;
+					return memory ? toMemory(memory) : null;
 				})(),
 			),
 		upsertEntity: (input) =>
@@ -487,7 +513,7 @@ export const memoryMemoryRepoLayer = (userId = "test-user") => {
 				);
 				if (existing) {
 					existing.mentionCount += 1;
-					return { id: existing.id };
+					return { id: existing.id, mentionCount: existing.mentionCount };
 				}
 				const id = newShortId("e");
 				db.entities.push({
@@ -496,12 +522,20 @@ export const memoryMemoryRepoLayer = (userId = "test-user") => {
 					canonical: input.canonical,
 					type: input.type,
 					mentionCount: 1,
+					description: null,
 				});
-				return { id };
+				return { id, mentionCount: 1 };
 			}),
 		linkMemoryEntity: (memoryId, entityId, role) =>
 			Effect.sync(() => {
 				db.memoryEntities.push({ memoryId, entityId, role });
+			}),
+		setEntityDescription: (id, description) =>
+			Effect.sync(() => {
+				const entity = db.entities.find((item) => item.id === id);
+				if (entity) {
+					entity.description = description;
+				}
 			}),
 		listMemoriesPage: (options) =>
 			Effect.succeed(
@@ -513,7 +547,7 @@ export const memoryMemoryRepoLayer = (userId = "test-user") => {
 					.filter((memory) => !options.afterId || memory.id > options.afterId)
 					.sort((left, right) => left.id.localeCompare(right.id))
 					.slice(0, options.limit)
-					.map(strip),
+					.map(toMemory),
 			),
 		listChunksPage: (options) =>
 			Effect.succeed(
@@ -546,10 +580,20 @@ export const memoryMemoryRepoLayer = (userId = "test-user") => {
 			}),
 		listByEntities: (entityIds, filters) =>
 			Effect.succeed(
-				db.memoryEntities
-					.filter((link) => entityIds.includes(link.entityId))
-					.map((link, rank) => ({ id: link.memoryId, rank }))
-					.slice(0, filters.limit),
+				(() => {
+					const allowed = new Set(
+						filterMemories(db, "", { ...filters, limit: 10_000 }).map((memory) => memory.id),
+					);
+					return [
+						...new Set(
+							db.memoryEntities
+								.filter((link) => entityIds.includes(link.entityId) && allowed.has(link.memoryId))
+								.map((link) => link.memoryId),
+						),
+					]
+						.slice(0, filters.limit)
+						.map((id, rank) => ({ id, rank }));
+				})(),
 			),
 		listRecentEpisodic: (sinceEventAt, limit) =>
 			Effect.succeed(
@@ -566,7 +610,7 @@ export const memoryMemoryRepoLayer = (userId = "test-user") => {
 							(left.eventAt ?? left.observedAt ?? left.createdAt),
 					)
 					.slice(0, limit)
-					.map(strip),
+					.map(toMemory),
 			),
 		listEdges: (ids) =>
 			Effect.succeed(db.edges.filter((edge) => ids.includes(edge.src) || ids.includes(edge.dst))),
@@ -585,10 +629,154 @@ export const memoryMemoryRepoLayer = (userId = "test-user") => {
 			Effect.sync(() => {
 				db.queryCache.set(hash, { plan, expiresAt });
 			}),
+		findEntity: (canonical, type) =>
+			Effect.succeed(
+				db.entities.find(
+					(entity) =>
+						entity.canonical === canonical && (type === undefined || entity.type === type),
+				) ?? null,
+			),
+		findEntityByAlias: (alias) =>
+			Effect.succeed(
+				(() => {
+					const id = db.aliases.get(alias);
+					return id ? (db.entities.find((entity) => entity.id === id) ?? null) : null;
+				})(),
+			),
+		getEntity: (id) => Effect.succeed(db.entities.find((entity) => entity.id === id) ?? null),
+		listEntities: () => Effect.succeed([...db.entities]),
+		putAlias: (alias, entityId) =>
+			Effect.sync(() => {
+				db.aliases.set(alias, entityId);
+			}),
+		upsertRelation: (input) =>
+			Effect.sync(() => {
+				const open = db.relations.find(
+					(row) =>
+						row.srcEntity === input.srcEntity &&
+						row.predicate === input.predicate &&
+						row.validTo === null,
+				);
+				if (open && open.dstEntity !== input.dstEntity) {
+					open.validTo = new Date(input.now).toISOString();
+				}
+				const existing = db.relations.find(
+					(row) =>
+						row.srcEntity === input.srcEntity &&
+						row.dstEntity === input.dstEntity &&
+						row.predicate === input.predicate &&
+						row.validTo === null,
+				);
+				if (existing) {
+					return { id: existing.id };
+				}
+				const id = newShortId("r");
+				db.relations.push({
+					id,
+					srcEntity: input.srcEntity,
+					dstEntity: input.dstEntity,
+					predicate: input.predicate,
+					memoryId: input.memoryId,
+					validFrom: input.validFrom,
+					validTo: null,
+					confidence: input.confidence,
+				});
+				return { id };
+			}),
+		listRelations: (entityIds, asOf) =>
+			Effect.succeed(
+				db.relations.filter((row) => {
+					if (!entityIds.includes(row.srcEntity) && !entityIds.includes(row.dstEntity)) {
+						return false;
+					}
+					if (asOf != null && row.validTo && Date.parse(row.validTo) <= asOf) {
+						return false;
+					}
+					return row.validTo === null || asOf != null;
+				}),
+			),
+		listTimeline: (input) =>
+			Effect.succeed(
+				db.memories
+					.filter((memory) => {
+						const linked = db.memoryEntities.some(
+							(link) => link.memoryId === memory.id && link.entityId === input.entityId,
+						);
+						const about = memory.text.toLowerCase().includes(input.about.toLowerCase());
+						if (!linked && !about) {
+							return false;
+						}
+						const at = memory.eventAt ?? memory.observedAt ?? memory.createdAt;
+						if (input.from != null && at < input.from) {
+							return false;
+						}
+						if (input.to != null && at > input.to) {
+							return false;
+						}
+						return memory.type === "episodic" || linked;
+					})
+					.sort(
+						(left, right) =>
+							(left.eventAt ?? left.observedAt ?? left.createdAt) -
+							(right.eventAt ?? right.observedAt ?? right.createdAt),
+					)
+					.slice(0, input.limit)
+					.map(toMemory),
+			),
+		listChangesSince: (since) =>
+			Effect.succeed(
+				db.history
+					.filter((row) => row.changedAt >= since)
+					.map((row) => ({
+						id: row.id,
+						memoryId: row.memoryId,
+						reason: row.reason,
+						changedAt: row.changedAt,
+					})),
+			),
+		listProfileMemories: (limit) =>
+			Effect.succeed(
+				db.memories
+					.filter(
+						(memory) =>
+							memory.type === "semantic" &&
+							memory.state === "active" &&
+							(memory.origin === "agent" ||
+								memory.origin === "user" ||
+								memory.origin === "extracted"),
+					)
+					.sort((left, right) => right.importance - left.importance)
+					.slice(0, limit)
+					.map(toMemory),
+			),
+		splitEntity: (id, newName) =>
+			Effect.sync(() => {
+				const current = db.entities.find((entity) => entity.id === id);
+				const nextId = newShortId("e");
+				db.entities.push({
+					id: nextId,
+					name: newName,
+					canonical: newName.toLowerCase(),
+					type: (current?.type ?? "other") as EntityType,
+					mentionCount: 1,
+					description: null,
+				});
+				return { id: nextId };
+			}),
+		listEntityMemories: (entityId, limit) =>
+			Effect.succeed(
+				db.memoryEntities
+					.filter((link) => link.entityId === entityId)
+					.slice(0, limit)
+					.flatMap((link) => {
+						const memory = db.memories.find((item) => item.id === link.memoryId);
+						return memory ? [toMemory(memory)] : [];
+					}),
+			),
 	});
 };
 
-const strip = (memory: StoredMemory): Memory =>
+const strip = (memory: StoredMemory, store: Stored): Memory =>
 	fillMemory({
 		id: memory.id,
 		kind: memory.kind,
@@ -607,6 +795,13 @@ const strip = (memory: StoredMemory): Memory =>
 		accessCount: memory.accessCount,
 		lastAccessedAt: memory.lastAccessedAt,
 		updatedAt: memory.updatedAt,
+		entities: store.memoryEntities.flatMap((link) => {
+			if (link.memoryId !== memory.id) {
+				return [];
+			}
+			const entity = store.entities.find((item) => item.id === link.entityId);
+			return entity ? [{ id: entity.id, name: entity.name, type: entity.type }] : [];
+		}),
 	});
 
 const needle = (match: string, text: string): boolean => {
@@ -620,15 +815,32 @@ const needle = (match: string, text: string): boolean => {
 
 const filterMemories = (db: Stored, match: string, filters: SearchFilters) =>
 	db.memories.filter((memory) => {
-		if (memory.validTo !== null) {
-			return false;
-		}
-		if (filters.includeDormant) {
-			if (memory.state !== "active" && memory.state !== "dormant") {
+		const asOf = filters.asOf ?? null;
+		if (asOf != null) {
+			const observed = memory.observedAt ?? memory.createdAt;
+			if (observed > asOf) {
 				return false;
 			}
-		} else if (memory.state !== "active") {
-			return false;
+			if (memory.validTo) {
+				const to = Date.parse(memory.validTo);
+				if (Number.isFinite(to) && to <= asOf) {
+					return false;
+				}
+			}
+			if (memory.state === "forgotten" || memory.state === "archived") {
+				return false;
+			}
+		} else {
+			if (memory.validTo !== null) {
+				return false;
+			}
+			if (filters.includeDormant) {
+				if (memory.state !== "active" && memory.state !== "dormant") {
+					return false;
+				}
+			} else if (memory.state !== "active") {
+				return false;
+			}
 		}
 		if (match.trim().length > 0 && !needle(match, memory.text)) {
 			return false;

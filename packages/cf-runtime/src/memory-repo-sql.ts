@@ -93,6 +93,37 @@ export const sqlMemoryRepoLayer = Layer.effect(
 	Effect.gen(function* () {
 		const sql = yield* SqlClient;
 
+		const hydrateMemories = (memories: ReadonlyArray<Memory>) =>
+			Effect.gen(function* () {
+				if (memories.length === 0) {
+					return memories;
+				}
+				const rows = yield* sql<{
+					memory_id: string;
+					entity_id: string;
+					name: string;
+					type: import("@yumeoi/domain").EntityType;
+				}>`
+					SELECT memory_entities.memory_id, entities.id AS entity_id, entities.name, entities.type
+					FROM memory_entities
+					JOIN entities ON entities.id = memory_entities.entity_id
+					WHERE ${sql.in(
+						"memory_entities.memory_id",
+						memories.map((memory) => memory.id),
+					)}
+				`;
+				const byMemory = new Map<string, Memory["entities"][number][]>();
+				for (const row of rows) {
+					const list = byMemory.get(row.memory_id) ?? [];
+					list.push({ id: row.entity_id, name: row.name, type: row.type });
+					byMemory.set(row.memory_id, list);
+				}
+				return memories.map((memory) => ({
+					...memory,
+					entities: byMemory.get(memory.id) ?? [],
+				}));
+			});
+
 		return MemoryRepo.of({
 			getDocumentByExternalId: (sourceId, externalId) =>
 				Effect.gen(function* () {
@@ -190,7 +221,8 @@ export const sqlMemoryRepoLayer = Layer.effect(
 					if (!row) {
 						return yield* Effect.fail(new NotFound({ entity: "memory", id }));
 					}
-					return toMemory(row);
+					const [hydrated] = yield* hydrateMemories([toMemory(row)]);
+					return hydrated ?? toMemory(row);
 				}),
 			getDocument: (id) =>
 				Effect.gen(function* () {
@@ -222,10 +254,12 @@ export const sqlMemoryRepoLayer = Layer.effect(
 						SELECT * FROM memories WHERE ${sql.in("id", [...ids])}
 					`;
 					const byId = new Map(found.map((row) => [row.id, toMemory(row)]));
-					return ids.flatMap((id) => {
-						const memory = byId.get(id);
-						return memory ? [memory] : [];
-					});
+					return yield* hydrateMemories(
+						ids.flatMap((id) => {
+							const memory = byId.get(id);
+							return memory ? [memory] : [];
+						}),
+					);
 				}),
 			listChunksByIds: (ids) =>
 				Effect.gen(function* () {
@@ -359,7 +393,7 @@ export const sqlMemoryRepoLayer = Layer.effect(
 						ORDER BY created_at DESC
 						LIMIT ${filters.limit}
 					`;
-					return rows.map(toMemory);
+					return yield* hydrateMemories(rows.map(toMemory));
 				}),
 			similarMemoryCandidates: (_excludeIds, limit) =>
 				sql<MemoryRow>`
@@ -553,7 +587,7 @@ export const sqlMemoryRepoLayer = Layer.effect(
 							${memoryId}, ${input.kind}, ${input.text}, ${input.confidence},
 							${input.validFrom ?? null}, ${input.validTo ?? null}, ${supersedes}, ${now},
 							${memoryType}, ${memoryState}, ${input.importance ?? input.confidence},
-							${input.eventAt ?? null}, ${now}, ${now}, ${input.origin ?? "agent"},
+							${input.eventAt ?? null}, ${input.observedAt ?? now}, ${now}, ${input.origin ?? "agent"},
 							${input.clientRef ?? null}
 						)
 					`;
@@ -609,6 +643,9 @@ export const sqlMemoryRepoLayer = Layer.effect(
 					if (patch.eventAt !== undefined) {
 						yield* sql`UPDATE memories SET event_at = ${patch.eventAt}, updated_at = ${now} WHERE id = ${id}`;
 					}
+					if (patch.observedAt !== undefined) {
+						yield* sql`UPDATE memories SET observed_at = ${patch.observedAt}, updated_at = ${now} WHERE id = ${id}`;
+					}
 					const rows = yield* sql<MemoryRow>`SELECT * FROM memories WHERE id = ${id} LIMIT 1`;
 					const row = rows[0];
 					if (!row) {
@@ -649,20 +686,25 @@ export const sqlMemoryRepoLayer = Layer.effect(
 							UPDATE entities SET last_seen = ${input.now}, mention_count = mention_count + 1
 							WHERE id = ${found.id}
 						`;
-						return { id: found.id };
+						const counts = yield* sql<{ mention_count: number }>`
+							SELECT mention_count FROM entities WHERE id = ${found.id} LIMIT 1
+						`;
+						return { id: found.id, mentionCount: counts[0]?.mention_count ?? 1 };
 					}
 					const id = newShortId("e");
 					yield* sql`
 						INSERT INTO entities (id, name, canonical, type, description, first_seen, last_seen, mention_count, state)
 						VALUES (${id}, ${input.name}, ${input.canonical}, ${input.type}, ${null}, ${input.now}, ${input.now}, ${1}, ${"active"})
 					`;
-					return { id };
+					return { id, mentionCount: 1 };
 				}),
 			linkMemoryEntity: (memoryId, entityId, role) =>
 				sql`
 					INSERT OR IGNORE INTO memory_entities (memory_id, entity_id, role)
 					VALUES (${memoryId}, ${entityId}, ${role})
 				`.pipe(Effect.asVoid),
+			setEntityDescription: (id, description) =>
+				sql`UPDATE entities SET description = ${description} WHERE id = ${id}`.pipe(Effect.asVoid),
 			listMemoriesPage: (options) =>
 				Effect.gen(function* () {
 					const clauses = options.activeOnly
@@ -720,25 +762,36 @@ export const sqlMemoryRepoLayer = Layer.effect(
 					if (entityIds.length === 0) {
 						return [];
 					}
+					const clauses = [sql.in("memory_entities.entity_id", [...entityIds])];
+					if (filters.asOf != null) {
+						clauses.push(sql`memories.observed_at <= ${filters.asOf}`);
+						clauses.push(
+							sql`(memories.valid_to IS NULL OR memories.valid_to > ${new Date(filters.asOf).toISOString()})`,
+						);
+					} else {
+						clauses.push(sql`memories.state = ${"active"}`);
+					}
 					const rows = yield* sql<{ id: string }>`
 						SELECT DISTINCT memories.id
 						FROM memories
 						JOIN memory_entities ON memory_entities.memory_id = memories.id
-						WHERE ${sql.in("memory_entities.entity_id", [...entityIds])}
-						AND memories.state = ${"active"}
+						WHERE ${sql.and(clauses)}
 						LIMIT ${filters.limit}
 					`;
 					return rows.map((row, rank) => ({ id: row.id, rank }));
 				}),
 			listRecentEpisodic: (sinceEventAt, limit) =>
-				sql<MemoryRow>`
-					SELECT * FROM memories
-					WHERE type = ${"episodic"}
-					AND state = ${"active"}
-					AND COALESCE(event_at, observed_at, created_at) >= ${sinceEventAt}
-					ORDER BY COALESCE(event_at, observed_at, created_at) DESC
-					LIMIT ${limit}
-				`.pipe(Effect.map((rows) => rows.map(toMemory))),
+				Effect.gen(function* () {
+					const rows = yield* sql<MemoryRow>`
+						SELECT * FROM memories
+						WHERE type = ${"episodic"}
+						AND state = ${"active"}
+						AND COALESCE(event_at, observed_at, created_at) >= ${sinceEventAt}
+						ORDER BY COALESCE(event_at, observed_at, created_at) DESC
+						LIMIT ${limit}
+					`;
+					return yield* hydrateMemories(rows.map(toMemory));
+				}),
 			listEdges: (ids) =>
 				Effect.gen(function* () {
 					if (ids.length === 0) {
@@ -807,6 +860,272 @@ export const sqlMemoryRepoLayer = Layer.effect(
 					INSERT OR REPLACE INTO query_cache (hash, plan, expires_at)
 					VALUES (${hash}, ${JSON.stringify(plan)}, ${expiresAt})
 				`.pipe(Effect.asVoid),
+			findEntity: (canonical, type) =>
+				Effect.gen(function* () {
+					const rows = type
+						? yield* sql<{
+								id: string;
+								name: string;
+								canonical: string;
+								type: import("@yumeoi/domain").EntityType;
+								description: string | null;
+								mention_count: number;
+							}>`
+								SELECT id, name, canonical, type, description, mention_count
+								FROM entities WHERE canonical = ${canonical} AND type = ${type} LIMIT 1
+							`
+						: yield* sql<{
+								id: string;
+								name: string;
+								canonical: string;
+								type: import("@yumeoi/domain").EntityType;
+								description: string | null;
+								mention_count: number;
+							}>`
+								SELECT id, name, canonical, type, description, mention_count
+								FROM entities WHERE canonical = ${canonical} LIMIT 1
+							`;
+					const row = rows[0];
+					return row
+						? {
+								id: row.id,
+								name: row.name,
+								canonical: row.canonical,
+								type: row.type,
+								description: row.description,
+								mentionCount: row.mention_count,
+							}
+						: null;
+				}),
+			findEntityByAlias: (alias) =>
+				Effect.gen(function* () {
+					const rows = yield* sql<{ entity_id: string }>`
+						SELECT entity_id FROM entity_aliases WHERE alias = ${alias} LIMIT 1
+					`;
+					const id = rows[0]?.entity_id;
+					if (!id) {
+						return null;
+					}
+					const entities = yield* sql<{
+						id: string;
+						name: string;
+						canonical: string;
+						type: import("@yumeoi/domain").EntityType;
+						description: string | null;
+						mention_count: number;
+					}>`
+						SELECT id, name, canonical, type, description, mention_count
+						FROM entities WHERE id = ${id} LIMIT 1
+					`;
+					const row = entities[0];
+					return row
+						? {
+								id: row.id,
+								name: row.name,
+								canonical: row.canonical,
+								type: row.type,
+								description: row.description,
+								mentionCount: row.mention_count,
+							}
+						: null;
+				}),
+			getEntity: (id) =>
+				Effect.gen(function* () {
+					const rows = yield* sql<{
+						id: string;
+						name: string;
+						canonical: string;
+						type: import("@yumeoi/domain").EntityType;
+						description: string | null;
+						mention_count: number;
+					}>`
+						SELECT id, name, canonical, type, description, mention_count
+						FROM entities WHERE id = ${id} LIMIT 1
+					`;
+					const row = rows[0];
+					return row
+						? {
+								id: row.id,
+								name: row.name,
+								canonical: row.canonical,
+								type: row.type,
+								description: row.description,
+								mentionCount: row.mention_count,
+							}
+						: null;
+				}),
+			listEntities: () =>
+				sql<{
+					id: string;
+					name: string;
+					canonical: string;
+					type: import("@yumeoi/domain").EntityType;
+					description: string | null;
+					mention_count: number;
+				}>`
+					SELECT id, name, canonical, type, description, mention_count FROM entities
+					WHERE state = ${"active"} ORDER BY mention_count DESC LIMIT 100
+				`.pipe(
+					Effect.map((rows) =>
+						rows.map((row) => ({
+							id: row.id,
+							name: row.name,
+							canonical: row.canonical,
+							type: row.type,
+							description: row.description,
+							mentionCount: row.mention_count,
+						})),
+					),
+				),
+			putAlias: (alias, entityId) =>
+				sql`
+					INSERT OR REPLACE INTO entity_aliases (alias, entity_id) VALUES (${alias}, ${entityId})
+				`.pipe(Effect.asVoid),
+			upsertRelation: (input) =>
+				Effect.gen(function* () {
+					const open = yield* sql<{ id: string; dst_entity: string }>`
+						SELECT id, dst_entity FROM relations
+						WHERE src_entity = ${input.srcEntity} AND predicate = ${input.predicate}
+						AND valid_to IS NULL LIMIT 1
+					`;
+					const current = open[0];
+					if (current && current.dst_entity !== input.dstEntity) {
+						yield* sql`
+							UPDATE relations SET valid_to = ${new Date(input.now).toISOString()} WHERE id = ${current.id}
+						`;
+					}
+					const existing = yield* sql<{ id: string }>`
+						SELECT id FROM relations
+						WHERE src_entity = ${input.srcEntity} AND dst_entity = ${input.dstEntity}
+						AND predicate = ${input.predicate} AND valid_to IS NULL LIMIT 1
+					`;
+					if (existing[0]) {
+						return { id: existing[0].id };
+					}
+					const id = newShortId("r");
+					yield* sql`
+						INSERT INTO relations (id, src_entity, dst_entity, predicate, memory_id, valid_from, valid_to, confidence, created_at)
+						VALUES (${id}, ${input.srcEntity}, ${input.dstEntity}, ${input.predicate}, ${input.memoryId}, ${input.validFrom}, ${null}, ${input.confidence}, ${input.now})
+					`;
+					return { id };
+				}),
+			listRelations: (entityIds, asOf) =>
+				Effect.gen(function* () {
+					if (entityIds.length === 0) {
+						return [];
+					}
+					const rows = yield* sql<{
+						id: string;
+						src_entity: string;
+						dst_entity: string;
+						predicate: string;
+						memory_id: string;
+						valid_from: string | null;
+						valid_to: string | null;
+					}>`
+						SELECT id, src_entity, dst_entity, predicate, memory_id, valid_from, valid_to
+						FROM relations
+						WHERE (${sql.in("src_entity", [...entityIds])} OR ${sql.in("dst_entity", [...entityIds])})
+					`;
+					return rows
+						.filter((row) => {
+							const from = row.valid_from ? Date.parse(row.valid_from) : null;
+							const to = row.valid_to ? Date.parse(row.valid_to) : null;
+							if (asOf != null) {
+								if (from != null && Number.isFinite(from) && from > asOf) {
+									return false;
+								}
+								if (to != null && Number.isFinite(to) && to <= asOf) {
+									return false;
+								}
+								return true;
+							}
+							return row.valid_to == null;
+						})
+						.map((row) => ({
+							id: row.id,
+							srcEntity: row.src_entity,
+							dstEntity: row.dst_entity,
+							predicate: row.predicate,
+							memoryId: row.memory_id,
+							validFrom: row.valid_from,
+							validTo: row.valid_to,
+						}));
+				}),
+			listTimeline: (input) =>
+				Effect.gen(function* () {
+					const rows = yield* sql<MemoryRow>`
+						SELECT DISTINCT memories.* FROM memories
+						LEFT JOIN memory_entities ON memory_entities.memory_id = memories.id
+						WHERE (memory_entities.entity_id = ${input.entityId} OR memories.text LIKE ${`%${input.about}%`})
+						AND memories.type = ${"episodic"}
+						ORDER BY COALESCE(memories.event_at, memories.observed_at, memories.created_at) ASC
+						LIMIT ${input.limit}
+					`;
+					return (yield* hydrateMemories(rows.map(toMemory))).filter((memory) => {
+						const at = memory.eventAt ?? memory.observedAt ?? 0;
+						if (input.from != null && at < input.from) {
+							return false;
+						}
+						if (input.to != null && at > input.to) {
+							return false;
+						}
+						return true;
+					});
+				}),
+			listChangesSince: (since) =>
+				sql<{
+					id: string;
+					memory_id: string;
+					reason: string;
+					changed_at: number;
+				}>`
+					SELECT id, memory_id, reason, changed_at FROM memory_history
+					WHERE changed_at >= ${since} ORDER BY changed_at ASC LIMIT 200
+				`.pipe(
+					Effect.map((rows) =>
+						rows.map((row) => ({
+							id: row.id,
+							memoryId: row.memory_id,
+							reason: row.reason,
+							changedAt: row.changed_at,
+						})),
+					),
+				),
+			listProfileMemories: (limit) =>
+				Effect.gen(function* () {
+					const rows = yield* sql<MemoryRow>`
+						SELECT * FROM memories
+						WHERE type = ${"semantic"} AND state = ${"active"}
+						AND origin IN (${"agent"}, ${"user"}, ${"extracted"})
+						ORDER BY (importance * COALESCE(retention, 1)) DESC
+						LIMIT ${limit}
+					`;
+					return yield* hydrateMemories(rows.map(toMemory));
+				}),
+			splitEntity: (id, newName) =>
+				Effect.gen(function* () {
+					const current = yield* sql<{ type: import("@yumeoi/domain").EntityType }>`
+						SELECT type FROM entities WHERE id = ${id} LIMIT 1
+					`;
+					const nextId = newShortId("e");
+					const now = Date.now();
+					yield* sql`
+						INSERT INTO entities (id, name, canonical, type, description, first_seen, last_seen, mention_count, state)
+						VALUES (${nextId}, ${newName}, ${newName.toLowerCase()}, ${current[0]?.type ?? "other"}, ${null}, ${now}, ${now}, ${1}, ${"active"})
+					`;
+					return { id: nextId };
+				}),
+			listEntityMemories: (entityId, limit) =>
+				Effect.gen(function* () {
+					const rows = yield* sql<MemoryRow>`
+						SELECT memories.* FROM memories
+						JOIN memory_entities ON memory_entities.memory_id = memories.id
+						WHERE memory_entities.entity_id = ${entityId}
+						ORDER BY memories.created_at DESC LIMIT ${limit}
+					`;
+					return yield* hydrateMemories(rows.map(toMemory));
+				}),
 		});
 	}),
 );

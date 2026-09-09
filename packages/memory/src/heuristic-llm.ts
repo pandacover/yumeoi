@@ -5,7 +5,9 @@ import {
 	type ExtractedMemory,
 	type QueryPlan,
 	type RerankResult,
+	type ResolveDecision,
 	SchemaViolation,
+	type SummaryResult,
 } from "@yumeoi/domain";
 import { Effect, Layer, Schema } from "effect";
 import { heuristicClassify, heuristicExtract } from "./heuristic-extract.ts";
@@ -24,7 +26,9 @@ export const heuristicLlmLayer = Layer.succeed(Llm, {
 				| ConsolidateDecision
 				| RerankResult
 				| ExtractedMemory
-				| QueryPlan;
+				| QueryPlan
+				| ResolveDecision
+				| SummaryResult;
 			if (schemaName === "extracted_memories") {
 				payload = { memories: heuristicExtract(user) };
 			} else if (schemaName === "extracted_memory") {
@@ -43,6 +47,10 @@ export const heuristicLlmLayer = Layer.succeed(Llm, {
 					terms: tokenizeQuery(user),
 					intent: detectIntent(user),
 				};
+			} else if (schemaName === "resolve_decision") {
+				payload = { same: false, reason: "heuristic-conservative" };
+			} else if (schemaName === "summary") {
+				payload = { text: user.slice(0, 240) };
 			} else {
 				payload = { memories: heuristicExtract(user) };
 			}

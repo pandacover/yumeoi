@@ -1,0 +1,16 @@
+{
+	"p4": {
+		"live": false,
+		"generatedAt": "2026-09-09T20:26:49.678Z",
+		"summary": {
+			"cases": 60,
+			"precision": 1,
+			"recall": 1,
+			"accuracy": 1,
+			"truePositives": 30,
+			"falsePositives": 0,
+			"falseNegatives": 0,
+			"trueNegatives": 30
+		}
+	}
+}

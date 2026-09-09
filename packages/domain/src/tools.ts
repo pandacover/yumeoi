@@ -27,6 +27,9 @@ When to call which tool:
 - forget: to retire a memory the agent or user wrote. Extracted memories need confirm=true.
 - feedback: signal=1 if a recalled line was useful, -1 if it was wrong. Cheap and preferred over rewriting.
 - get_memory / get_document: after recall, when you need history, edges, entities, or the source document.
+- get_entity: entity summary, relations, and recent memories. Pass name or id; hops≤2.
+- timeline: chronological episodic memories about an entity or topic (from/to optional).
+- changes_since: created/updated/superseded/forgotten ids since a timestamp, for local mirrors.
 
 Cite memories with [n] from the packed block. Follow-up ids are in the footer (\`ids: m_…=[1]\`). Do not pick types, hashes, or embeddings — the server does that.`;
 
@@ -160,6 +163,26 @@ export type ListSourcesToolInput = typeof ListSourcesToolInput.Type;
 export const ListSourcesToolOutput = Schema.Array(Source);
 export type ListSourcesToolOutput = typeof ListSourcesToolOutput.Type;
 
+export const GetEntityToolInput = Schema.Struct({
+	name: Schema.optionalKey(Schema.String),
+	id: Schema.optionalKey(Schema.String),
+	hops: Schema.optionalKey(Schema.Int),
+});
+export type GetEntityToolInput = typeof GetEntityToolInput.Type;
+
+export const TimelineToolInput = Schema.Struct({
+	about: Schema.String,
+	from: optionalNumber,
+	to: optionalNumber,
+	limit: Schema.optionalKey(Schema.Int),
+});
+export type TimelineToolInput = typeof TimelineToolInput.Type;
+
+export const ChangesSinceToolInput = Schema.Struct({
+	since: Schema.Finite,
+});
+export type ChangesSinceToolInput = typeof ChangesSinceToolInput.Type;
+
 export const ToolErrorOutput = ToolError;
 
 /** Example MCP payloads used to keep zod and Effect schemas in lockstep. */
@@ -182,4 +205,7 @@ export const TOOL_SCHEMA_EXAMPLES = {
 	get_memory: { id: "m_0123456789ab" },
 	get_document: { id: "doc-1" },
 	list_sources: {},
+	get_entity: { name: "Luv", hops: 1 },
+	timeline: { about: "Aurora", limit: 10 },
+	changes_since: { since: 1_700_000_000_000 },
 } as const;

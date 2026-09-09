@@ -1,6 +1,7 @@
 import type {
 	Chunk,
 	ChunkHit,
+	GraphRelationLine,
 	Memory,
 	MemoryHit,
 	Provenance,
@@ -27,6 +28,7 @@ export const packRecall = (input: {
 	readonly includeEvidence: boolean;
 	readonly conflicts: ReadonlyArray<{ readonly src: string; readonly dst: string }>;
 	readonly format: "markdown" | "json";
+	readonly relations?: ReadonlyArray<GraphRelationLine>;
 }): RecallResult => {
 	const provenanceByMemory = new Map<string, Provenance[]>();
 	for (const row of input.provenance) {
@@ -91,14 +93,17 @@ export const packRecall = (input: {
 		}
 	}
 
+	const relations = input.relations ?? [];
 	const markdown = packMarkdown({
 		memories: packedMemories,
 		chunks: packedChunks,
 		conflicts: input.conflicts,
+		relations,
 	});
 	return {
 		memories: packedMemories,
 		chunks: packedChunks,
+		...(relations.length > 0 ? { relations } : {}),
 		...(input.format === "json" ? {} : { markdown }),
 	};
 };

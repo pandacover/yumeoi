@@ -1,10 +1,12 @@
 import {
 	AddMemoryRequest,
+	ChangesSinceToolInput,
 	DEFAULT_LLM_PROVIDER,
 	defaultLlmConfig,
 	FALLBACK_LLM_PROVIDER,
 	FeedbackToolInput,
 	ForgetToolInput,
+	GetEntityToolInput,
 	IngestRequest,
 	MEMORY_KINDS,
 	MEMORY_TYPES,
@@ -14,6 +16,7 @@ import {
 	RememberToolInput,
 	SearchQuery,
 	type SourceKind,
+	TimelineToolInput,
 	UpdateMemoryToolInput,
 } from "@yumeoi/domain";
 import { Schema } from "effect";
@@ -268,6 +271,9 @@ export async function handleApi(request: Request, env: Env): Promise<Response | 
 		url.pathname.startsWith("/api/forget") ||
 		url.pathname.startsWith("/api/feedback") ||
 		url.pathname.startsWith("/api/memories") ||
+		url.pathname.startsWith("/api/entities") ||
+		url.pathname.startsWith("/api/timeline") ||
+		url.pathname.startsWith("/api/changes") ||
 		url.pathname.startsWith("/api/documents") ||
 		(url.pathname.startsWith("/api/sources") && !isPublicNotionOAuth) ||
 		url.pathname.startsWith("/api/keys") ||
@@ -381,6 +387,53 @@ export async function handleApi(request: Request, env: Env): Promise<Response | 
 
 	if (url.pathname === "/api/admin/reindex" && request.method === "POST") {
 		return json(await agent.reindex());
+	}
+
+	if (url.pathname === "/api/admin/promote" && request.method === "POST") {
+		return json(await agent.promote());
+	}
+
+	if (url.pathname === "/api/admin/split-entity" && request.method === "POST") {
+		const raw = ((await request.json().catch(() => ({}))) ?? {}) as Record<string, unknown>;
+		if (typeof raw.id !== "string" || typeof raw.newName !== "string") {
+			return json({ error: "invalid_input", hint: "id and newName are required" }, 400);
+		}
+		return json(await agent.splitEntity({ id: raw.id, newName: raw.newName }));
+	}
+
+	if (url.pathname === "/api/entities" && request.method === "GET") {
+		return json({ markdown: await agent.entityIndex() });
+	}
+
+	if (url.pathname === "/api/entities" && request.method === "POST") {
+		const raw = await request.json().catch(() => null);
+		const body = decodeBody(GetEntityToolInput, raw ?? {});
+		if (!body || (!body.name && !body.id)) {
+			return json({ error: "invalid_input", hint: "name or id is required" }, 400);
+		}
+		const view = await agent.getEntity(body);
+		if (!view) {
+			return json({ error: "not_found", hint: "entity was not found" }, 404);
+		}
+		return json(view);
+	}
+
+	if (url.pathname === "/api/timeline" && request.method === "POST") {
+		const raw = await request.json().catch(() => null);
+		const body = decodeBody(TimelineToolInput, raw ?? {});
+		if (!body) {
+			return json({ error: "invalid_input", hint: "about is required" }, 400);
+		}
+		return json(await agent.timeline(body));
+	}
+
+	if (url.pathname === "/api/changes" && request.method === "POST") {
+		const raw = await request.json().catch(() => null);
+		const body = decodeBody(ChangesSinceToolInput, raw ?? {});
+		if (!body) {
+			return json({ error: "invalid_input", hint: "since is required" }, 400);
+		}
+		return json(await agent.changesSince(body.since));
 	}
 
 	if (url.pathname.startsWith("/api/memories/") && request.method === "PATCH") {

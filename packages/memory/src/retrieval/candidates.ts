@@ -1,5 +1,6 @@
 import type { QueryPlan, RecallQuery, SearchQuery } from "@yumeoi/domain";
 import { Effect } from "effect";
+import { graphCandidateIds } from "../graph/expand.ts";
 import { MemoryRepo, type RankedId, type SearchFilters } from "../memory-repo.ts";
 import { ftsMatchQuery } from "../rrf.ts";
 import { VALID_TO_SENTINEL, VectorIndex } from "../vector-index.ts";
@@ -127,8 +128,13 @@ export const collectCandidates = (input: {
 				: [];
 
 		const graph =
-			input.plan.entities.length > 0
-				? yield* repo.listByEntities(input.plan.entities, filters)
+			input.plan.entities.length > 0 || input.plan.intent === "who"
+				? yield* graphCandidateIds({
+						names: input.plan.entities,
+						namespace: input.namespace,
+						filters,
+						hops: 2,
+					})
 				: [];
 
 		const recent =

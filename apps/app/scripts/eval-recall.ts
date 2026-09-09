@@ -115,6 +115,7 @@ const rows = [
 	row("baseline (before P0 fixes)", payload.baseline),
 	row("after P0 fixes", payload["after-fixes"]),
 	row("P3 retrieval", payload.p3),
+	row("P4+P5 graph/temporal", payload.p4),
 ].filter((item): item is string[] => item !== null);
 if (rows.length === 0) {
 	const current = row(stage, snapshot);
@@ -139,13 +140,13 @@ Harness: \`scoreRecall\` in \`packages/memory/src/eval.ts\`, runner \`apps/app/s
 
 Live extraction uses OpenRouter (OpenAI fallback) when \`EVAL_LIVE=1\` and \`OPENROUTER_API_KEY\` / \`OPENAI_API_KEY\` are set. Embeddings stay hash in this bun runner; workerd tests cover the Vectorize emulator.
 
-Raw numbers: \`docs/eval/recall-results.json\`. Set \`EVAL_STAGE=baseline\`, \`after-fixes\`, or \`p3\` when recording a phase.
+Raw numbers: \`docs/eval/recall-results.json\`. Set \`EVAL_STAGE=baseline\`, \`after-fixes\`, \`p3\`, or \`p4\` when recording a phase.
 
 ## Deterministic numbers
 
 ${table}
 
-P0 records a baseline **before** retrieval changes, then the same table after D1–D5 / D3 / D7. P3 records the rewritten retrieval pipeline (porter FTS, weighted RRF, type freshness, access tracking). Heuristic CI must not regress Recall@10 or nDCG@10 versus after-fixes. The live gate (nDCG@10 ≥ baseline + 0.10, Recall@10 ≥ 0.85) needs Workers AI embeddings; this bun runner keeps hash embeddings.
+P0 records a baseline **before** retrieval changes, then the same table after D1–D5 / D3 / D7. P3 records the rewritten retrieval pipeline (porter FTS, weighted RRF, type freshness, access tracking). P4+P5 add graph expansion and \`asOf\` / timeline / promotion. Heuristic CI must not regress Recall@10 or nDCG@10 versus after-fixes. Single-hop Recall@10 must not drop more than 0.02 versus P3. The live gate (nDCG@10 ≥ baseline + 0.10, Recall@10 ≥ 0.85) needs Workers AI embeddings; this bun runner keeps hash embeddings.
 `,
 );
 

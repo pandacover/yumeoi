@@ -32,7 +32,7 @@ const layer = Layer.mergeAll(
 describe("recall eval set", () => {
 	test("has ~40 dated docs and ~80 queries with matcher labels", () => {
 		expect(set.documents.length).toBe(40);
-		expect(set.queries.length).toBe(80);
+		expect(set.queries.length).toBeGreaterThanOrEqual(80);
 		expect(set.documents.every((doc) => typeof doc.date === "string")).toBe(true);
 		expect(set.queries.every((query) => query.expected.length > 0)).toBe(true);
 		expect(set.queries.some((query) => query.asOf)).toBe(true);

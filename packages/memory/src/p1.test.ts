@@ -251,7 +251,7 @@ describe("P1 memory model", () => {
 		);
 		expect(extracted.type).toBe("semantic");
 		expect(extracted.kind).toBe("preference");
-		expect(extracted.entities).toEqual([]);
+		expect(extracted.entities).toEqual([{ name: "Luv", type: "person" }]);
 	});
 
 	test("reindex upserts active vectors and deletes inactive ones", async () => {
