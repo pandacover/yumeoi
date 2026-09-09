@@ -21,6 +21,8 @@ import {
 	addMemory,
 	CHAT_SYSTEM_PROMPT,
 	citationsFromRecall,
+	forgetMemories,
+	getMemoryDetail,
 	heuristicChatAnswer,
 	type IngestState,
 	type IngestStepName,
@@ -30,9 +32,12 @@ import {
 	loadDocument,
 	MemoryRepo,
 	recallContext,
+	recordFeedback,
 	reindexStore,
+	remember,
 	runIngestStep,
 	searchMemories,
+	updateMemoryRecord,
 } from "@yumeoi/memory";
 import { callable } from "agents";
 import {
@@ -305,17 +310,29 @@ export class MemoryAgent extends AIChatAgent<Env, MemoryAgentState> {
 		query: string;
 		sources?: ReadonlyArray<string>;
 		kinds?: ReadonlyArray<FilterKind>;
+		types?: ReadonlyArray<string>;
 		since?: number | null;
+		from?: number | null;
+		to?: number | null;
+		asOf?: number | null;
+		entities?: ReadonlyArray<string>;
 		limit?: number;
+		includeDormant?: boolean;
 	}) {
 		return this.#runtime.runPromise(
 			searchMemories({
 				query: query.query,
 				sources: query.sources ? [...query.sources] : [],
 				kinds: query.kinds ? [...query.kinds] : [],
-				since: query.since ?? null,
+				since: query.since ?? query.from ?? null,
 				limit: query.limit ?? 20,
 				namespace: this.name,
+				...(query.types ? { types: query.types as never } : {}),
+				...(query.from !== undefined ? { from: query.from } : {}),
+				...(query.to !== undefined ? { to: query.to } : {}),
+				...(query.asOf !== undefined ? { asOf: query.asOf } : {}),
+				...(query.entities ? { entities: [...query.entities] } : {}),
+				...(query.includeDormant !== undefined ? { includeDormant: query.includeDormant } : {}),
 			}),
 		);
 	}
@@ -325,19 +342,37 @@ export class MemoryAgent extends AIChatAgent<Env, MemoryAgentState> {
 		query: string;
 		sources?: ReadonlyArray<string>;
 		kinds?: ReadonlyArray<FilterKind>;
+		types?: ReadonlyArray<string>;
 		since?: number | null;
+		from?: number | null;
+		to?: number | null;
+		asOf?: number | null;
+		entities?: ReadonlyArray<string>;
+		include?: ReadonlyArray<string>;
+		format?: "markdown" | "json";
+		plan?: "fast" | "full";
 		budgetTokens?: number;
 		rerank?: boolean;
+		rerankMode?: "none" | "cross" | "llm";
 	}): Promise<RecallResult> {
 		return this.#runtime.runPromise(
 			recallContext({
 				query: query.query,
 				sources: query.sources ? [...query.sources] : [],
 				kinds: query.kinds ? [...query.kinds] : [],
-				since: query.since ?? null,
-				budgetTokens: query.budgetTokens ?? 2000,
+				since: query.since ?? query.from ?? null,
+				budgetTokens: query.budgetTokens ?? 1500,
 				rerank: query.rerank ?? true,
 				namespace: this.name,
+				...(query.types ? { types: query.types as never } : {}),
+				...(query.from !== undefined ? { from: query.from } : {}),
+				...(query.to !== undefined ? { to: query.to } : {}),
+				...(query.asOf !== undefined ? { asOf: query.asOf } : {}),
+				...(query.entities ? { entities: [...query.entities] } : {}),
+				...(query.include ? { include: query.include as never } : {}),
+				...(query.format ? { format: query.format } : {}),
+				...(query.plan ? { plan: query.plan } : {}),
+				...(query.rerankMode ? { rerankMode: query.rerankMode } : {}),
 			}),
 		);
 	}
@@ -357,6 +392,85 @@ export class MemoryAgent extends AIChatAgent<Env, MemoryAgentState> {
 		const userId = this.name;
 		const request = input.sourceId ? input : { ...input, sourceId: `agent:${userId}` };
 		return this.#runtime.runPromise(addMemory(userId, request));
+	}
+
+	@callable()
+	async remember(input: {
+		text?: string;
+		items?: ReadonlyArray<{
+			text: string;
+			type?: string;
+			kind?: string;
+			importance?: number;
+			eventAt?: string | null;
+			validFrom?: string | null;
+			clientRef?: string;
+		}>;
+		dedupe?: boolean;
+		mode?: "extract" | "verbatim";
+		sourceId?: string;
+	}) {
+		return this.#runtime.runPromise(
+			remember({
+				userId: this.name,
+				dedupe: input.dedupe ?? true,
+				mode: input.mode ?? "verbatim",
+				sourceId: input.sourceId ?? `agent:${this.name}`,
+				...(input.text !== undefined ? { text: input.text } : {}),
+				...(input.items !== undefined ? { items: input.items as never } : {}),
+			}),
+		);
+	}
+
+	@callable()
+	async updateMemory(input: {
+		id: string;
+		text?: string;
+		validTo?: string | null;
+		importance?: number;
+		kind?: MemoryKind;
+		eventAt?: string | null;
+	}) {
+		return this.#runtime.runPromise(
+			updateMemoryRecord({
+				id: input.id,
+				...(input.text !== undefined ? { text: input.text } : {}),
+				...(input.validTo !== undefined ? { validTo: input.validTo } : {}),
+				...(input.importance !== undefined ? { importance: input.importance } : {}),
+				...(input.kind !== undefined ? { kind: input.kind } : {}),
+				...(input.eventAt !== undefined ? { eventAt: input.eventAt } : {}),
+			}),
+		);
+	}
+
+	@callable()
+	async forget(input: { id?: string; query?: string; confirm?: boolean; reason?: string }) {
+		return this.#runtime.runPromise(
+			forgetMemories({
+				userId: this.name,
+				...(input.id !== undefined ? { id: input.id } : {}),
+				...(input.query !== undefined ? { query: input.query } : {}),
+				...(input.confirm !== undefined ? { confirm: input.confirm } : {}),
+				...(input.reason !== undefined ? { reason: input.reason } : {}),
+			}),
+		);
+	}
+
+	@callable()
+	async feedback(input: { id: string; signal: 1 | -1; note?: string; clientId?: string }) {
+		return this.#runtime.runPromise(
+			recordFeedback({
+				id: input.id,
+				signal: input.signal,
+				clientId: input.clientId ?? this.name,
+				...(input.note !== undefined ? { note: input.note } : {}),
+			}),
+		);
+	}
+
+	@callable()
+	async getMemoryDetail(id: string) {
+		return this.#runtime.runPromise(getMemoryDetail(id));
 	}
 
 	@callable()
