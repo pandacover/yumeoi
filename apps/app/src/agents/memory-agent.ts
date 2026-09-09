@@ -18,6 +18,7 @@ import type {
 } from "@yumeoi/domain";
 import { defaultLlmConfig } from "@yumeoi/domain";
 import {
+	addMemory,
 	CHAT_SYSTEM_PROMPT,
 	citationsFromRecall,
 	heuristicChatAnswer,
@@ -354,9 +355,7 @@ export class MemoryAgent extends AIChatAgent<Env, MemoryAgentState> {
 	async addMemory(input: AddMemoryRequest) {
 		const userId = this.name;
 		const request = input.sourceId ? input : { ...input, sourceId: `agent:${userId}` };
-		return this.#runtime.runPromise(
-			Effect.flatMap(MemoryRepo, (repo) => repo.addMemory(userId, request)),
-		);
+		return this.#runtime.runPromise(addMemory(userId, request));
 	}
 
 	@callable()

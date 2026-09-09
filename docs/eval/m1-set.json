@@ -271,87 +271,98 @@
 			"id": "rr-01",
 			"query": "What model does chat use?",
 			"candidates": [
-				{ "id": "a", "text": "Chat is pinned to GPT-5.6 Luna at high effort." },
-				{ "id": "b", "text": "Luv prefers oat milk in coffee." },
-				{ "id": "c", "text": "Notion polls every 10 minutes." },
-				{ "id": "d", "text": "API keys start with ym_." }
+				{ "id": "a", "text": "Extract is pinned to GPT-5.6 Luna at high effort." },
+				{ "id": "b", "text": "Chat embeddings are stored with Workers AI bge-m3." },
+				{
+					"id": "c",
+					"text": "Chat uses Terra as an escape hatch when citation quality is insufficient."
+				},
+				{ "id": "d", "text": "Chat is pinned to GPT-5.6 Luna at high effort." },
+				{ "id": "e", "text": "Rerank on recall_context uses GPT-5.6 Luna at none." }
 			],
-			"relevant": ["a"]
+			"relevant": ["d"]
 		},
 		{
 			"id": "rr-02",
 			"query": "How do we search memories by keyword?",
 			"candidates": [
-				{ "id": "a", "text": "Luv reports to Alex weekly." },
-				{ "id": "b", "text": "Keyword search uses Durable Object SQLite FTS5." },
-				{ "id": "c", "text": "Public launch waits on Gmail verification." },
-				{ "id": "d", "text": "Vaults are local files." }
+				{ "id": "a", "text": "Vectorize cosine search finds similar memories by embedding." },
+				{ "id": "b", "text": "Recall packs keyword and vector hits into a token budget." },
+				{ "id": "c", "text": "Keyword search uses Durable Object SQLite FTS5." },
+				{ "id": "d", "text": "The FTS tokenizer is unicode61 and does not stem." },
+				{ "id": "e", "text": "search_memories skips the LLM rerank path." }
 			],
-			"relevant": ["b"]
+			"relevant": ["c"]
 		},
 		{
 			"id": "rr-03",
 			"query": "Who works on connectors?",
 			"candidates": [
-				{ "id": "a", "text": "Embeddings use Workers AI bge-m3." },
-				{ "id": "b", "text": "Chat answers must cite memories." },
-				{ "id": "c", "text": "Sam reports to Luv on connector work." },
-				{ "id": "d", "text": "Unchanged chunks are never re-extracted." }
+				{ "id": "a", "text": "Alex is the manager for the memory project." },
+				{ "id": "b", "text": "Luv works with Cursor agents on yumeoi." },
+				{ "id": "c", "text": "Connector polling lives in SourceAgent, not MemoryAgent." },
+				{ "id": "d", "text": "Sam reports to Luv on connector work." },
+				{ "id": "e", "text": "Unchanged chunks are never re-extracted." }
 			],
-			"relevant": ["c"]
+			"relevant": ["d"]
 		},
 		{
 			"id": "rr-04",
 			"query": "What is the ingest HTTP shape?",
 			"candidates": [
-				{ "id": "a", "text": "POST /ingest accepts externalId, title, markdown, and metadata." },
-				{ "id": "b", "text": "Meetings after 4pm are a hard no." },
-				{ "id": "c", "text": "Tabs are required in Biome output." },
-				{ "id": "d", "text": "Vectorize holds the embeddings." }
+				{ "id": "a", "text": "POST /api/search accepts a query string and optional filters." },
+				{ "id": "b", "text": "IngestWorkflow steps are fetch, chunk, embed, extract, commit." },
+				{ "id": "c", "text": "MCP add_memory takes text, kind, and confidence." },
+				{ "id": "d", "text": "POST /ingest accepts externalId, title, markdown, and metadata." },
+				{ "id": "e", "text": "Vectorize holds the embeddings for ingested chunks." }
 			],
-			"relevant": ["a"]
+			"relevant": ["d"]
 		},
 		{
 			"id": "rr-05",
 			"query": "When does Notion polling run?",
 			"candidates": [
-				{ "id": "a", "text": "Rate limit is about 3 requests per second." },
-				{ "id": "b", "text": "The kickoff meeting is tomorrow at 10:00." },
-				{ "id": "c", "text": "Notion polling is scheduled every 10 minutes." },
-				{ "id": "d", "text": "MCP OAuth waits until M4." }
+				{ "id": "a", "text": "Gmail sync is deferred until after M4." },
+				{ "id": "b", "text": "The Notion rate limit is about 3 requests per second." },
+				{ "id": "c", "text": "SourceAgent uses scheduleEvery for connector polling." },
+				{ "id": "d", "text": "The kickoff meeting is tomorrow at 10:00." },
+				{ "id": "e", "text": "Notion polling is scheduled every 10 minutes." }
 			],
-			"relevant": ["c"]
+			"relevant": ["e"]
 		},
 		{
 			"id": "rr-06",
 			"query": "What editor preference does Luv have?",
 			"candidates": [
-				{ "id": "a", "text": "Each source has a daily token budget." },
-				{ "id": "b", "text": "Luv prefers dark mode in the editor at all times." },
-				{ "id": "c", "text": "We ship one Worker for UI, agents, MCP, and the API." },
-				{ "id": "d", "text": "Skip attachments for v0 Gmail." }
+				{ "id": "a", "text": "Luv prefers Effect 4 for the yumeoi domain layer." },
+				{ "id": "b", "text": "Tabs are required in Biome output." },
+				{ "id": "c", "text": "Luv prefers oat milk in coffee." },
+				{ "id": "d", "text": "Luv prefers dark mode in the editor at all times." },
+				{ "id": "e", "text": "The team keeps Effect out of React components." }
 			],
-			"relevant": ["b"]
+			"relevant": ["d"]
 		},
 		{
 			"id": "rr-07",
 			"query": "How are embeddings stored per user?",
 			"candidates": [
-				{ "id": "a", "text": "Namespaces for Vectorize embeddings are the user id." },
-				{ "id": "b", "text": "Yesterday we reviewed the v0 plan." },
-				{ "id": "c", "text": "Luv works with Cursor agents on yumeoi." },
-				{ "id": "d", "text": "The todo is wiring POST /ingest." }
+				{ "id": "a", "text": "Chunk vectors use ids c:{chunkId} in the same index." },
+				{ "id": "b", "text": "Workers AI bge-m3 produces 1024-dimensional embeddings." },
+				{ "id": "c", "text": "Namespaces for Vectorize embeddings are the user id." },
+				{ "id": "d", "text": "Memory vectors use ids m:{memoryId} next to chunk vectors." },
+				{ "id": "e", "text": "R2 stores the original markdown for each document." }
 			],
-			"relevant": ["a"]
+			"relevant": ["c"]
 		},
 		{
 			"id": "rr-08",
 			"query": "What still needs to ship for Gmail?",
 			"candidates": [
-				{ "id": "a", "text": "Chat escape hatch is Terra if citation quality is insufficient." },
-				{ "id": "b", "text": "Provenance includes source, url, and timestamp." },
+				{ "id": "a", "text": "Skip attachments for v0 Gmail." },
+				{ "id": "b", "text": "Public launch waits on Gmail verification." },
 				{ "id": "c", "text": "We need to add the Gmail connector in M5." },
-				{ "id": "d", "text": "Luv prefers Effect 4 for the domain layer." }
+				{ "id": "d", "text": "Obsidian vaults are local files and come after Gmail." },
+				{ "id": "e", "text": "Provenance includes source, url, and timestamp." }
 			],
 			"relevant": ["c"]
 		}

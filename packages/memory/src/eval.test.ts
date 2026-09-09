@@ -141,7 +141,13 @@ describe("rerank scoring", () => {
 		if (!item) {
 			throw new Error("missing case");
 		}
-		const score = scoreRerank(item, ["a", "b", "c", "d"]);
+		const goldFirst = [
+			...item.relevant,
+			...item.candidates
+				.map((candidate) => candidate.id)
+				.filter((id) => !item.relevant.includes(id)),
+		];
+		const score = scoreRerank(item, goldFirst);
 		expect(score.top1).toBe(true);
 		expect(score.complete).toBe(true);
 		expect(score.ndcg).toBe(1);
@@ -152,9 +158,25 @@ describe("rerank scoring", () => {
 		if (!item) {
 			throw new Error("missing case");
 		}
-		const score = scoreRerank(item, ["b", "c", "d", "a"]);
+		const goldLast = [
+			...item.candidates
+				.map((candidate) => candidate.id)
+				.filter((id) => !item.relevant.includes(id)),
+			...item.relevant,
+		];
+		const score = scoreRerank(item, goldLast);
 		expect(score.top1).toBe(false);
 		expect(score.ndcg).toBeLessThan(1);
+	});
+
+	test("identity ranking scores at least one near-miss case below 0.9 nDCG", () => {
+		const scores = set.rerank.map((item) =>
+			scoreRerank(
+				item,
+				item.candidates.map((candidate) => candidate.id),
+			),
+		);
+		expect(scores.some((score) => score.ndcg < 0.9)).toBe(true);
 	});
 });
 

@@ -86,7 +86,9 @@ export const memoryMemoryRepoLayer = (userId = "test-user") => {
 			),
 		searchMemoryFts: (match, filters) =>
 			Effect.succeed(
-				filterMemories(db, match, filters).map((memory, rank) => ({ id: memory.id, rank })),
+				filterMemories(db, match, filters)
+					.slice(0, filters.limit)
+					.map((memory, rank) => ({ id: memory.id, rank })),
 			),
 		searchChunkFts: (match, filters) =>
 			Effect.succeed(
@@ -175,11 +177,17 @@ export const memoryMemoryRepoLayer = (userId = "test-user") => {
 					.slice(0, filters.limit)
 					.map(strip),
 			),
-		similarMemoryCandidates: (_exclude, limit) =>
-			Effect.succeed(db.memories.slice(0, limit).map(strip)),
+		similarMemoryCandidates: (excludeIds, limit) =>
+			Effect.succeed(
+				db.memories
+					.filter((memory) => memory.validTo === null && !excludeIds.includes(memory.id))
+					.slice(0, limit)
+					.map(strip),
+			),
 		listRecentMemories: (limit) =>
 			Effect.succeed(
 				[...db.memories]
+					.filter((memory) => memory.validTo === null)
 					.sort((left, right) => right.createdAt - left.createdAt)
 					.slice(0, limit)
 					.map(strip),
@@ -208,6 +216,12 @@ export const memoryMemoryRepoLayer = (userId = "test-user") => {
 				});
 				db.updatedAt.set(batch.document.id, now);
 				const keep = new Set(batch.chunks.map((chunk) => chunk.id));
+				const dropped = db.chunks
+					.filter((chunk) => chunk.documentId === batch.document.id && !keep.has(chunk.id))
+					.map((chunk) => chunk.id);
+				if (dropped.length > 0) {
+					db.links = db.links.filter((link) => !dropped.includes(link.chunkId));
+				}
 				db.chunks = db.chunks.filter(
 					(chunk) => chunk.documentId !== batch.document.id || keep.has(chunk.id),
 				);
@@ -260,9 +274,20 @@ export const memoryMemoryRepoLayer = (userId = "test-user") => {
 					skippedChunks: 0,
 				};
 			}),
-		addMemory: (userId, input) =>
+		addMemory: (userId, input, options) =>
 			Effect.sync(() => {
+				const now = Date.now();
 				const sourceId = input.sourceId ?? `agent:${userId}`;
+				const documentId = `${sourceId}:notes`;
+				const chunkId = crypto.randomUUID();
+				const memoryId = crypto.randomUUID();
+				const supersedes = options?.supersedes ?? null;
+				if (supersedes) {
+					const previous = db.memories.find((item) => item.id === supersedes);
+					if (previous && previous.validTo === null) {
+						previous.validTo = new Date(now).toISOString();
+					}
+				}
 				if (!db.sources.some((source) => source.id === sourceId)) {
 					db.sources.push({
 						id: sourceId,
@@ -271,17 +296,45 @@ export const memoryMemoryRepoLayer = (userId = "test-user") => {
 						label: "Agent writes",
 					});
 				}
+				if (!db.documents.some((doc) => doc.id === documentId)) {
+					db.documents.push({
+						id: documentId,
+						sourceId,
+						externalId: "notes",
+						contentHash: "agent",
+						title: "Agent notes",
+						markdown: input.text,
+						url: null,
+						r2Key: `${userId}/${sourceId}/notes.json`,
+					});
+				}
+				db.chunks.push({
+					id: chunkId,
+					documentId,
+					text: input.text,
+					contentHash: memoryId,
+					byteStart: 0,
+					byteEnd: input.text.length,
+				});
 				const memory = {
-					id: crypto.randomUUID(),
+					id: memoryId,
 					kind: input.kind,
 					text: input.text,
 					confidence: input.confidence,
 					validFrom: null,
 					validTo: null,
-					supersedes: null,
-					createdAt: Date.now(),
+					supersedes,
+					createdAt: now,
 				};
 				db.memories.push(memory);
+				db.links.push({
+					memoryId,
+					sourceId,
+					documentId,
+					chunkId,
+					title: "Agent notes",
+					url: null,
+				});
 				return strip(memory);
 			}),
 	});
@@ -308,6 +361,9 @@ const needle = (match: string, text: string): boolean => {
 
 const filterMemories = (db: Stored, match: string, filters: SearchFilters) =>
 	db.memories.filter((memory) => {
+		if (memory.validTo !== null) {
+			return false;
+		}
 		if (match.trim().length > 0 && !needle(match, memory.text)) {
 			return false;
 		}
