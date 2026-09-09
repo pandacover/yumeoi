@@ -48,7 +48,9 @@ const scriptedConsolidator = (action: "duplicate" | "supersedes") =>
 	Layer.succeed(Consolidator, {
 		decide: (_candidate, existing) =>
 			Effect.succeed(
-				existing[0] ? { action, targetId: existing[0].id } : { action: "new", targetId: null },
+				existing[0]
+					? { action, targetId: existing[0].id, mergedText: null, reason: action }
+					: { action: "new", targetId: null, mergedText: null, reason: "new" },
 			),
 	});
 
@@ -93,6 +95,7 @@ describe("P0 retrieval defects", () => {
 					Layer.mergeAll(
 						memoryMemoryRepoLayer(userId),
 						countingEmbeddings({ calls: 0 }),
+						heuristicLlmLayer,
 						scriptedConsolidator("supersedes"),
 						inMemoryVectorIndexLayer(),
 						inMemoryObjectStoreLayer(),
@@ -133,6 +136,7 @@ describe("P0 retrieval defects", () => {
 					Layer.mergeAll(
 						memoryMemoryRepoLayer(userId),
 						countingEmbeddings({ calls: 0 }),
+						heuristicLlmLayer,
 						scriptedConsolidator("duplicate"),
 						inMemoryVectorIndexLayer(),
 						inMemoryObjectStoreLayer(),

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import type { RecallResult } from "@yumeoi/domain";
+import { fillMemory, type RecallResult } from "@yumeoi/domain";
 import {
 	citationsFromMessageParts,
 	citationsFromRecall,
@@ -11,7 +11,7 @@ import {
 const recall: RecallResult = {
 	memories: [
 		{
-			memory: {
+			memory: fillMemory({
 				id: "mem-1",
 				kind: "preference",
 				text: "Luv prefers Effect 4 for the yumeoi domain layer.",
@@ -19,7 +19,7 @@ const recall: RecallResult = {
 				validFrom: null,
 				validTo: null,
 				supersedes: null,
-			},
+			}),
 			score: 1,
 			provenance: [
 				{

@@ -1,0 +1,484 @@
+{
+	"statements": [
+		{
+			"id": "t001",
+			"text": "Luv prefers Effect 4 for the yumeoi domain layer.",
+			"type": "semantic",
+			"kind": "preference"
+		},
+		{
+			"id": "t002",
+			"text": "The Vectorize index used by yumeoi is named yumeoi-memories.",
+			"type": "semantic",
+			"kind": "fact"
+		},
+		{
+			"id": "t003",
+			"text": "Anna works with Luv on the Aurora project at yumeoi.",
+			"type": "semantic",
+			"kind": "relationship"
+		},
+		{
+			"id": "t004",
+			"text": "The team decided to keep Effect out of React components.",
+			"type": "semantic",
+			"kind": "decision"
+		},
+		{
+			"id": "t005",
+			"text": "API keys for yumeoi start with ym_ and are hashed in D1.",
+			"type": "semantic",
+			"kind": "fact"
+		},
+		{
+			"id": "t006",
+			"text": "Luv likes dark mode in the editor at all times.",
+			"type": "semantic",
+			"kind": "preference"
+		},
+		{
+			"id": "t007",
+			"text": "Sam reports to Luv on connector work for Gmail later.",
+			"type": "semantic",
+			"kind": "relationship"
+		},
+		{
+			"id": "t008",
+			"text": "Embeddings use Workers AI bge-m3 at 1024 dimensions.",
+			"type": "semantic",
+			"kind": "fact"
+		},
+		{
+			"id": "t009",
+			"text": "Namespaces in Vectorize are the user id for each store.",
+			"type": "semantic",
+			"kind": "fact"
+		},
+		{
+			"id": "t010",
+			"text": "Luv prefers oat milk in coffee rather than dairy milk.",
+			"type": "semantic",
+			"kind": "preference"
+		},
+		{
+			"id": "t011",
+			"text": "We decided to use Durable Object SQLite FTS5 for keyword search.",
+			"type": "semantic",
+			"kind": "decision"
+		},
+		{
+			"id": "t012",
+			"text": "Chat remains pinned to GPT-5.6 Luna at high reasoning effort.",
+			"type": "semantic",
+			"kind": "fact"
+		},
+		{
+			"id": "t013",
+			"text": "Luv is a teammate of Cursor agents on the yumeoi memory stack.",
+			"type": "semantic",
+			"kind": "relationship"
+		},
+		{
+			"id": "t014",
+			"text": "The default LLM provider is OpenRouter with OpenAI as fallback.",
+			"type": "semantic",
+			"kind": "fact"
+		},
+		{
+			"id": "t015",
+			"text": "Luv prefers tabs in Biome output for the whole monorepo.",
+			"type": "semantic",
+			"kind": "preference"
+		},
+		{
+			"id": "t016",
+			"text": "Memory kinds include fact, preference, decision, task, relationship, and event.",
+			"type": "semantic",
+			"kind": "fact"
+		},
+		{
+			"id": "t017",
+			"text": "The standing decision is that ingest runs on Cloudflare Workflows.",
+			"type": "semantic",
+			"kind": "decision"
+		},
+		{
+			"id": "t018",
+			"text": "yumeoi stores per-user memories inside a Durable Object.",
+			"type": "semantic",
+			"kind": "fact"
+		},
+		{
+			"id": "t019",
+			"text": "Anna is the manager of the Aurora project at the company.",
+			"type": "semantic",
+			"kind": "relationship"
+		},
+		{
+			"id": "t020",
+			"text": "Luv prefers Effect Schema over zod for the domain package.",
+			"type": "semantic",
+			"kind": "preference"
+		},
+		{
+			"id": "t021",
+			"text": "Documents are truth and are never deleted by the decay sweep.",
+			"type": "semantic",
+			"kind": "fact"
+		},
+		{
+			"id": "t022",
+			"text": "The team will use markdown recall lines instead of JSON dumps.",
+			"type": "semantic",
+			"kind": "decision"
+		},
+		{
+			"id": "t023",
+			"text": "R2 holds raw markdown for documents under the user prefix.",
+			"type": "semantic",
+			"kind": "fact"
+		},
+		{
+			"id": "t024",
+			"text": "Luv likes short m_ ids because they spend fewer tokens.",
+			"type": "semantic",
+			"kind": "preference"
+		},
+		{
+			"id": "t025",
+			"text": "MCP OAuth uses the Workers OAuth provider for agent clients.",
+			"type": "semantic",
+			"kind": "fact"
+		},
+		{
+			"id": "t026",
+			"text": "The favorite local runtime for unit tests is bun test in packages.",
+			"type": "semantic",
+			"kind": "preference"
+		},
+		{
+			"id": "t027",
+			"text": "Going with one remember write path for ingest and agent writes.",
+			"type": "semantic",
+			"kind": "decision"
+		},
+		{
+			"id": "t028",
+			"text": "On 2026-09-03 Luv and Anna agreed to ship M4 before Gmail.",
+			"type": "episodic",
+			"kind": "decision"
+		},
+		{
+			"id": "t029",
+			"text": "Yesterday the team reviewed the v0 plan in a long meeting.",
+			"type": "episodic",
+			"kind": "event"
+		},
+		{
+			"id": "t030",
+			"text": "The kickoff meeting is scheduled tomorrow at 10:00 for yumeoi.",
+			"type": "episodic",
+			"kind": "event"
+		},
+		{
+			"id": "t031",
+			"text": "Luv needs to ship the M1 extract eval this week without fail.",
+			"type": "episodic",
+			"kind": "task"
+		},
+		{
+			"id": "t032",
+			"text": "This morning Luv decided to pin extract to Luna high effort.",
+			"type": "episodic",
+			"kind": "decision"
+		},
+		{
+			"id": "t033",
+			"text": "Last week Anna presented Aurora status to the wider team.",
+			"type": "episodic",
+			"kind": "event"
+		},
+		{
+			"id": "t034",
+			"text": "On 2026-08-30 Luv ingested the first Notion pages into yumeoi.",
+			"type": "episodic",
+			"kind": "event"
+		},
+		{
+			"id": "t035",
+			"text": "The todo is wiring POST /ingest to IngestWorkflow before Friday.",
+			"type": "episodic",
+			"kind": "task"
+		},
+		{
+			"id": "t036",
+			"text": "Yesterday we chose Cloudflare Workflows for durable ingest steps.",
+			"type": "episodic",
+			"kind": "decision"
+		},
+		{
+			"id": "t037",
+			"text": "A design review is scheduled for next Tuesday about recall packing.",
+			"type": "episodic",
+			"kind": "event"
+		},
+		{
+			"id": "t038",
+			"text": "Luv should finish the recall baseline before changing retrieval.",
+			"type": "episodic",
+			"kind": "task"
+		},
+		{
+			"id": "t039",
+			"text": "On 2026-09-08 the keyed OpenRouter eval pinned Luna high extract.",
+			"type": "episodic",
+			"kind": "event"
+		},
+		{
+			"id": "t040",
+			"text": "At the meeting Luv agreed to keep documents as the source of truth.",
+			"type": "episodic",
+			"kind": "decision"
+		},
+		{
+			"id": "t041",
+			"text": "Tomorrow Luv flies to Lisbon for a short offsite about memory v1.",
+			"type": "episodic",
+			"kind": "event"
+		},
+		{
+			"id": "t042",
+			"text": "Need to add the Gmail connector in M5 after the memory model lands.",
+			"type": "episodic",
+			"kind": "task"
+		},
+		{
+			"id": "t043",
+			"text": "Yesterday Cursor agents shipped the P0 recall harness and D1 fixes.",
+			"type": "episodic",
+			"kind": "event"
+		},
+		{
+			"id": "t044",
+			"text": "On 2026-09-01 the team agreed to replace remaining v0 milestones.",
+			"type": "episodic",
+			"kind": "decision"
+		},
+		{
+			"id": "t045",
+			"text": "Luv must file the types eval set before merging the P1 branch.",
+			"type": "episodic",
+			"kind": "task"
+		},
+		{
+			"id": "t046",
+			"text": "This morning the Vectorize emulator returned empty matches in workerd.",
+			"type": "episodic",
+			"kind": "event"
+		},
+		{
+			"id": "t047",
+			"text": "Last week we reviewed three facts that change over time in the corpus.",
+			"type": "episodic",
+			"kind": "event"
+		},
+		{
+			"id": "t048",
+			"text": "The task for today is recording heuristic classification accuracy.",
+			"type": "episodic",
+			"kind": "task"
+		},
+		{
+			"id": "t049",
+			"text": "On 2026-07-12 Anna and Luv met about Project Aurora staffing.",
+			"type": "episodic",
+			"kind": "event"
+		},
+		{
+			"id": "t050",
+			"text": "Yesterday Luv decided to add merge and contradicts consolidation actions.",
+			"type": "episodic",
+			"kind": "decision"
+		},
+		{
+			"id": "t051",
+			"text": "A sync meeting is scheduled tomorrow to talk through reindex batches.",
+			"type": "episodic",
+			"kind": "event"
+		},
+		{
+			"id": "t052",
+			"text": "Luv needs to provision type, state, eventAt, and validTo metadata indexes.",
+			"type": "episodic",
+			"kind": "task"
+		},
+		{
+			"id": "t053",
+			"text": "On 2026-09-04 the preview deploy failed because Vectorize indexes lagged.",
+			"type": "episodic",
+			"kind": "event"
+		},
+		{
+			"id": "t054",
+			"text": "At 14:30 yesterday the consolidator returned duplicate for the oat-milk note.",
+			"type": "episodic",
+			"kind": "event"
+		},
+		{
+			"id": "t055",
+			"text": "When deploying yumeoi, run `bun run deploy:dry-run` before `deploy:prod`.",
+			"type": "procedural",
+			"kind": "procedure"
+		},
+		{
+			"id": "t056",
+			"text": "Always cite memories with numbered marks like [n] in packed recall.",
+			"type": "procedural",
+			"kind": "rule"
+		},
+		{
+			"id": "t057",
+			"text": "How to reindex Vectorize: call MemoryAgent.reindex in slices of 500 rows.",
+			"type": "procedural",
+			"kind": "procedure"
+		},
+		{
+			"id": "t058",
+			"text": "Never put Effect imports inside React route modules in this repo.",
+			"type": "procedural",
+			"kind": "rule"
+		},
+		{
+			"id": "t059",
+			"text": "Every Monday run the decay sweep so dormant rows leave default recall.",
+			"type": "procedural",
+			"kind": "task"
+		},
+		{
+			"id": "t060",
+			"text": "Steps to ingest a Notion page: fetch, normalize, chunk, embed, extract, commit.",
+			"type": "procedural",
+			"kind": "procedure"
+		},
+		{
+			"id": "t061",
+			"text": "Always use sql.in when hydrating memories by id so recall stays batched.",
+			"type": "procedural",
+			"kind": "rule"
+		},
+		{
+			"id": "t062",
+			"text": "When a candidate is older, store it superseded instead of overwriting the present.",
+			"type": "procedural",
+			"kind": "rule"
+		},
+		{
+			"id": "t063",
+			"text": "How to classify a statement: procedural first, else episodic if timed, else semantic.",
+			"type": "procedural",
+			"kind": "procedure"
+		},
+		{
+			"id": "t064",
+			"text": "Each week refresh the recall eval markdown after retrieval changes land.",
+			"type": "procedural",
+			"kind": "task"
+		},
+		{
+			"id": "t065",
+			"text": "Run `bun test packages` before opening a memory-stack pull request.",
+			"type": "procedural",
+			"kind": "procedure"
+		},
+		{
+			"id": "t066",
+			"text": "Must cite the source document when an agent answers from packed memories.",
+			"type": "procedural",
+			"kind": "rule"
+		},
+		{
+			"id": "t067",
+			"text": "When deploying, the procedure is to provision Vectorize metadata indexes first.",
+			"type": "procedural",
+			"kind": "procedure"
+		},
+		{
+			"id": "t068",
+			"text": "Always prefer hash embeddings in CI so evals stay deterministic without keys.",
+			"type": "procedural",
+			"kind": "rule"
+		},
+		{
+			"id": "t069",
+			"text": "Every day the source agent should poll connected Notion workspaces for changes.",
+			"type": "procedural",
+			"kind": "task"
+		},
+		{
+			"id": "t070",
+			"text": "How to forget a memory: mark forgotten, wait thirty days, then hard delete.",
+			"type": "procedural",
+			"kind": "procedure"
+		},
+		{
+			"id": "t071",
+			"text": "Required to run biome check --write so tabs and imports stay consistent.",
+			"type": "procedural",
+			"kind": "rule"
+		},
+		{
+			"id": "t072",
+			"text": "Steps to remember a paragraph: classify or extract, embed, consolidate, commit.",
+			"type": "procedural",
+			"kind": "procedure"
+		},
+		{
+			"id": "t073",
+			"text": "Never merge two person entities on embedding similarity alone in the resolver.",
+			"type": "procedural",
+			"kind": "rule"
+		},
+		{
+			"id": "t074",
+			"text": "When extracting, return empty entities and relations arrays if none are present.",
+			"type": "procedural",
+			"kind": "rule"
+		},
+		{
+			"id": "t075",
+			"text": "Recurring habit: after each ingest, log how many memories lost their provenance.",
+			"type": "procedural",
+			"kind": "task"
+		},
+		{
+			"id": "t076",
+			"text": "How to query as-of: filter observed_at and validity around the requested time T.",
+			"type": "procedural",
+			"kind": "procedure"
+		},
+		{
+			"id": "t077",
+			"text": "Always run the local Vectorize emulator tests in workerd for reindex deletes.",
+			"type": "procedural",
+			"kind": "rule"
+		},
+		{
+			"id": "t078",
+			"text": "When consolidating, use merge if the candidate only adds detail to the same fact.",
+			"type": "procedural",
+			"kind": "rule"
+		},
+		{
+			"id": "t079",
+			"text": "Each week back up eval markdown so live numbers are not lost across phases.",
+			"type": "procedural",
+			"kind": "task"
+		},
+		{
+			"id": "t080",
+			"text": "The procedure for a new store is migrate 0004, provision indexes, then reindex.",
+			"type": "procedural",
+			"kind": "procedure"
+		}
+	]
+}

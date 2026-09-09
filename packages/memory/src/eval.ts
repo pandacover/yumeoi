@@ -2,6 +2,7 @@ import type { ConsolidateAction, ExtractedMemory, MemoryKind } from "@yumeoi/dom
 
 export type ExpectedMemory = {
 	readonly kind?: MemoryKind;
+	readonly type?: MemoryTypeName;
 	readonly contains: string;
 	readonly optional?: boolean;
 };
@@ -142,6 +143,9 @@ const normalize = (text: string): string => text.toLowerCase().replace(/\s+/g, "
 
 const matchesExpected = (memory: ExtractedMemory, expected: ExpectedMemory): boolean => {
 	if (expected.kind && memory.kind !== expected.kind) {
+		return false;
+	}
+	if (expected.type && memory.type !== expected.type) {
 		return false;
 	}
 	return normalize(memory.text).includes(normalize(expected.contains));
@@ -326,4 +330,51 @@ export const percentile = (values: ReadonlyArray<number>, p: number): number => 
 	const sorted = [...values].sort((left, right) => left - right);
 	const index = Math.min(sorted.length - 1, Math.max(0, Math.floor(p * (sorted.length - 1))));
 	return sorted[index] ?? 0;
+};
+
+export type TypesCase = {
+	readonly id: string;
+	readonly text: string;
+	readonly type: MemoryTypeName;
+	readonly kind?: MemoryKind;
+};
+
+export type TypesSet = {
+	readonly statements: ReadonlyArray<TypesCase>;
+};
+
+export type ClassificationScore = {
+	readonly caseId: string;
+	readonly expected: MemoryTypeName;
+	readonly predicted: MemoryTypeName;
+	readonly correct: boolean;
+};
+
+export const scoreClassification = (
+	item: TypesCase,
+	predicted: MemoryTypeName,
+): ClassificationScore => ({
+	caseId: item.id,
+	expected: item.type,
+	predicted,
+	correct: predicted === item.type,
+});
+
+const MEMORY_TYPE_NAMES: ReadonlyArray<MemoryTypeName> = ["semantic", "episodic", "procedural"];
+
+export const summarizeClassification = (scores: ReadonlyArray<ClassificationScore>) => {
+	const confusion = Object.fromEntries(
+		MEMORY_TYPE_NAMES.map((expected) => [
+			expected,
+			Object.fromEntries(MEMORY_TYPE_NAMES.map((predicted) => [predicted, 0])),
+		]),
+	) as Record<MemoryTypeName, Record<MemoryTypeName, number>>;
+	for (const score of scores) {
+		confusion[score.expected][score.predicted] += 1;
+	}
+	return {
+		cases: scores.length,
+		accuracy: mean(scores.map((score) => (score.correct ? 1 : 0))),
+		confusion,
+	};
 };

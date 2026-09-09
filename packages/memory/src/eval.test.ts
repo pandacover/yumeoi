@@ -3,10 +3,12 @@ import { readFileSync } from "node:fs";
 import { Effect, Layer } from "effect";
 import {
 	type EvalSet,
+	scoreClassification,
 	scoreConsolidate,
 	scoreExtraction,
 	scoreRecall,
 	scoreRerank,
+	summarizeClassification,
 	summarizeExtraction,
 	summarizeScores,
 } from "./eval.ts";
@@ -48,16 +50,26 @@ describe("extraction scoring", () => {
 		}
 		const score = scoreExtraction(doc, [
 			{
+				type: "semantic",
 				kind: "preference",
 				text: "Luv prefers Effect 4 for the domain layer.",
 				confidence: 0.9,
+				importance: 0.8,
+				eventAt: null,
 				validFrom: null,
+				entities: [],
+				relations: [],
 			},
 			{
+				type: "semantic",
 				kind: "fact",
 				text: "The team keeps Effect out of React components.",
 				confidence: 0.8,
+				importance: 0.5,
+				eventAt: null,
 				validFrom: null,
+				entities: [],
+				relations: [],
 			},
 		]);
 		expect(score.precision).toBe(1);
@@ -72,12 +84,27 @@ describe("extraction scoring", () => {
 		}
 		const score = scoreExtraction(doc, [
 			{
+				type: "semantic",
 				kind: "preference",
 				text: "Luv prefers dark mode in the editor.",
 				confidence: 0.9,
+				importance: 0.8,
+				eventAt: null,
 				validFrom: null,
+				entities: [],
+				relations: [],
 			},
-			{ kind: "fact", text: "The sky is green on Tuesdays.", confidence: 0.2, validFrom: null },
+			{
+				type: "semantic",
+				kind: "fact",
+				text: "The sky is green on Tuesdays.",
+				confidence: 0.2,
+				importance: 0.1,
+				eventAt: null,
+				validFrom: null,
+				entities: [],
+				relations: [],
+			},
 		]);
 		expect(score.recall).toBe(1);
 		expect(score.precision).toBe(0.5);
@@ -111,10 +138,15 @@ describe("extraction scoring", () => {
 		const scores = set.documents.map((doc) =>
 			scoreExtraction(doc, [
 				{
+					type: "semantic",
 					kind: doc.expected[0]?.kind ?? "fact",
 					text: `${doc.markdown}`,
 					confidence: 0.5,
+					importance: 0.5,
+					eventAt: null,
 					validFrom: null,
+					entities: [],
+					relations: [],
 				},
 			]),
 		);
@@ -211,5 +243,19 @@ describe("recall scoring", () => {
 		expect(score.mrr).toBe(0);
 		expect(score.ndcgAt10).toBe(0);
 		expect(score.contextPrecision).toBe(0);
+	});
+});
+
+describe("classification scoring", () => {
+	test("accuracy and confusion follow predicted types", () => {
+		const scores = [
+			scoreClassification({ id: "a", text: "a", type: "semantic" }, "semantic"),
+			scoreClassification({ id: "b", text: "b", type: "episodic" }, "semantic"),
+			scoreClassification({ id: "c", text: "c", type: "procedural" }, "procedural"),
+		];
+		const summary = summarizeClassification(scores);
+		expect(summary.accuracy).toBeCloseTo(2 / 3);
+		expect(summary.confusion.episodic.semantic).toBe(1);
+		expect(summary.confusion.semantic.semantic).toBe(1);
 	});
 });
