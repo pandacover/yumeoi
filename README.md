@@ -21,12 +21,12 @@ bun run dev
 The Worker serves:
 
 - UI at `/`, `/sources`, `/memories`, `/chat`, `/agents`
-- MCP at `/mcp` (OAuth or API key; tools: `search_memories`, `recall_context`, `get_memory`, `get_document`, `add_memory`, `list_sources`)
+- MCP at `/mcp` (OAuth or API key; tools: `recall`, `search_memories`, `remember`, `update_memory`, `forget`, `feedback`, `get_memory`, `get_document`, `list_sources`; `recall_context` / `add_memory` remain as deprecated aliases)
 - MCP OAuth at `/authorize`, `/token`, `/register` (PKCE + dynamic client registration)
 - Agents at `/agents/memory-agent/:name` and `/agents/source-agent/:name`
-- `POST /ingest`, `/api/search`, `/api/recall`, `/api/sources`, `/api/keys`, `/api/grants` with `Authorization: Bearer ym_…`
+- `POST /ingest`, `/api/search`, `/api/recall`, `/api/remember`, `/api/forget`, `/api/feedback`, `/api/sources`, `/api/keys`, `/api/grants` with `Authorization: Bearer ym_…`
 
-Point Cursor or Claude Desktop at `/mcp`. The first connection opens the consent page; connected clients and API keys are managed on **Agents**. Headless agents that cannot do OAuth still send `Authorization: Bearer ym_…`.
+Point Cursor or Claude Desktop at `/mcp`. Agent-facing guidance lives in [`docs/agents.md`](docs/agents.md) and is also the MCP server `instructions` string. The first connection opens the consent page; connected clients and API keys are managed on **Agents**. Headless agents that cannot do OAuth still send `Authorization: Bearer ym_…`.
 
 Chat uses `AIChatAgent` + `useAgentChat` with tools bound to `recall` and `get_document`. Streaming is resumable. Without an LLM key, chat answers from recalled memories with the same citation marks.
 

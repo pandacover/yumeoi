@@ -1,4 +1,4 @@
-import type { Chunk, Document, Memory, Provenance, Source } from "@yumeoi/domain";
+import type { Chunk, Document, Memory, Provenance, QueryPlan, Source } from "@yumeoi/domain";
 import { fillMemory, NotFound } from "@yumeoi/domain";
 import {
 	type CommitBatch,
@@ -42,6 +42,9 @@ type StoredMemory = {
 	observedAt: number | null;
 	origin: Memory["origin"];
 	clientRef: string | null;
+	accessCount: number;
+	lastAccessedAt: number | null;
+	updatedAt: number | null;
 };
 
 type Stored = {
@@ -60,6 +63,20 @@ type Stored = {
 		mentionCount: number;
 	}>;
 	memoryEntities: Array<{ memoryId: string; entityId: string; role: string }>;
+	history: Array<{
+		id: string;
+		memoryId: string;
+		text: string;
+		type: Memory["type"];
+		kind: Memory["kind"];
+		confidence: number;
+		validFrom: string | null;
+		validTo: string | null;
+		state: Memory["state"];
+		changedAt: number;
+		reason: string;
+	}>;
+	queryCache: Map<string, { plan: QueryPlan; expiresAt: number }>;
 };
 
 const empty = (): Stored => ({
@@ -72,6 +89,8 @@ const empty = (): Stored => ({
 	edges: [],
 	entities: [],
 	memoryEntities: [],
+	history: [],
+	queryCache: new Map(),
 });
 
 export const inMemoryObjectStoreLayer = () => {
@@ -291,6 +310,9 @@ export const memoryMemoryRepoLayer = (userId = "test-user") => {
 						observedAt: now,
 						origin: memory.origin ?? "extracted",
 						clientRef: memory.clientRef ?? null,
+						accessCount: 0,
+						lastAccessedAt: null,
+						updatedAt: now,
 					});
 					for (const chunkId of memory.chunkIds) {
 						db.links.push({
@@ -380,6 +402,9 @@ export const memoryMemoryRepoLayer = (userId = "test-user") => {
 					observedAt: now,
 					origin: input.origin ?? "agent",
 					clientRef: input.clientRef ?? null,
+					accessCount: 0,
+					lastAccessedAt: null,
+					updatedAt: now,
 				};
 				db.memories.push(memory);
 				db.links.push({
@@ -413,6 +438,13 @@ export const memoryMemoryRepoLayer = (userId = "test-user") => {
 				if (patch.importance !== undefined) {
 					memory.importance = patch.importance;
 				}
+				if (patch.kind !== undefined) {
+					memory.kind = patch.kind;
+				}
+				if (patch.eventAt !== undefined) {
+					memory.eventAt = patch.eventAt;
+				}
+				memory.updatedAt = Date.now();
 				return strip(memory);
 			}),
 		insertEdge: (src, dst, relation) =>
@@ -425,7 +457,22 @@ export const memoryMemoryRepoLayer = (userId = "test-user") => {
 					db.edges.push({ src, dst, relation });
 				}
 			}),
-		insertHistory: () => Effect.void,
+		insertHistory: (row) =>
+			Effect.sync(() => {
+				db.history.push({
+					id: newShortId("h"),
+					memoryId: row.memoryId,
+					text: row.text,
+					type: row.type,
+					kind: row.kind,
+					confidence: row.confidence,
+					validFrom: row.validFrom,
+					validTo: row.validTo,
+					state: row.state,
+					changedAt: Date.now(),
+					reason: row.reason,
+				});
+			}),
 		getMemoryByClientRef: (clientRef) =>
 			Effect.succeed(
 				(() => {
@@ -485,6 +532,59 @@ export const memoryMemoryRepoLayer = (userId = "test-user") => {
 					.filter((memory) => memory.validTo !== null || memory.state !== "active")
 					.map((memory) => memory.id),
 			),
+		recordAccess: (ids, at) =>
+			Effect.sync(() => {
+				for (const memory of db.memories) {
+					if (ids.includes(memory.id)) {
+						memory.accessCount += 1;
+						memory.lastAccessedAt = at;
+						if (memory.state === "dormant") {
+							memory.state = "active";
+						}
+					}
+				}
+			}),
+		listByEntities: (entityIds, filters) =>
+			Effect.succeed(
+				db.memoryEntities
+					.filter((link) => entityIds.includes(link.entityId))
+					.map((link, rank) => ({ id: link.memoryId, rank }))
+					.slice(0, filters.limit),
+			),
+		listRecentEpisodic: (sinceEventAt, limit) =>
+			Effect.succeed(
+				db.memories
+					.filter(
+						(memory) =>
+							memory.type === "episodic" &&
+							memory.state === "active" &&
+							(memory.eventAt ?? memory.observedAt ?? memory.createdAt) >= sinceEventAt,
+					)
+					.sort(
+						(left, right) =>
+							(right.eventAt ?? right.observedAt ?? right.createdAt) -
+							(left.eventAt ?? left.observedAt ?? left.createdAt),
+					)
+					.slice(0, limit)
+					.map(strip),
+			),
+		listEdges: (ids) =>
+			Effect.succeed(db.edges.filter((edge) => ids.includes(edge.src) || ids.includes(edge.dst))),
+		listHistory: (memoryId) =>
+			Effect.succeed(db.history.filter((row) => row.memoryId === memoryId)),
+		insertFeedback: () => Effect.void,
+		getQueryPlan: (hash, now) =>
+			Effect.sync(() => {
+				const cached = db.queryCache.get(hash);
+				if (!cached || cached.expiresAt < now) {
+					return null;
+				}
+				return cached.plan;
+			}),
+		putQueryPlan: (hash, plan, expiresAt) =>
+			Effect.sync(() => {
+				db.queryCache.set(hash, { plan, expiresAt });
+			}),
 	});
 };
 
@@ -504,6 +604,9 @@ const strip = (memory: StoredMemory): Memory =>
 		observedAt: memory.observedAt,
 		origin: memory.origin,
 		clientRef: memory.clientRef,
+		accessCount: memory.accessCount,
+		lastAccessedAt: memory.lastAccessedAt,
+		updatedAt: memory.updatedAt,
 	});
 
 const needle = (match: string, text: string): boolean => {
@@ -517,7 +620,14 @@ const needle = (match: string, text: string): boolean => {
 
 const filterMemories = (db: Stored, match: string, filters: SearchFilters) =>
 	db.memories.filter((memory) => {
-		if (memory.validTo !== null || memory.state !== "active") {
+		if (memory.validTo !== null) {
+			return false;
+		}
+		if (filters.includeDormant) {
+			if (memory.state !== "active" && memory.state !== "dormant") {
+				return false;
+			}
+		} else if (memory.state !== "active") {
 			return false;
 		}
 		if (match.trim().length > 0 && !needle(match, memory.text)) {
@@ -526,7 +636,17 @@ const filterMemories = (db: Stored, match: string, filters: SearchFilters) =>
 		if (filters.kinds.length > 0 && !filters.kinds.includes(memory.kind)) {
 			return false;
 		}
-		if (filters.since !== null && memory.createdAt < filters.since) {
+		if (filters.types && filters.types.length > 0 && !filters.types.includes(memory.type)) {
+			return false;
+		}
+		const eventTime = memory.eventAt ?? memory.observedAt ?? memory.createdAt;
+		if (filters.since !== null && eventTime < filters.since) {
+			return false;
+		}
+		if (filters.from != null && eventTime < filters.from) {
+			return false;
+		}
+		if (filters.to != null && eventTime > filters.to) {
 			return false;
 		}
 		if (filters.sources.length > 0) {
@@ -565,7 +685,7 @@ export const inMemoryVectorIndexLayer = () => {
 					}
 				}
 			}),
-		query: ({ values, namespace, topK, filter }) =>
+		query: ({ values, namespace, topK, filter, returnValues }) =>
 			Effect.sync(() =>
 				records
 					.filter((record) => record.namespace === namespace)
@@ -574,6 +694,7 @@ export const inMemoryVectorIndexLayer = () => {
 						id: record.id,
 						score: cosine(values, record.values),
 						metadata: record.metadata,
+						...(returnValues ? { values: record.values } : {}),
 					}))
 					.sort((a, b) => b.score - a.score)
 					.slice(0, topK),
@@ -599,16 +720,29 @@ const matchesFilter = (
 	}
 	for (const [key, raw] of Object.entries(filter)) {
 		const value = metadata[key];
-		if (raw && typeof raw === "object" && "$in" in (raw as object)) {
-			const list = (raw as { $in: unknown[] }).$in;
-			if (!list.includes(value)) {
-				return false;
+		if (raw && typeof raw === "object") {
+			const rec = raw as Record<string, unknown>;
+			if ("$in" in rec) {
+				const list = rec.$in as unknown[];
+				if (!list.includes(value)) {
+					return false;
+				}
+				continue;
 			}
-		} else if (raw && typeof raw === "object" && "$gte" in (raw as object)) {
-			if (typeof value !== "number" || value < (raw as { $gte: number }).$gte) {
-				return false;
+			if ("$gte" in rec || "$lte" in rec) {
+				if (typeof value !== "number") {
+					return false;
+				}
+				if (typeof rec.$gte === "number" && value < rec.$gte) {
+					return false;
+				}
+				if (typeof rec.$lte === "number" && value > rec.$lte) {
+					return false;
+				}
+				continue;
 			}
-		} else if (value !== raw) {
+		}
+		if (value !== raw) {
 			return false;
 		}
 	}

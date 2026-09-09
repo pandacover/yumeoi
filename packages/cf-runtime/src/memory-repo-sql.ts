@@ -113,16 +113,41 @@ export const sqlMemoryRepoLayer = Layer.effect(
 				),
 			searchMemoryFts: (match, filters) =>
 				Effect.gen(function* () {
-					const clauses = [
-						sql`memories_fts MATCH ${match}`,
-						sql`memories.valid_to IS NULL`,
-						sql`memories.state = ${"active"}`,
-					];
+					const clauses = [sql`memories_fts MATCH ${match}`];
+					const asOf = filters.asOf ?? null;
+					if (asOf != null) {
+						clauses.push(sql`memories.observed_at <= ${asOf}`);
+						clauses.push(
+							sql`(memories.valid_to IS NULL OR memories.valid_to > ${new Date(asOf).toISOString()})`,
+						);
+					} else {
+						clauses.push(sql`memories.valid_to IS NULL`);
+						if (filters.includeDormant) {
+							clauses.push(sql`(memories.state = ${"active"} OR memories.state = ${"dormant"})`);
+						} else {
+							clauses.push(sql`memories.state = ${"active"}`);
+						}
+					}
 					if (filters.kinds.length > 0) {
 						clauses.push(sql.in("memories.kind", [...filters.kinds]));
 					}
+					if (filters.types && filters.types.length > 0) {
+						clauses.push(sql.in("memories.type", [...filters.types]));
+					}
 					if (filters.since !== null) {
-						clauses.push(sql`memories.created_at >= ${filters.since}`);
+						clauses.push(
+							sql`COALESCE(memories.event_at, memories.observed_at, memories.created_at) >= ${filters.since}`,
+						);
+					}
+					if (filters.from != null) {
+						clauses.push(
+							sql`COALESCE(memories.event_at, memories.observed_at, memories.created_at) >= ${filters.from}`,
+						);
+					}
+					if (filters.to != null) {
+						clauses.push(
+							sql`COALESCE(memories.event_at, memories.observed_at, memories.created_at) <= ${filters.to}`,
+						);
 					}
 					if (filters.sources.length > 0) {
 						clauses.push(sql`EXISTS (
@@ -131,15 +156,15 @@ export const sqlMemoryRepoLayer = Layer.effect(
 							AND ${sql.in("memory_sources.source_id", [...filters.sources])}
 						)`);
 					}
-					const rows = yield* sql<{ id: string }>`
-						SELECT memories.id
+					const rows = yield* sql<{ id: string; bm25: number }>`
+						SELECT memories.id, bm25(memories_fts) AS bm25
 						FROM memories_fts
 						JOIN memories ON memories.rowid = memories_fts.rowid
 						WHERE ${sql.and(clauses)}
-						ORDER BY rank
+						ORDER BY bm25(memories_fts)
 						LIMIT ${filters.limit}
 					`;
-					return rows.map((row, rank) => ({ id: row.id, rank }));
+					return rows.map((row, rank) => ({ id: row.id, rank, bm25: row.bm25 }));
 				}),
 			searchChunkFts: (match, filters) =>
 				Effect.gen(function* () {
@@ -578,6 +603,12 @@ export const sqlMemoryRepoLayer = Layer.effect(
 					if (patch.importance !== undefined) {
 						yield* sql`UPDATE memories SET importance = ${patch.importance}, updated_at = ${now} WHERE id = ${id}`;
 					}
+					if (patch.kind !== undefined) {
+						yield* sql`UPDATE memories SET kind = ${patch.kind}, updated_at = ${now} WHERE id = ${id}`;
+					}
+					if (patch.eventAt !== undefined) {
+						yield* sql`UPDATE memories SET event_at = ${patch.eventAt}, updated_at = ${now} WHERE id = ${id}`;
+					}
 					const rows = yield* sql<MemoryRow>`SELECT * FROM memories WHERE id = ${id} LIMIT 1`;
 					const row = rows[0];
 					if (!row) {
@@ -671,6 +702,111 @@ export const sqlMemoryRepoLayer = Layer.effect(
 				sql<{ id: string }>`
 					SELECT id FROM memories WHERE valid_to IS NOT NULL OR state != ${"active"}
 				`.pipe(Effect.map((rows) => rows.map((row) => row.id))),
+			recordAccess: (ids, at) =>
+				Effect.gen(function* () {
+					if (ids.length === 0) {
+						return;
+					}
+					yield* sql`
+						UPDATE memories
+						SET access_count = access_count + 1,
+							last_accessed_at = ${at},
+							state = CASE WHEN state = ${"dormant"} THEN ${"active"} ELSE state END
+						WHERE ${sql.in("id", [...ids])}
+					`;
+				}),
+			listByEntities: (entityIds, filters) =>
+				Effect.gen(function* () {
+					if (entityIds.length === 0) {
+						return [];
+					}
+					const rows = yield* sql<{ id: string }>`
+						SELECT DISTINCT memories.id
+						FROM memories
+						JOIN memory_entities ON memory_entities.memory_id = memories.id
+						WHERE ${sql.in("memory_entities.entity_id", [...entityIds])}
+						AND memories.state = ${"active"}
+						LIMIT ${filters.limit}
+					`;
+					return rows.map((row, rank) => ({ id: row.id, rank }));
+				}),
+			listRecentEpisodic: (sinceEventAt, limit) =>
+				sql<MemoryRow>`
+					SELECT * FROM memories
+					WHERE type = ${"episodic"}
+					AND state = ${"active"}
+					AND COALESCE(event_at, observed_at, created_at) >= ${sinceEventAt}
+					ORDER BY COALESCE(event_at, observed_at, created_at) DESC
+					LIMIT ${limit}
+				`.pipe(Effect.map((rows) => rows.map(toMemory))),
+			listEdges: (ids) =>
+				Effect.gen(function* () {
+					if (ids.length === 0) {
+						return [];
+					}
+					const rows = yield* sql<{ src: string; dst: string; relation: string }>`
+						SELECT src, dst, relation FROM memory_edges
+						WHERE ${sql.in("src", [...ids])} OR ${sql.in("dst", [...ids])}
+					`;
+					return rows;
+				}),
+			listHistory: (memoryId) =>
+				sql<{
+					id: string;
+					memory_id: string;
+					text: string;
+					type: Memory["type"];
+					kind: Memory["kind"];
+					confidence: number;
+					valid_from: string | null;
+					valid_to: string | null;
+					state: Memory["state"];
+					changed_at: number;
+					reason: string;
+				}>`
+					SELECT * FROM memory_history WHERE memory_id = ${memoryId} ORDER BY changed_at
+				`.pipe(
+					Effect.map((rows) =>
+						rows.map((row) => ({
+							id: row.id,
+							memoryId: row.memory_id,
+							text: row.text,
+							type: row.type,
+							kind: row.kind,
+							confidence: row.confidence,
+							validFrom: row.valid_from,
+							validTo: row.valid_to,
+							state: row.state,
+							changedAt: row.changed_at,
+							reason: row.reason,
+						})),
+					),
+				),
+			insertFeedback: (row) =>
+				sql`
+					INSERT INTO memory_feedback (id, memory_id, client_id, signal, note, created_at)
+					VALUES (${crypto.randomUUID()}, ${row.memoryId}, ${row.clientId}, ${row.signal}, ${row.note ?? null}, ${Date.now()})
+				`.pipe(Effect.asVoid),
+			getQueryPlan: (hash, now) =>
+				Effect.gen(function* () {
+					const rows = yield* sql<{ plan: string; expires_at: number }>`
+						SELECT plan, expires_at FROM query_cache WHERE hash = ${hash} LIMIT 1
+					`;
+					const row = rows[0];
+					if (!row || row.expires_at < now) {
+						return null;
+					}
+					try {
+						return JSON.parse(row.plan) as import("@yumeoi/domain").QueryPlan;
+					} catch {
+						return null;
+					}
+				}),
+			putQueryPlan: (hash, plan, expiresAt) =>
+				sql`
+					INSERT OR REPLACE INTO query_cache (hash, plan, expires_at)
+					VALUES (${hash}, ${JSON.stringify(plan)}, ${expiresAt})
+				`.pipe(Effect.asVoid),
 		});
 	}),
 );

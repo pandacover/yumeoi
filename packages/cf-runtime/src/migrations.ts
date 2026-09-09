@@ -274,3 +274,100 @@ const v4Statements = [
 	`CREATE INDEX IF NOT EXISTS memories_event_at ON memories(event_at)`,
 	`CREATE INDEX IF NOT EXISTS memories_retention ON memories(state, retention)`,
 ];
+
+const rebuildFts = [
+	"DROP TRIGGER IF EXISTS memories_ai",
+	"DROP TRIGGER IF EXISTS memories_ad",
+	"DROP TRIGGER IF EXISTS memories_au",
+	"DROP TABLE IF EXISTS memories_fts",
+	`CREATE VIRTUAL TABLE memories_fts USING fts5(
+		text,
+		content='memories',
+		content_rowid='rowid',
+		tokenize = "porter unicode61"
+	)`,
+	`CREATE TRIGGER IF NOT EXISTS memories_ai AFTER INSERT ON memories BEGIN
+		INSERT INTO memories_fts(rowid, text) VALUES (new.rowid, new.text);
+	END`,
+	`CREATE TRIGGER IF NOT EXISTS memories_ad AFTER DELETE ON memories BEGIN
+		INSERT INTO memories_fts(memories_fts, rowid, text) VALUES('delete', old.rowid, old.text);
+	END`,
+	`CREATE TRIGGER IF NOT EXISTS memories_au AFTER UPDATE ON memories BEGIN
+		INSERT INTO memories_fts(memories_fts, rowid, text) VALUES('delete', old.rowid, old.text);
+		INSERT INTO memories_fts(rowid, text) VALUES (new.rowid, new.text);
+	END`,
+	"DROP TRIGGER IF EXISTS chunks_ai",
+	"DROP TRIGGER IF EXISTS chunks_ad",
+	"DROP TRIGGER IF EXISTS chunks_au",
+	"DROP TABLE IF EXISTS chunks_fts",
+	`CREATE VIRTUAL TABLE chunks_fts USING fts5(
+		text,
+		content='chunks',
+		content_rowid='rowid',
+		tokenize = "porter unicode61"
+	)`,
+	`CREATE TRIGGER IF NOT EXISTS chunks_ai AFTER INSERT ON chunks BEGIN
+		INSERT INTO chunks_fts(rowid, text) VALUES (new.rowid, new.text);
+	END`,
+	`CREATE TRIGGER IF NOT EXISTS chunks_ad AFTER DELETE ON chunks BEGIN
+		INSERT INTO chunks_fts(chunks_fts, rowid, text) VALUES('delete', old.rowid, old.text);
+	END`,
+	`CREATE TRIGGER IF NOT EXISTS chunks_au AFTER UPDATE ON chunks BEGIN
+		INSERT INTO chunks_fts(chunks_fts, rowid, text) VALUES('delete', old.rowid, old.text);
+		INSERT INTO chunks_fts(rowid, text) VALUES (new.rowid, new.text);
+	END`,
+	`CREATE TABLE IF NOT EXISTS query_cache (
+		hash TEXT PRIMARY KEY NOT NULL,
+		plan TEXT NOT NULL,
+		expires_at INTEGER NOT NULL
+	)`,
+];
+
+export const memoryStoreV5Migration: Effect.Effect<void, unknown, SqlClient> = Effect.gen(
+	function* () {
+		const sql = yield* SqlClient;
+		const started = Date.now();
+		const run = (statement: string) =>
+			sql.unsafe(statement).pipe(Effect.orElseSucceed(() => undefined));
+		for (const statement of [
+			"DROP TRIGGER IF EXISTS memories_ai",
+			"DROP TRIGGER IF EXISTS memories_ad",
+			"DROP TRIGGER IF EXISTS memories_au",
+			"DROP TABLE IF EXISTS memories_fts",
+			"DROP TRIGGER IF EXISTS chunks_ai",
+			"DROP TRIGGER IF EXISTS chunks_ad",
+			"DROP TRIGGER IF EXISTS chunks_au",
+			"DROP TABLE IF EXISTS chunks_fts",
+		]) {
+			yield* run(statement);
+		}
+		const memoryFts = `CREATE VIRTUAL TABLE memories_fts USING fts5(text, content='memories', content_rowid='rowid', tokenize = "porter unicode61")`;
+		const chunkFts = `CREATE VIRTUAL TABLE chunks_fts USING fts5(text, content='chunks', content_rowid='rowid', tokenize = "porter unicode61")`;
+		const memoryFtsFallback = `CREATE VIRTUAL TABLE memories_fts USING fts5(text, content='memories', content_rowid='rowid')`;
+		const chunkFtsFallback = `CREATE VIRTUAL TABLE chunks_fts USING fts5(text, content='chunks', content_rowid='rowid')`;
+		const memoryCreated = yield* sql.unsafe(memoryFts).pipe(
+			Effect.as(true),
+			Effect.orElseSucceed(() => false),
+		);
+		if (!memoryCreated) {
+			yield* sql.unsafe(memoryFtsFallback);
+		}
+		const chunkCreated = yield* sql.unsafe(chunkFts).pipe(
+			Effect.as(true),
+			Effect.orElseSucceed(() => false),
+		);
+		if (!chunkCreated) {
+			yield* sql.unsafe(chunkFtsFallback);
+		}
+		for (const statement of rebuildFts.filter(
+			(item) =>
+				item.startsWith("CREATE TRIGGER") ||
+				item.startsWith("CREATE TABLE IF NOT EXISTS query_cache"),
+		)) {
+			yield* run(statement);
+		}
+		yield* run("INSERT INTO memories_fts(memories_fts) VALUES('rebuild')");
+		yield* run("INSERT INTO chunks_fts(chunks_fts) VALUES('rebuild')");
+		console.info(`0005_fts_porter rebuilt FTS in ${Date.now() - started}ms`);
+	},
+);

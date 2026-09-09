@@ -12,6 +12,7 @@ import { evaluateRecall } from "./eval-run.ts";
 import { extractorLayer } from "./extractor.ts";
 import { hashEmbeddingsLayer } from "./hash-embeddings.ts";
 import { heuristicLlmLayer } from "./heuristic-llm.ts";
+import { identityRerankerLayer } from "./reranker.ts";
 
 const set = JSON.parse(
 	readFileSync(new URL("../../../docs/eval/recall-set.json", import.meta.url), "utf8"),
@@ -25,6 +26,7 @@ const layer = Layer.mergeAll(
 	Layer.provide(consolidatorLayer, heuristicLlmLayer),
 	inMemoryVectorIndexLayer(),
 	inMemoryObjectStoreLayer(),
+	identityRerankerLayer,
 );
 
 describe("recall eval set", () => {

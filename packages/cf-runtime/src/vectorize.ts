@@ -34,12 +34,13 @@ export const vectorizeLayer = (index: Vectorize) =>
 					})),
 				);
 			}),
-		query: ({ values, namespace, topK, filter }) =>
+		query: ({ values, namespace, topK, filter, returnValues }) =>
 			runVectorize(async () => {
 				const queryOptions: VectorizeQueryOptions = {
 					namespace,
 					topK,
 					returnMetadata: "none",
+					returnValues: Boolean(returnValues),
 				};
 				if (filter) {
 					queryOptions.filter = filter as VectorizeVectorMetadataFilter;
@@ -49,6 +50,7 @@ export const vectorizeLayer = (index: Vectorize) =>
 					id: match.id,
 					score: match.score,
 					...(match.metadata ? { metadata: match.metadata as Record<string, unknown> } : {}),
+					...(match.values ? { values: Array.from(match.values) } : {}),
 				}));
 			}),
 		deleteByIds: (ids) =>

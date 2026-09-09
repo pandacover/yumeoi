@@ -289,4 +289,25 @@ describe("M4 MCP OAuth", () => {
 		expect(listed.ok).toBe(true);
 		expect(await listed.text()).toContain("list_sources");
 	});
+
+	it("exposes remember and forget on tools/list", async () => {
+		const listed = await SELF.fetch("https://example.com/mcp", {
+			method: "POST",
+			headers: {
+				"content-type": "application/json",
+				accept: "application/json, text/event-stream",
+				...auth,
+			},
+			body: JSON.stringify({
+				jsonrpc: "2.0",
+				id: 1,
+				method: "tools/list",
+				params: {},
+			}),
+		});
+		expect(listed.ok).toBe(true);
+		const text = await listed.text();
+		expect(text).toContain("remember");
+		expect(text).toContain("forget");
+	});
 });

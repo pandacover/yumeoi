@@ -7,12 +7,15 @@ import type {
 	ExtractedRelation,
 	IngestResult,
 	Memory,
+	MemoryEdgeRow,
+	MemoryHistoryRow,
 	MemoryKind,
 	MemoryOrigin,
 	MemoryState,
 	MemoryType,
 	NotFound,
 	Provenance,
+	QueryPlan,
 	Source,
 } from "@yumeoi/domain";
 import { Context, type Effect } from "effect";
@@ -60,6 +63,8 @@ export type MemoryPatch = {
 	readonly state?: MemoryState;
 	readonly confidence?: number;
 	readonly importance?: number;
+	readonly kind?: MemoryKind;
+	readonly eventAt?: number | null;
 };
 
 export type CommitBatch = {
@@ -97,11 +102,17 @@ export type SearchFilters = {
 	readonly kinds: ReadonlyArray<MemoryKind>;
 	readonly since: number | null;
 	readonly limit: number;
+	readonly types?: ReadonlyArray<MemoryType>;
+	readonly from?: number | null;
+	readonly to?: number | null;
+	readonly asOf?: number | null;
+	readonly includeDormant?: boolean;
 };
 
 export type RankedId = {
 	readonly id: string;
 	readonly rank: number;
+	readonly bm25?: number;
 };
 
 export class MemoryRepo extends Context.Service<
@@ -202,5 +213,32 @@ export class MemoryRepo extends Context.Service<
 			readonly limit: number;
 		}) => Effect.Effect<ReadonlyArray<Chunk & { readonly sourceId: string }>, unknown>;
 		readonly listInactiveMemoryIds: () => Effect.Effect<ReadonlyArray<string>, unknown>;
+		readonly recordAccess: (ids: ReadonlyArray<string>, at: number) => Effect.Effect<void, unknown>;
+		readonly listByEntities: (
+			entityIds: ReadonlyArray<string>,
+			filters: SearchFilters,
+		) => Effect.Effect<ReadonlyArray<RankedId>, unknown>;
+		readonly listRecentEpisodic: (
+			sinceEventAt: number,
+			limit: number,
+		) => Effect.Effect<ReadonlyArray<Memory>, unknown>;
+		readonly listEdges: (
+			ids: ReadonlyArray<string>,
+		) => Effect.Effect<ReadonlyArray<MemoryEdgeRow>, unknown>;
+		readonly listHistory: (
+			memoryId: string,
+		) => Effect.Effect<ReadonlyArray<MemoryHistoryRow>, unknown>;
+		readonly insertFeedback: (row: {
+			readonly memoryId: string;
+			readonly clientId: string;
+			readonly signal: 1 | -1;
+			readonly note?: string;
+		}) => Effect.Effect<void, unknown>;
+		readonly getQueryPlan: (hash: string, now: number) => Effect.Effect<QueryPlan | null, unknown>;
+		readonly putQueryPlan: (
+			hash: string,
+			plan: QueryPlan,
+			expiresAt: number,
+		) => Effect.Effect<void, unknown>;
 	}
 >()("@yumeoi/memory/MemoryRepo") {}

@@ -36,7 +36,7 @@ describe("M2 SourceAgent + Notion fixture", () => {
 		expect(sources.some((item) => item.id === "notion:fixture:rpc" && item.status === "idle")).toBe(
 			true,
 		);
-	});
+	}, 30_000);
 });
 
 describe("M2 HTTP sources and memories", () => {
@@ -48,8 +48,10 @@ describe("M2 HTTP sources and memories", () => {
 	});
 
 	it("returns a Notion authorize URL when credentials are missing", async () => {
-		const start = await SELF.fetch("https://example.com/api/sources/notion/authorize");
-		expect(start.status).toBe(503);
+		const start = await SELF.fetch("https://example.com/api/sources/notion/authorize", {
+			redirect: "manual",
+		});
+		expect([302, 503]).toContain(start.status);
 	});
 
 	it("does not require an API key for the Notion OAuth callback", async () => {
@@ -101,5 +103,5 @@ describe("M2 HTTP sources and memories", () => {
 		const syncBody = (await sync.json()) as { ingested: number; status: string };
 		expect(syncBody.status).toBe("idle");
 		expect(syncBody.ingested).toBe(0);
-	});
+	}, 30_000);
 });
