@@ -48,6 +48,32 @@ OPENROUTER_API_KEY=… bun run eval:m1
 
 Writes per-document input/output/reasoning tokens plus precision/recall to `docs/eval/m1-results.json` and refreshes `docs/eval/m1.md`.
 
+## CI and Cloudflare deploy
+
+GitHub Actions:
+
+- [`.github/workflows/ci.yml`](.github/workflows/ci.yml) — lint, typecheck, tests, and `bun run deploy:dry-run` on every push and pull request.
+- [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) — preview Worker version on pull requests; production deploy on push to `main` (or **Actions → Deploy → Run workflow**).
+
+Cloud Agent environment: [`.cursor/environment.json`](.cursor/environment.json) (`bun install --frozen-lockfile`, plus a `dev` terminal). Add the same Cloudflare credentials as Cloud Agent secrets so agents can run Wrangler.
+
+Required GitHub Actions secrets (`Settings → Secrets and variables → Actions`, and optionally Environments `preview` / `production`):
+
+| Secret | Used by |
+|---|---|
+| `CLOUDFLARE_API_TOKEN` | Preview and production Wrangler (Workers Scripts Edit, D1 Edit, Vectorize Edit, R2 Edit, Account Settings Read) |
+| `CLOUDFLARE_ACCOUNT_ID` | Wrangler account |
+| `OPENROUTER_API_KEY` | Production Worker secret |
+| `OPENAI_API_KEY` | Optional production fallback |
+| `YUMEOI_API_KEY` | Production Worker secret |
+| `YUMEOI_USER_ID` | Production Worker secret |
+| `TOKEN_ENCRYPTION_KEY` | Production Worker secret |
+| `NOTION_CLIENT_ID` | Production Notion OAuth |
+| `NOTION_CLIENT_SECRET` | Production Notion OAuth |
+| `NOTION_REDIRECT_URI` | Production Notion OAuth |
+
+Create the API token at [Cloudflare API Tokens](https://dash.cloudflare.com/profile/api-tokens). Production deploy runs `bun run deploy` (`apps/app/scripts/deploy-prod.sh`): provision Vectorize metadata indexes, apply D1 migrations, build, then `wrangler deploy` with a secrets file.
+
 ## Vectorize (remote)
 
 ```sh

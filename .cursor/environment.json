@@ -1,0 +1,11 @@
+{
+	"name": "yumeoi",
+	"install": "bun install --frozen-lockfile",
+	"terminals": [
+		{
+			"name": "dev",
+			"command": "bun run dev",
+			"description": "Local Worker via Vite + Wrangler: UI, MCP, ingest, and agents."
+		}
+	]
+}
