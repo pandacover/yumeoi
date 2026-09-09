@@ -204,6 +204,45 @@ export const recallContext = (input: Partial<RecallQuery> & { query: string; nam
 		const provenance = yield* repo.provenanceFor(kept);
 		const why = new Map(kept.map((id) => [id, whyFor(id, lists)] as const));
 		const format = query.format ?? "markdown";
+		const entityIds = [
+			...new Set(keptMemories.flatMap((memory) => memory.entities.map((entity) => entity.id))),
+		];
+		const graphRels = entityIds.length > 0 ? yield* repo.listRelations(entityIds, plan.asOf) : [];
+		const nameById = new Map(
+			keptMemories.flatMap((memory) =>
+				memory.entities.map((entity) => [entity.id, entity.name] as const),
+			),
+		);
+		for (const rel of graphRels) {
+			if (!nameById.has(rel.srcEntity)) {
+				const entity = yield* repo.getEntity(rel.srcEntity);
+				if (entity) {
+					nameById.set(entity.id, entity.name);
+				}
+			}
+			if (!nameById.has(rel.dstEntity)) {
+				const entity = yield* repo.getEntity(rel.dstEntity);
+				if (entity) {
+					nameById.set(entity.id, entity.name);
+				}
+			}
+		}
+		const relations = graphRels.flatMap((rel) => {
+			const src = nameById.get(rel.srcEntity);
+			const dst = nameById.get(rel.dstEntity);
+			if (!src || !dst) {
+				return [];
+			}
+			return [
+				{
+					src,
+					predicate: rel.predicate,
+					dst,
+					memoryId: rel.memoryId,
+					since: rel.validFrom,
+				},
+			];
+		});
 		const result: RecallResult = packRecall({
 			memories: keptMemories,
 			scores,
@@ -216,6 +255,7 @@ export const recallContext = (input: Partial<RecallQuery> & { query: string; nam
 			includeEvidence,
 			conflicts: edges.filter((edge) => edge.relation === "contradicts"),
 			format,
+			relations,
 		});
 		const packedIds = result.memories.map((hit) => hit.memory.id);
 		if (packedIds.length > 0) {

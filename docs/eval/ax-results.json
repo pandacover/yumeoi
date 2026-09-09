@@ -1,24 +1,24 @@
 {
 	"live": false,
-	"generatedAt": "2026-09-09T19:37:47.908Z",
-	"success": 0.9333333333333333,
-	"tokenRatio": 0.18614260931761714,
+	"generatedAt": "2026-09-09T20:27:44.427Z",
+	"success": 0.9375,
+	"tokenRatio": 0.17581728500242938,
 	"docsMatch": true,
 	"results": [
 		{
 			"id": "remember-then-answer",
 			"name": "Remember three facts then answer",
 			"ok": true,
-			"jsonTokens": 738,
-			"mdTokens": 109,
+			"jsonTokens": 926,
+			"mdTokens": 110,
 			"rememberCount": 3
 		},
 		{
 			"id": "correct-fact",
 			"name": "Correct a wrong fact",
 			"ok": true,
-			"jsonTokens": 252,
-			"mdTokens": 38,
+			"jsonTokens": 287,
+			"mdTokens": 40,
 			"rememberCount": 1
 		},
 		{
@@ -41,7 +41,7 @@
 			"id": "feedback-plus",
 			"name": "Feedback +1 on a recalled line",
 			"ok": true,
-			"jsonTokens": 250,
+			"jsonTokens": 282,
 			"mdTokens": 36,
 			"rememberCount": 1
 		},
@@ -49,7 +49,7 @@
 			"id": "feedback-minus",
 			"name": "Feedback -1 on a recalled line",
 			"ok": true,
-			"jsonTokens": 249,
+			"jsonTokens": 280,
 			"mdTokens": 34,
 			"rememberCount": 1
 		},
@@ -73,7 +73,7 @@
 			"id": "conflict-pair",
 			"name": "Conflict pair surfaces both sides",
 			"ok": true,
-			"jsonTokens": 241,
+			"jsonTokens": 273,
 			"mdTokens": 30,
 			"rememberCount": 1
 		},
@@ -81,7 +81,7 @@
 			"id": "markdown-default",
 			"name": "Recall returns markdown citations",
 			"ok": true,
-			"jsonTokens": 256,
+			"jsonTokens": 287,
 			"mdTokens": 40,
 			"rememberCount": 1
 		},
@@ -124,6 +124,14 @@
 			"jsonTokens": 0,
 			"mdTokens": 0,
 			"rememberCount": 0
+		},
+		{
+			"id": "profile-inject",
+			"name": "Profile is stable semantic only",
+			"ok": true,
+			"jsonTokens": 0,
+			"mdTokens": 0,
+			"rememberCount": 1
 		}
 	]
 }

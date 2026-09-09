@@ -5,6 +5,8 @@ import {
 	ExtractedMemory,
 	QueryPlan,
 	RerankResult,
+	ResolveDecision,
+	SummaryResult,
 } from "./schema.ts";
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -42,6 +44,8 @@ export const extractedMemoriesJsonSchema = () => toOpenAiJsonSchema(ExtractedMem
 export const consolidateDecisionJsonSchema = () => toOpenAiJsonSchema(ConsolidateDecision);
 export const rerankResultJsonSchema = () => toOpenAiJsonSchema(RerankResult);
 export const queryPlanJsonSchema = () => toOpenAiJsonSchema(QueryPlan);
+export const resolveDecisionJsonSchema = () => toOpenAiJsonSchema(ResolveDecision);
+export const summaryResultJsonSchema = () => toOpenAiJsonSchema(SummaryResult);
 
 const everyObjectStrict = (node: unknown): boolean => {
 	if (Array.isArray(node)) {

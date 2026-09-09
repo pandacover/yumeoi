@@ -215,6 +215,22 @@
 			"seed": "",
 			"steps": [{ "tool": "list_sources", "input": {} }],
 			"assert": { "sourcesOk": true }
+		},
+		{
+			"id": "profile-inject",
+			"name": "Profile is stable semantic only",
+			"seed": "Luv prefers Effect 4 for the yumeoi domain layer.",
+			"steps": [
+				{
+					"tool": "remember",
+					"input": {
+						"text": "Luv prefers Effect 4 for the yumeoi domain layer.",
+						"mode": "verbatim"
+					}
+				},
+				{ "tool": "profile", "input": {} }
+			],
+			"assert": { "profileContains": "Effect 4" }
 		}
 	]
 }

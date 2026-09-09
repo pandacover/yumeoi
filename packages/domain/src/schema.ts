@@ -261,10 +261,20 @@ export const ChunkHit = Schema.Struct({
 });
 export type ChunkHit = typeof ChunkHit.Type;
 
+export const GraphRelationLine = Schema.Struct({
+	src: Schema.String,
+	predicate: Schema.String,
+	dst: Schema.String,
+	memoryId: Schema.String,
+	since: Schema.NullOr(Schema.String),
+});
+export type GraphRelationLine = typeof GraphRelationLine.Type;
+
 export const RecallResult = Schema.Struct({
 	memories: Schema.Array(MemoryHit),
 	chunks: Schema.Array(ChunkHit),
 	markdown: Schema.optionalKey(Schema.String),
+	relations: Schema.optionalKey(Schema.Array(GraphRelationLine)),
 });
 export type RecallResult = typeof RecallResult.Type;
 
@@ -310,6 +320,17 @@ export type RerankMode = typeof RerankMode.Type;
 
 export const QueryIntent = Schema.Literals(["lookup", "howto", "history", "who", "open"]);
 export type QueryIntent = typeof QueryIntent.Type;
+
+export const ResolveDecision = Schema.Struct({
+	same: Schema.Boolean,
+	reason: Schema.String,
+});
+export type ResolveDecision = typeof ResolveDecision.Type;
+
+export const SummaryResult = Schema.Struct({
+	text: Schema.String,
+});
+export type SummaryResult = typeof SummaryResult.Type;
 
 export const QueryPlan = Schema.Struct({
 	text: Schema.String,

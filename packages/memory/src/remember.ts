@@ -1,3 +1,5 @@
+export { canonicalName } from "./graph/names.ts";
+
 import type {
 	AddMemoryRequest,
 	ExtractedEntity,
@@ -11,20 +13,14 @@ import { classifyStatement } from "./classify.ts";
 import { Consolidator } from "./consolidator.ts";
 import { Embeddings } from "./embeddings.ts";
 import { Extractor } from "./extractor.ts";
+import { extractMentions, extractRelations } from "./graph/names.ts";
+import { writeGraphForMemory } from "./graph/write.ts";
 import { newShortId } from "./ids.ts";
 import { overlapCandidates, similarExistingMemories } from "./ingest.ts";
 import { type InsertMemoryInput, MemoryRepo } from "./memory-repo.ts";
 import { memoryVectorId } from "./recall.ts";
 import { coerceTypeKind } from "./types.ts";
 import { VALID_TO_SENTINEL, VectorIndex } from "./vector-index.ts";
-
-export const canonicalName = (name: string): string =>
-	name
-		.normalize("NFKD")
-		.replace(/\p{M}/gu, "")
-		.toLowerCase()
-		.replace(/^(the|a|an|mr|ms|mrs|dr)\s+/u, "")
-		.trim();
 
 export const parseEventAt = (value: string | null | undefined): number | null => {
 	if (!value) {
@@ -61,35 +57,19 @@ const memoryVectorMeta = (memory: Memory, sourceId: string, documentId: string, 
 
 const writeEntities = (
 	memoryId: string,
-	entities: ReadonlyArray<ExtractedEntity>,
+	extracted: ExtractedMemory,
 	values: ReadonlyArray<number> | undefined,
 	userId: string,
 	now: number,
 ) =>
-	Effect.gen(function* () {
-		const repo = yield* MemoryRepo;
-		const index = yield* VectorIndex;
-		for (const entity of entities) {
-			const upserted = yield* repo.upsertEntity({
-				name: entity.name,
-				canonical: canonicalName(entity.name),
-				type: entity.type,
-				now,
-			});
-			yield* repo.linkMemoryEntity(memoryId, upserted.id, "mention");
-			if (values) {
-				yield* index
-					.upsert([
-						{
-							id: `e:${upserted.id}`,
-							values,
-							namespace: userId,
-							metadata: { sourceId: "entity", kind: "entity", type: entity.type, ts: now },
-						},
-					])
-					.pipe(Effect.catchTag("ProviderUnavailable", () => Effect.void));
-			}
-		}
+	writeGraphForMemory({
+		memoryId,
+		userId,
+		now,
+		entities: extracted.entities,
+		relations: extracted.relations,
+		...(values ? { values } : {}),
+		validFrom: extracted.validFrom,
 	});
 
 const toOutcome = (
@@ -123,6 +103,8 @@ export type RememberParams = {
 	readonly sourceId?: string;
 	readonly dedupe?: boolean;
 	readonly documentDate?: number | null;
+	readonly origin?: Memory["origin"];
+	readonly observedAt?: number | null;
 };
 
 const rememberOne = (params: {
@@ -133,6 +115,7 @@ const rememberOne = (params: {
 	readonly origin: Memory["origin"];
 	readonly documentDate: number | null;
 	readonly dedupe: boolean;
+	readonly observedAt?: number | null;
 }) =>
 	Effect.gen(function* () {
 		const repo = yield* MemoryRepo;
@@ -238,7 +221,7 @@ const rememberOne = (params: {
 					])
 					.pipe(Effect.catchTag("ProviderUnavailable", () => Effect.void));
 			}
-			yield* writeEntities(created.id, params.extracted.entities, values, params.userId, now);
+			yield* writeEntities(created.id, params.extracted, values, params.userId, now);
 			return toOutcome("conflict", created, [target.id]);
 		}
 
@@ -275,6 +258,7 @@ const rememberOne = (params: {
 				sourceId: params.sourceId,
 				state,
 				...(params.clientRef !== undefined ? { clientRef: params.clientRef } : {}),
+				...(params.observedAt !== undefined ? { observedAt: params.observedAt } : {}),
 			},
 			{ supersedes },
 		);
@@ -308,7 +292,7 @@ const rememberOne = (params: {
 				])
 				.pipe(Effect.catchTag("ProviderUnavailable", () => Effect.void));
 		}
-		yield* writeEntities(created.id, params.extracted.entities, values, params.userId, now);
+		yield* writeEntities(created.id, params.extracted, values, params.userId, now);
 		return toOutcome(
 			supersedes ? "superseded" : "created",
 			created,
@@ -356,9 +340,20 @@ export const remember = (params: RememberParams) =>
 			const classified = yield* classifyStatement(params.text);
 			items.push(classified);
 		}
+		const withGraph = items.map((item) => {
+			if (item.entities.length > 0) {
+				return item;
+			}
+			const mentions = extractMentions(item.text);
+			return {
+				...item,
+				entities: mentions,
+				relations: extractRelations(item.text, mentions),
+			};
+		});
 
 		const outcomes: RememberOutcomeItem[] = [];
-		for (const [index, extracted] of items.entries()) {
+		for (const [index, extracted] of withGraph.entries()) {
 			const clientRef = params.items?.[index]?.clientRef;
 			outcomes.push(
 				yield* rememberOne({
@@ -366,9 +361,10 @@ export const remember = (params: RememberParams) =>
 					sourceId,
 					extracted,
 					...(clientRef ? { clientRef } : {}),
-					origin: "agent",
+					origin: params.origin ?? "agent",
 					documentDate,
 					dedupe,
+					...(params.observedAt !== undefined ? { observedAt: params.observedAt } : {}),
 				}),
 			);
 		}

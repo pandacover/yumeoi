@@ -20,8 +20,10 @@ import { defaultLlmConfig } from "@yumeoi/domain";
 import {
 	addMemory,
 	CHAT_SYSTEM_PROMPT,
+	changesSince,
 	citationsFromRecall,
 	forgetMemories,
+	getEntityView,
 	getMemoryDetail,
 	heuristicChatAnswer,
 	type IngestState,
@@ -29,14 +31,19 @@ import {
 	ingestDocument,
 	initialIngestState,
 	lastUserText,
+	listEntityIndex,
 	loadDocument,
 	MemoryRepo,
+	profileLines,
 	recallContext,
+	recordChatEpisode,
 	recordFeedback,
 	reindexStore,
 	remember,
 	runIngestStep,
+	runLayerJobs,
 	searchMemories,
+	timelineAbout,
 	updateMemoryRecord,
 } from "@yumeoi/memory";
 import { callable } from "agents";
@@ -137,16 +144,29 @@ export class MemoryAgent extends AIChatAgent<Env, MemoryAgentState> {
 		}
 
 		const tools = createMemoryChatTools(this);
+		const profile = await this.#runtime.runPromise(profileLines(this.name)).catch(() => "");
+		const system = profile
+			? `${CHAT_SYSTEM_PROMPT}\n\nStable user profile (semantic only; not a recall citation):\n${profile}`
+			: CHAT_SYSTEM_PROMPT;
+		const wrappedFinish: GenerateTextOnFinishCallback<ToolSet> = async (event) => {
+			await onFinish(event);
+			const userText = lastUserText(this.messages);
+			if (userText) {
+				await this.#runtime
+					.runPromise(recordChatEpisode(this.name, userText))
+					.catch(() => undefined);
+			}
+		};
 		let lastError: unknown;
 		for (const provider of this.#providers) {
 			try {
 				const result = streamText({
 					model: chatLanguageModel(provider, defaultLlmConfig.chat),
-					system: CHAT_SYSTEM_PROMPT,
+					system,
 					messages: await convertToModelMessages(this.messages),
 					tools,
 					stopWhen: isStepCount(5),
-					onFinish,
+					onFinish: wrappedFinish,
 					...(options?.abortSignal ? { abortSignal: options.abortSignal } : {}),
 					providerOptions: chatProviderOptions(defaultLlmConfig.chat.effort),
 				});
@@ -161,6 +181,9 @@ export class MemoryAgent extends AIChatAgent<Env, MemoryAgentState> {
 	}
 
 	async #heuristicChat(query: string) {
+		if (query) {
+			await this.#runtime.runPromise(recordChatEpisode(this.name, query)).catch(() => undefined);
+		}
 		const { text, citations } = await this.answerQuestion(query);
 		return heuristicChatResponse(text, citations);
 	}
@@ -409,6 +432,8 @@ export class MemoryAgent extends AIChatAgent<Env, MemoryAgentState> {
 		dedupe?: boolean;
 		mode?: "extract" | "verbatim";
 		sourceId?: string;
+		origin?: "extracted" | "agent" | "user" | "derived" | "chat";
+		observedAt?: number | null;
 	}) {
 		return this.#runtime.runPromise(
 			remember({
@@ -418,6 +443,8 @@ export class MemoryAgent extends AIChatAgent<Env, MemoryAgentState> {
 				sourceId: input.sourceId ?? `agent:${this.name}`,
 				...(input.text !== undefined ? { text: input.text } : {}),
 				...(input.items !== undefined ? { items: input.items as never } : {}),
+				...(input.origin ? { origin: input.origin } : {}),
+				...(input.observedAt !== undefined ? { observedAt: input.observedAt } : {}),
 			}),
 		);
 	}
@@ -471,6 +498,63 @@ export class MemoryAgent extends AIChatAgent<Env, MemoryAgentState> {
 	@callable()
 	async getMemoryDetail(id: string) {
 		return this.#runtime.runPromise(getMemoryDetail(id));
+	}
+
+	@callable()
+	async getEntity(input: { name?: string; id?: string; hops?: number }) {
+		return this.#runtime.runPromise(
+			getEntityView({
+				namespace: this.name,
+				...(input.name !== undefined ? { name: input.name } : {}),
+				...(input.id !== undefined ? { id: input.id } : {}),
+				...(input.hops !== undefined ? { hops: input.hops } : {}),
+			}),
+		);
+	}
+
+	@callable()
+	async timeline(input: {
+		about: string;
+		from?: number | null;
+		to?: number | null;
+		limit?: number;
+	}) {
+		return this.#runtime.runPromise(
+			timelineAbout({
+				userId: this.name,
+				about: input.about,
+				from: input.from ?? null,
+				to: input.to ?? null,
+				limit: input.limit ?? 20,
+			}),
+		);
+	}
+
+	@callable()
+	async changesSince(since: number) {
+		return this.#runtime.runPromise(changesSince(since));
+	}
+
+	@callable()
+	async splitEntity(input: { id: string; newName: string }) {
+		return this.#runtime.runPromise(
+			Effect.flatMap(MemoryRepo, (repo) => repo.splitEntity(input.id, input.newName)),
+		);
+	}
+
+	@callable()
+	async promote() {
+		return this.#runtime.runPromise(runLayerJobs(this.name));
+	}
+
+	@callable()
+	async profile() {
+		return this.#runtime.runPromise(profileLines(this.name));
+	}
+
+	@callable()
+	async entityIndex() {
+		return this.#runtime.runPromise(listEntityIndex());
 	}
 
 	@callable()

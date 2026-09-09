@@ -17,6 +17,7 @@
 		"eval:recall": "bun apps/app/scripts/eval-recall.ts",
 		"eval:types": "bun apps/app/scripts/eval-types.ts",
 		"eval:ax": "bun apps/app/scripts/eval-ax.ts",
+		"eval:entities": "bun apps/app/scripts/eval-entities.ts",
 		"deploy": "bun run --filter @yumeoi/app deploy:prod",
 		"deploy:dry-run": "bun run --filter @yumeoi/app deploy:dry-run",
 		"deploy:preview": "bun run --filter @yumeoi/app deploy:preview"

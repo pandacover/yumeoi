@@ -318,6 +318,67 @@ export function createYumeoiMcpServer(env: Env) {
 	);
 
 	server.registerTool(
+		"get_entity",
+		{
+			description: "Entity summary, relations, and recent memories. Pass name or id.",
+			annotations: { readOnlyHint: true },
+			inputSchema: {
+				name: z.string().optional(),
+				id: z.string().optional(),
+				hops: z.number().optional(),
+			},
+		},
+		async (input) => {
+			try {
+				const view = await agentFor(env).getEntity(omitUndefined(input));
+				if (!view) {
+					return toolError("not_found", "entity was not found");
+				}
+				return jsonText(view);
+			} catch (caught) {
+				return asError(caught);
+			}
+		},
+	);
+
+	server.registerTool(
+		"timeline",
+		{
+			description: "Chronological episodic memories about an entity or topic.",
+			annotations: { readOnlyHint: true },
+			inputSchema: {
+				about: z.string(),
+				from: z.number().nullable().optional(),
+				to: z.number().nullable().optional(),
+				limit: z.number().optional(),
+			},
+		},
+		async (input) => {
+			try {
+				return jsonText(await agentFor(env).timeline(omitUndefined(input) as never));
+			} catch (caught) {
+				return asError(caught);
+			}
+		},
+	);
+
+	server.registerTool(
+		"changes_since",
+		{
+			description: "Created, updated, superseded, or forgotten memory ids since a timestamp.",
+			annotations: { readOnlyHint: true },
+			inputSchema: { since: z.number() },
+		},
+		async ({ since }) => {
+			try {
+				return jsonText(await agentFor(env).changesSince(since));
+			} catch (caught) {
+				return asError(caught);
+			}
+		},
+	);
+
+	server.registerTool(
 		"recall_context",
 		{
 			description: "Deprecated alias of recall. Prefer recall.",
@@ -394,13 +455,8 @@ export function createYumeoiMcpServer(env: Env) {
 		"memory://profile",
 		"Stable semantic memories about the user",
 		async () => {
-			const hits = await agentFor(env).search({
-				query: "user profile preferences identity",
-				kinds: ["preference", "fact", "relationship"],
-				types: ["semantic"],
-				limit: 25,
-			});
-			return hits.map((hit) => `- ${hit.memory.text}`).join("\n") || "(no profile memories yet)";
+			const text = await agentFor(env).profile();
+			return text || "(no profile memories yet)";
 		},
 	);
 	stubResource("procedures", "memory://procedures", "Procedural memories", async () => {
@@ -411,12 +467,10 @@ export function createYumeoiMcpServer(env: Env) {
 		});
 		return hits.map((hit) => `- ${hit.memory.text}`).join("\n") || "(no procedures yet)";
 	});
-	stubResource(
-		"entities",
-		"memory://entities",
-		"Known entities (graph, filled in P4)",
-		async () => "(entity index lands in P4)",
-	);
+	stubResource("entities", "memory://entities", "Known entities", async () => {
+		const text = await agentFor(env).entityIndex();
+		return text || "(no entities yet)";
+	});
 
 	server.registerResource(
 		"sources",

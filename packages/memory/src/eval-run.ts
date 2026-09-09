@@ -4,6 +4,7 @@ import { classifyStatement } from "./classify.ts";
 import { Consolidator } from "./consolidator.ts";
 import {
 	addTokenTotals,
+	type EntitiesSet,
 	type EvalDocument,
 	type EvalScore,
 	type EvalTokenTotals,
@@ -12,12 +13,15 @@ import {
 	scoreClassification,
 	scoreExtraction,
 	scoreRecall,
+	scoreResolution,
 	summarizeClassification,
 	summarizeRecall,
+	summarizeResolution,
 	summarizeScores,
 	type TypesCase,
 } from "./eval.ts";
 import { Extractor } from "./extractor.ts";
+import { resolveEntity } from "./graph/resolve.ts";
 import { ingestDocument } from "./ingest.ts";
 import { Llm } from "./llm.ts";
 import { recallContext } from "./recall.ts";
@@ -154,6 +158,9 @@ export const evaluateRecall = (
 				since: null,
 				budgetTokens: options?.budgetTokens ?? 2000,
 				rerank: options?.rerank ?? false,
+				...(query.asOf ? { asOf: Date.parse(`${query.asOf}T00:00:00.000Z`) } : {}),
+				...(query.from ? { from: Date.parse(`${query.from}T00:00:00.000Z`) } : {}),
+				...(query.to ? { to: Date.parse(`${query.to}T00:00:00.000Z`) } : {}),
 			});
 			const latencyMs = Date.now() - started;
 			const packed = result.memories.map((hit) => ({
@@ -190,6 +197,30 @@ export const evaluateClassification = (statements: ReadonlyArray<TypesCase>) =>
 			effort: config.effort,
 			summary: summarizeClassification(scores),
 			usage,
+			scores,
+		};
+	});
+
+export const evaluateResolution = (set: EntitiesSet) =>
+	Effect.gen(function* () {
+		const scores = [];
+		const now = Date.now();
+		for (const pair of set.pairs) {
+			const left = yield* resolveEntity({
+				mention: pair.left,
+				namespace: "resolve-eval",
+				now,
+			});
+			const right = yield* resolveEntity({
+				mention: pair.right,
+				namespace: "resolve-eval",
+				now,
+			});
+			scores.push(scoreResolution(pair, left.id === right.id));
+		}
+		return {
+			job: "resolve" as const,
+			summary: summarizeResolution(scores),
 			scores,
 		};
 	});

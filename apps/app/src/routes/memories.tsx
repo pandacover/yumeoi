@@ -169,6 +169,18 @@ function MemoriesPage() {
 									{hit.memory.kind}
 								</p>
 								<p className="mt-2">{hit.memory.text}</p>
+								{hit.memory.entities.length > 0 ? (
+									<div className="mt-3 flex flex-wrap gap-1">
+										{hit.memory.entities.map((entity) => (
+											<span
+												key={`${hit.memory.id}:${entity.id}`}
+												className="rounded-full border border-[var(--line)] px-2 py-0.5 text-[11px] text-[var(--muted)]"
+											>
+												{entity.name}
+											</span>
+										))}
+									</div>
+								) : null}
 								<p className="mt-3 text-sm text-[var(--muted)]">
 									{hit.provenance[0]?.title ?? "no provenance"}
 									{hit.provenance[0]?.url ? ` · ${hit.provenance[0].url}` : ""}

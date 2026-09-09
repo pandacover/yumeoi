@@ -7,6 +7,7 @@ import {
 	type RecallQuery,
 } from "@yumeoi/domain";
 import { Effect } from "effect";
+import { properNamesInQuery } from "../graph/names.ts";
 import { Llm } from "../llm.ts";
 import { MemoryRepo } from "../memory-repo.ts";
 
@@ -152,7 +153,7 @@ export const planQueryFast = (
 		temporalTo: query.to ?? temporal.to,
 		asOf: query.asOf ?? null,
 		typeWeights: typeWeightsFor(intent),
-		entities: query.entities ? [...query.entities] : [],
+		entities: query.entities ? [...query.entities] : properNamesInQuery(query.query),
 		intent,
 	};
 };

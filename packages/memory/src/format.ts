@@ -42,6 +42,21 @@ export const formatMemoryLine = (
 export const formatChunkLine = (index: number, hit: ChunkHit): string =>
 	`[${index}] (evidence, src ${JSON.stringify(hit.title)}) ${hit.chunk.text.slice(0, 240)}`;
 
+export const formatRelationLine = (
+	index: number,
+	line: {
+		readonly src: string;
+		readonly predicate: string;
+		readonly dst: string;
+		readonly since: string | null;
+	},
+	evidenceIndex?: number,
+): string => {
+	const since = line.since ? ` (since ${line.since.slice(0, 7)}` : "";
+	const cite = evidenceIndex ? ` [${evidenceIndex}]` : "";
+	return `[${index}] ${line.src} —${line.predicate}→ ${line.dst}${since}${since ? ")" : ""}${cite}`;
+};
+
 export const formatIdFooter = (
 	entries: ReadonlyArray<{ readonly id: string; readonly index: number }>,
 ): string => {
@@ -55,6 +70,13 @@ export const packMarkdown = (input: {
 	readonly memories: ReadonlyArray<MemoryHit>;
 	readonly chunks: ReadonlyArray<ChunkHit>;
 	readonly conflicts?: ReadonlyArray<{ readonly src: string; readonly dst: string }>;
+	readonly relations?: ReadonlyArray<{
+		readonly src: string;
+		readonly predicate: string;
+		readonly dst: string;
+		readonly memoryId: string;
+		readonly since: string | null;
+	}>;
 }): string => {
 	const lines: string[] = [];
 	const footer: Array<{ id: string; index: number }> = [];
@@ -78,8 +100,13 @@ export const packMarkdown = (input: {
 			formatMemoryLine(offset + 1, hit, otherIndex ? { conflictWith: otherIndex } : undefined),
 		);
 	});
-	input.chunks.forEach((hit, offset) => {
+	(input.relations ?? []).forEach((line, offset) => {
 		const index = input.memories.length + offset + 1;
+		footer.push({ id: line.memoryId, index });
+		lines.push(formatRelationLine(index, line, indexById.get(line.memoryId)));
+	});
+	input.chunks.forEach((hit, offset) => {
+		const index = input.memories.length + (input.relations?.length ?? 0) + offset + 1;
 		footer.push({ id: hit.chunk.id, index });
 		lines.push(formatChunkLine(index, hit));
 	});
