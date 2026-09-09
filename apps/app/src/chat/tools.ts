@@ -28,13 +28,11 @@ export const createMemoryChatTools = (agent: {
 			"Recall relevant memories and supporting chunks for a question. Call this before answering anything about the user's notes, preferences, documents, or past decisions.",
 		inputSchema: z.object({
 			query: z.string().describe("Question or topic to recall memories for"),
-			sources: z.array(z.string()).optional(),
 			kinds: z.array(kindSchema).optional(),
 		}),
-		execute: async ({ query, sources, kinds }) => {
+		execute: async ({ query, kinds }) => {
 			const result = await agent.recall({
 				query,
-				...(sources ? { sources } : {}),
 				...(kinds ? { kinds } : {}),
 				rerank: true,
 				format: "json",
