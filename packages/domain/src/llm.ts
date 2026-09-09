@@ -3,7 +3,16 @@ import { Schema } from "effect";
 export const LlmEffort = Schema.Literals(["none", "low", "medium", "high"]);
 export type LlmEffort = typeof LlmEffort.Type;
 
-export const LlmJobName = Schema.Literals(["chat", "extract", "consolidate", "rerank", "classify"]);
+export const LlmJobName = Schema.Literals([
+	"chat",
+	"extract",
+	"consolidate",
+	"rerank",
+	"classify",
+	"query",
+	"resolve",
+	"summarize",
+]);
 export type LlmJobName = typeof LlmJobName.Type;
 
 export const LlmProviderName = Schema.Literals(["openrouter", "openai"]);
@@ -24,6 +33,9 @@ export const LlmConfig = Schema.Struct({
 	consolidate: LlmJobConfig,
 	rerank: LlmJobConfig,
 	classify: LlmJobConfig,
+	query: LlmJobConfig,
+	resolve: LlmJobConfig,
+	summarize: LlmJobConfig,
 });
 export type LlmConfig = typeof LlmConfig.Type;
 
@@ -39,6 +51,9 @@ export const EXTRACT_MODEL_ID = "gpt-5.6-luna";
 export const CONSOLIDATE_MODEL_ID = "gpt-5.6-luna";
 export const RERANK_MODEL_ID = "gpt-5.6-luna";
 export const CLASSIFY_MODEL_ID = "gpt-5.6-luna";
+export const QUERY_MODEL_ID = "gpt-5.6-luna";
+export const RESOLVE_MODEL_ID = "gpt-5.6-luna";
+export const SUMMARIZE_MODEL_ID = "gpt-5.6-luna";
 export const TERRA_MODEL_ID = "gpt-5.6-terra";
 
 export const defaultLlmConfig: LlmConfig = {
@@ -47,6 +62,9 @@ export const defaultLlmConfig: LlmConfig = {
 	consolidate: { model: CONSOLIDATE_MODEL_ID, effort: "none" },
 	rerank: { model: RERANK_MODEL_ID, effort: "none" },
 	classify: { model: CLASSIFY_MODEL_ID, effort: "none" },
+	query: { model: QUERY_MODEL_ID, effort: "none" },
+	resolve: { model: RESOLVE_MODEL_ID, effort: "none" },
+	summarize: { model: SUMMARIZE_MODEL_ID, effort: "none" },
 };
 
 export type LlmUsage = {
