@@ -3,12 +3,14 @@ import {
 	defaultLlmConfig,
 	type ExtractedMemories,
 	type ExtractedMemory,
+	type QueryPlan,
 	type RerankResult,
 	SchemaViolation,
 } from "@yumeoi/domain";
 import { Effect, Layer, Schema } from "effect";
 import { heuristicClassify, heuristicExtract } from "./heuristic-extract.ts";
 import { Llm } from "./llm.ts";
+import { detectIntent, planQueryFast, tokenizeQuery } from "./retrieval/plan.ts";
 
 export { heuristicClassify, heuristicExtract } from "./heuristic-extract.ts";
 
@@ -17,7 +19,12 @@ export const heuristicLlmLayer = Layer.succeed(Llm, {
 	drainUsage: () => Effect.succeed([]),
 	structured: ({ schema, schemaName, user }) =>
 		Effect.gen(function* () {
-			let payload: ExtractedMemories | ConsolidateDecision | RerankResult | ExtractedMemory;
+			let payload:
+				| ExtractedMemories
+				| ConsolidateDecision
+				| RerankResult
+				| ExtractedMemory
+				| QueryPlan;
 			if (schemaName === "extracted_memories") {
 				payload = { memories: heuristicExtract(user) };
 			} else if (schemaName === "extracted_memory") {
@@ -29,6 +36,13 @@ export const heuristicLlmLayer = Layer.succeed(Llm, {
 					(match) => match[0] ?? "",
 				);
 				payload = { ids: ids.filter((id) => id.length > 0) };
+			} else if (schemaName === "query_plan") {
+				const fast = planQueryFast({ query: user });
+				payload = {
+					...fast,
+					terms: tokenizeQuery(user),
+					intent: detectIntent(user),
+				};
 			} else {
 				payload = { memories: heuristicExtract(user) };
 			}

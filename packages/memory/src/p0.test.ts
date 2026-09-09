@@ -14,6 +14,7 @@ import { heuristicLlmLayer } from "./heuristic-llm.ts";
 import { ingestDocument } from "./ingest.ts";
 import { MemoryRepo } from "./memory-repo.ts";
 import { memoryVectorId, recallContext, searchMemories } from "./recall.ts";
+import { identityRerankerLayer } from "./reranker.ts";
 import { VectorIndex } from "./vector-index.ts";
 
 const userId = "p0-user";
@@ -26,6 +27,7 @@ const base = Layer.mergeAll(
 	Layer.provide(consolidatorLayer, heuristicLlmLayer),
 	inMemoryVectorIndexLayer(),
 	inMemoryObjectStoreLayer(),
+	identityRerankerLayer,
 );
 
 const countingEmbeddings = (counts: { calls: number }) =>
@@ -96,9 +98,11 @@ describe("P0 retrieval defects", () => {
 						memoryMemoryRepoLayer(userId),
 						countingEmbeddings({ calls: 0 }),
 						heuristicLlmLayer,
+						Layer.provide(extractorLayer, heuristicLlmLayer),
 						scriptedConsolidator("supersedes"),
 						inMemoryVectorIndexLayer(),
 						inMemoryObjectStoreLayer(),
+						identityRerankerLayer,
 					),
 				),
 			),
@@ -137,9 +141,11 @@ describe("P0 retrieval defects", () => {
 						memoryMemoryRepoLayer(userId),
 						countingEmbeddings({ calls: 0 }),
 						heuristicLlmLayer,
+						Layer.provide(extractorLayer, heuristicLlmLayer),
 						scriptedConsolidator("duplicate"),
 						inMemoryVectorIndexLayer(),
 						inMemoryObjectStoreLayer(),
+						identityRerankerLayer,
 					),
 				),
 			),
@@ -156,6 +162,7 @@ describe("P0 retrieval defects", () => {
 			Layer.provide(consolidatorLayer, heuristicLlmLayer),
 			inMemoryVectorIndexLayer(),
 			inMemoryObjectStoreLayer(),
+			identityRerankerLayer,
 		);
 		const program = Effect.gen(function* () {
 			yield* ingestDocument({
@@ -204,7 +211,10 @@ describe("P0 retrieval defects", () => {
 			expect(before.length).toBeGreaterThan(1);
 			const workflow = before.find((memory) => memory.text.toLowerCase().includes("workflow"));
 			expect(workflow).toBeTruthy();
-			const linkedBefore = yield* repo.provenanceFor([workflow?.id ?? ""]);
+			if (!workflow) {
+				return;
+			}
+			const linkedBefore = yield* repo.provenanceFor([workflow.id]);
 			expect(linkedBefore.length).toBeGreaterThan(0);
 
 			yield* ingestDocument({
@@ -221,7 +231,7 @@ describe("P0 retrieval defects", () => {
 					url: null,
 				},
 			});
-			const stillThere = yield* repo.getMemory(workflow?.id ?? "");
+			const stillThere = yield* repo.getMemory(workflow.id);
 			expect(stillThere.id).toBe(workflow?.id);
 			const linkedAfter = yield* repo.provenanceFor([workflow?.id ?? ""]);
 			expect(linkedAfter).toEqual([]);

@@ -21,6 +21,7 @@ export interface VectorMatch {
 	readonly id: string;
 	readonly score: number;
 	readonly metadata?: Record<string, unknown>;
+	readonly values?: ReadonlyArray<number>;
 }
 
 export const VALID_TO_SENTINEL = 8_640_000_000_000_000;
@@ -36,6 +37,7 @@ export class VectorIndex extends Context.Service<
 			readonly namespace: string;
 			readonly topK: number;
 			readonly filter?: Record<string, unknown>;
+			readonly returnValues?: boolean;
 		}) => Effect.Effect<ReadonlyArray<VectorMatch>, ProviderUnavailable>;
 		readonly deleteByIds: (ids: ReadonlyArray<string>) => Effect.Effect<void, ProviderUnavailable>;
 	}

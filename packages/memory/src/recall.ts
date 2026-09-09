@@ -1,32 +1,13 @@
-import {
-	type ProviderUnavailable,
-	type RecallQuery,
-	type RecallResult,
-	RerankResult,
-	rerankResultJsonSchema,
-	type SearchQuery,
-} from "@yumeoi/domain";
+import type { Memory, RecallQuery, RecallResult, SearchQuery } from "@yumeoi/domain";
 import { Effect } from "effect";
 import { Embeddings } from "./embeddings.ts";
-import { Llm } from "./llm.ts";
 import { MemoryRepo } from "./memory-repo.ts";
-import { estimateTokens, ftsMatchQuery, recencyBoost, rrfScore } from "./rrf.ts";
-import { VectorIndex, type VectorMatch } from "./vector-index.ts";
-
-type Embedder = {
-	readonly embed: (
-		texts: ReadonlyArray<string>,
-	) => Effect.Effect<ReadonlyArray<ReadonlyArray<number>>, ProviderUnavailable>;
-};
-
-type Indexer = {
-	readonly query: (options: {
-		readonly values: ReadonlyArray<number>;
-		readonly namespace: string;
-		readonly topK: number;
-		readonly filter?: Record<string, unknown>;
-	}) => Effect.Effect<ReadonlyArray<VectorMatch>, ProviderUnavailable>;
-};
+import { collectCandidates } from "./retrieval/candidates.ts";
+import { defaultRetrievalConfig } from "./retrieval/config.ts";
+import { fuseMemories, validAt, weightedRrf, whyFor } from "./retrieval/fuse.ts";
+import { packRecall } from "./retrieval/pack.ts";
+import { planQuery, planQueryFast } from "./retrieval/plan.ts";
+import { crossEncode, llmRerank, mmrDiversify } from "./retrieval/rerank.ts";
 
 const VECTOR_KIND_CHUNK = "chunk";
 const memoryVectorId = (id: string) => `m:${id}`;
@@ -47,6 +28,13 @@ const defaultSearch = (query: Partial<SearchQuery> & { query: string }): SearchQ
 	kinds: query.kinds ?? [],
 	since: query.since ?? null,
 	limit: query.limit ?? 20,
+	...(query.types ? { types: query.types } : {}),
+	...(query.from !== undefined ? { from: query.from } : {}),
+	...(query.to !== undefined ? { to: query.to } : {}),
+	...(query.asOf !== undefined ? { asOf: query.asOf } : {}),
+	...(query.entities ? { entities: query.entities } : {}),
+	...(query.includeDormant !== undefined ? { includeDormant: query.includeDormant } : {}),
+	...(query.cursor !== undefined ? { cursor: query.cursor } : {}),
 });
 
 const defaultRecall = (query: Partial<RecallQuery> & { query: string }): RecallQuery => ({
@@ -54,267 +42,187 @@ const defaultRecall = (query: Partial<RecallQuery> & { query: string }): RecallQ
 	sources: query.sources ?? [],
 	kinds: query.kinds ?? [],
 	since: query.since ?? null,
-	budgetTokens: query.budgetTokens ?? 2000,
+	budgetTokens: query.budgetTokens ?? 1500,
 	rerank: query.rerank ?? true,
+	...(query.types ? { types: query.types } : {}),
+	...(query.from !== undefined ? { from: query.from } : {}),
+	...(query.to !== undefined ? { to: query.to } : {}),
+	...(query.asOf !== undefined ? { asOf: query.asOf } : {}),
+	...(query.entities ? { entities: query.entities } : {}),
+	...(query.include ? { include: query.include } : {}),
+	...(query.format ? { format: query.format } : {}),
+	...(query.plan ? { plan: query.plan } : {}),
+	...(query.rerankMode ? { rerankMode: query.rerankMode } : {}),
 });
 
-const vectorFilter = (filters: SearchQuery | RecallQuery, kind?: string) => {
-	const filter: Record<string, unknown> = {};
-	if (kind) {
-		filter.kind = kind;
-	} else if (filters.kinds.length === 1) {
-		filter.kind = filters.kinds[0];
-	} else if (filters.kinds.length > 1) {
-		filter.kind = { $in: [...filters.kinds] };
+const embedQuery = (text: string) =>
+	Effect.gen(function* () {
+		const embeddings = yield* Embeddings;
+		const vectors = yield* embeddings
+			.embed([text])
+			.pipe(
+				Effect.catchTag("ProviderUnavailable", () =>
+					Effect.succeed<ReadonlyArray<ReadonlyArray<number>>>([]),
+				),
+			);
+		return vectors[0];
+	});
+
+const uniqueIds = (ids: ReadonlyArray<string>): string[] => [...new Set(ids)];
+
+const collapseEdges = (
+	ids: ReadonlyArray<string>,
+	edges: ReadonlyArray<{ readonly src: string; readonly dst: string; readonly relation: string }>,
+	scores: Map<string, number>,
+): string[] => {
+	const drop = new Set<string>();
+	for (const edge of edges) {
+		if (edge.relation === "supersedes") {
+			if (ids.includes(edge.src) && ids.includes(edge.dst)) {
+				drop.add(edge.dst);
+			}
+		}
+		if (edge.relation === "same_episode" || edge.relation === "elaborates") {
+			if (ids.includes(edge.src) && ids.includes(edge.dst)) {
+				const srcScore = scores.get(edge.src) ?? 0;
+				const dstScore = scores.get(edge.dst) ?? 0;
+				drop.add(srcScore >= dstScore ? edge.dst : edge.src);
+			}
+		}
 	}
-	if (filters.sources.length === 1) {
-		filter.sourceId = filters.sources[0];
-	} else if (filters.sources.length > 1) {
-		filter.sourceId = { $in: [...filters.sources] };
-	}
-	if (filters.since !== null) {
-		filter.ts = { $gte: filters.since };
-	}
-	return Object.keys(filter).length > 0 ? filter : undefined;
+	return ids.filter((id) => !drop.has(id));
 };
 
-const embedQuery = (embeddings: Embedder, text: string) =>
-	embeddings
-		.embed([text])
-		.pipe(
-			Effect.catchTag("ProviderUnavailable", () =>
-				Effect.succeed<ReadonlyArray<ReadonlyArray<number>>>([]),
-			),
-		);
-
-const queryOrEmpty = (
-	index: Indexer,
-	options: {
-		readonly values: ReadonlyArray<number>;
-		readonly namespace: string;
-		readonly topK: number;
-		readonly filter?: Record<string, unknown>;
-	},
-) =>
-	(options.filter
-		? index.query({
-				values: options.values,
-				namespace: options.namespace,
-				topK: options.topK,
-				filter: options.filter,
-			})
-		: index.query({
-				values: options.values,
-				namespace: options.namespace,
-				topK: options.topK,
-			})
-	).pipe(
-		Effect.catchTag("ProviderUnavailable", () => Effect.succeed<ReadonlyArray<VectorMatch>>([])),
-	);
-
-const isActiveMemory = (memory: { readonly validTo: string | null }): boolean =>
-	memory.validTo === null;
-
-const searchMemoriesWithEmbedding = (
+export const searchMemories = (
 	input: Partial<SearchQuery> & { query: string; namespace: string },
-	queryValues: ReadonlyArray<number> | undefined,
 ) =>
 	Effect.gen(function* () {
 		const query = defaultSearch(input);
+		const plan = planQueryFast(query);
+		const values = yield* embedQuery(query.query);
+		const lists = yield* collectCandidates({
+			query,
+			plan,
+			namespace: input.namespace,
+			queryValues: values,
+			includeEvidence: false,
+		});
 		const repo = yield* MemoryRepo;
-		const index = yield* VectorIndex;
-
-		const match = ftsMatchQuery(query.query);
-		const fts = match
-			? yield* repo.searchMemoryFts(match, {
-					sources: query.sources,
-					kinds: query.kinds,
-					since: query.since,
-					limit: query.limit,
-				})
-			: [];
-
-		const memoryFilter = vectorFilter(query);
-		const vector = queryValues
-			? yield* queryOrEmpty(index, {
-					values: queryValues,
-					namespace: input.namespace,
-					topK: Math.min(40, Math.max(query.limit, 10)),
-					...(memoryFilter ? { filter: memoryFilter } : {}),
-				})
-			: [];
-
-		const memoryVectorIds = vector
-			.map((hit) => parseVectorId(hit.id))
-			.filter((parsed): parsed is { type: "memory"; id: string } => parsed?.type === "memory")
-			.map((parsed) => parsed.id);
-
-		const vectorMemories = yield* repo.listMemoriesByIds(memoryVectorIds);
-		const activeVectorIds = vectorMemories.filter(isActiveMemory).map((memory) => memory.id);
-
-		const fused = rrfScore([fts.map((row) => row.id), activeVectorIds]);
-		const timestamps = yield* repo.memoryTimestamps([...fused.keys()]);
-		const tsById = new Map(timestamps.map((row) => [row.id, row.createdAt]));
-		const ranked = [...fused.entries()]
-			.map(([id, score]) => ({
-				id,
-				score: recencyBoost(score, tsById.get(id) ?? 0),
-			}))
-			.sort((a, b) => b.score - a.score)
-			.slice(0, query.limit);
-
-		const memories = yield* repo.listMemoriesByIds(ranked.map((row) => row.id));
-		const provenance = yield* repo.provenanceFor(ranked.map((row) => row.id));
+		const ids = uniqueIds([...lists.fts, ...lists.vector, ...lists.graph, ...lists.recent]);
+		const memories = yield* repo.listMemoriesByIds(ids);
+		const scores = fuseMemories({
+			lists,
+			memories,
+			plan,
+			config: defaultRetrievalConfig,
+		});
+		const ranked = [...scores.entries()]
+			.sort((a, b) => b[1] - a[1])
+			.slice(0, query.limit)
+			.map(([id]) => id);
 		const byId = new Map(memories.map((memory) => [memory.id, memory]));
+		const provenance = yield* repo.provenanceFor(ranked);
 		const provenanceByMemory = new Map<string, Array<(typeof provenance)[number]>>();
 		for (const row of provenance) {
 			const list = provenanceByMemory.get(row.memoryId) ?? [];
 			list.push(row);
 			provenanceByMemory.set(row.memoryId, list);
 		}
-
-		return ranked.flatMap((row) => {
-			const memory = byId.get(row.id);
-			if (!memory || !isActiveMemory(memory)) {
+		return ranked.flatMap((id) => {
+			const memory = byId.get(id);
+			if (!memory || !validAt(memory, plan.asOf)) {
 				return [];
 			}
 			return [
 				{
 					memory,
-					score: row.score,
-					provenance: (provenanceByMemory.get(memory.id) ?? []).map(
-						({ memoryId: _memoryId, ...rest }) => rest,
-					),
+					score: scores.get(id) ?? 0,
+					provenance: (provenanceByMemory.get(id) ?? []).map(({ memoryId: _id, ...rest }) => rest),
+					why: whyFor(id, lists),
 				},
 			];
 		});
-	});
-
-export const searchMemories = (
-	input: Partial<SearchQuery> & { query: string; namespace: string },
-) =>
-	Effect.gen(function* () {
-		const embeddings = yield* Embeddings;
-		const [values] = yield* embedQuery(embeddings, input.query);
-		return yield* searchMemoriesWithEmbedding(input, values);
 	});
 
 export const recallContext = (input: Partial<RecallQuery> & { query: string; namespace: string }) =>
 	Effect.gen(function* () {
 		const query = defaultRecall(input);
 		const repo = yield* MemoryRepo;
-		const embeddings = yield* Embeddings;
-		const index = yield* VectorIndex;
-
-		const [values] = yield* embedQuery(embeddings, query.query);
-		let memories = yield* searchMemoriesWithEmbedding(
-			{
-				query: query.query,
-				sources: query.sources,
-				kinds: query.kinds,
-				since: query.since,
-				limit: 40,
-				namespace: input.namespace,
-			},
-			values,
-		);
-
-		const match = ftsMatchQuery(query.query);
-		const ftsChunks = match
-			? yield* repo.searchChunkFts(match, {
-					sources: query.sources,
-					kinds: query.kinds,
-					since: query.since,
-					limit: 40,
-				})
-			: [];
-		const vectorChunks = values
-			? yield* queryOrEmpty(index, {
-					values,
-					namespace: input.namespace,
-					topK: 40,
-					filter: { ...vectorFilter(query), kind: VECTOR_KIND_CHUNK },
-				})
-			: [];
-		const chunkVectorIds = vectorChunks
-			.map((hit) => parseVectorId(hit.id))
-			.filter((parsed): parsed is { type: "chunk"; id: string } => parsed?.type === "chunk")
-			.map((parsed) => parsed.id);
-		const fusedChunks = rrfScore([ftsChunks.map((row) => row.id), chunkVectorIds]);
-		const chunkMeta = yield* repo.chunkMeta([...fusedChunks.keys()]);
-		const metaById = new Map(chunkMeta.map((row) => [row.chunkId, row]));
-		const chunkIds = [...fusedChunks.entries()]
-			.map(([id, score]) => ({
-				id,
-				score: recencyBoost(score, metaById.get(id)?.updatedAt ?? 0),
-			}))
-			.sort((a, b) => b.score - a.score)
-			.slice(0, 20);
-		const chunks = yield* repo.listChunksByIds(chunkIds.map((row) => row.id));
-		const chunkById = new Map(chunks.map((chunk) => [chunk.id, chunk]));
-
-		if (query.rerank && memories.length > 1) {
-			const llm = yield* Llm;
-			const ranked = yield* llm.structured({
-				job: "rerank",
-				schema: RerankResult,
-				schemaName: "rerank_result",
-				jsonSchema: rerankResultJsonSchema(),
-				system: "Reorder memory ids by relevance to the query. Return every id exactly once.",
-				user: `Query: ${query.query}\n\n${memories
-					.map((hit) => `${hit.memory.id}: ${hit.memory.text}`)
-					.join("\n")}`,
+		const plan = yield* planQuery(query);
+		const values = yield* embedQuery(query.query);
+		const include = new Set(query.include ?? ["memories"]);
+		const includeEvidence = include.has("evidence");
+		const lists = yield* collectCandidates({
+			query,
+			plan,
+			namespace: input.namespace,
+			queryValues: values,
+			includeEvidence,
+		});
+		const memoryIds = uniqueIds([...lists.fts, ...lists.vector, ...lists.graph, ...lists.recent]);
+		const memories = yield* repo.listMemoriesByIds(memoryIds);
+		let scores = fuseMemories({
+			lists,
+			memories,
+			plan,
+			config: defaultRetrievalConfig,
+		});
+		const texts = new Map(memories.map((memory) => [memory.id, memory.text]));
+		const rankedIds = [...scores.entries()].sort((a, b) => b[1] - a[1]).map(([id]) => id);
+		const mode = query.rerankMode ?? (query.rerank ? defaultRetrievalConfig.defaultRerank : "none");
+		if (mode === "cross" && rankedIds.length > 1) {
+			scores = yield* crossEncode(query.query, rankedIds, texts, scores, defaultRetrievalConfig);
+		} else if (mode === "llm" && rankedIds.length > 1) {
+			const order = yield* llmRerank(query.query, rankedIds, texts);
+			const next = new Map(scores);
+			order.forEach((id, index) => {
+				next.set(id, (scores.get(id) ?? 0) * (1 + (order.length - index) / order.length));
 			});
-			const order = new Map(ranked.ids.map((id, index) => [id, index]));
-			memories = [...memories].sort(
-				(a, b) => (order.get(a.memory.id) ?? 999) - (order.get(b.memory.id) ?? 999),
-			);
+			scores = next;
 		}
-
-		const packedMemories = [];
-		let used = 0;
-		for (const hit of memories) {
-			const cost = estimateTokens(hit.memory.text);
-			if (used + cost > query.budgetTokens) {
-				break;
-			}
-			packedMemories.push(hit);
-			used += cost;
-		}
-
-		const seenDocuments = new Set(
-			packedMemories.flatMap((hit) => hit.provenance.map((row) => row.documentId)),
+		const afterRerank = [...scores.entries()].sort((a, b) => b[1] - a[1]).map(([id]) => id);
+		const diversified = mmrDiversify(
+			afterRerank,
+			scores,
+			lists.vectorValues,
+			defaultRetrievalConfig.mmrLambda,
+			40,
 		);
-		const packedChunks = [];
-		for (const ranked of chunkIds) {
-			const chunk = chunkById.get(ranked.id);
-			const meta = metaById.get(ranked.id);
-			if (!chunk || !meta) {
-				continue;
-			}
-			if (seenDocuments.has(chunk.documentId) && packedChunks.length > 0) {
-				continue;
-			}
-			const cost = estimateTokens(chunk.text);
-			if (used + cost > query.budgetTokens) {
-				break;
-			}
-			packedChunks.push({
-				chunk,
-				score: ranked.score,
-				title: meta.title,
-				url: meta.url,
-				sourceId: meta.sourceId,
-			});
-			seenDocuments.add(chunk.documentId);
-			used += cost;
+		const edges = yield* repo.listEdges(diversified);
+		const kept = collapseEdges(diversified, edges, scores);
+		const keptMemories = memories.filter((memory) => kept.includes(memory.id));
+		const chunkIds = uniqueIds([...lists.ftsChunks, ...lists.vectorChunks]);
+		const chunkScores = weightedRrf(
+			[
+				{ ids: lists.ftsChunks, weight: 1 },
+				{ ids: lists.vectorChunks, weight: 1 },
+			],
+			defaultRetrievalConfig.rrfK,
+		);
+		const chunks = includeEvidence ? yield* repo.listChunksByIds(chunkIds) : [];
+		const chunkMeta = includeEvidence ? yield* repo.chunkMeta(chunkIds) : [];
+		const provenance = yield* repo.provenanceFor(kept);
+		const why = new Map(kept.map((id) => [id, whyFor(id, lists)] as const));
+		const format = query.format ?? "markdown";
+		const result: RecallResult = packRecall({
+			memories: keptMemories,
+			scores,
+			why,
+			provenance,
+			chunks,
+			chunkScores,
+			chunkMeta,
+			budgetTokens: query.budgetTokens,
+			includeEvidence,
+			conflicts: edges.filter((edge) => edge.relation === "contradicts"),
+			format,
+		});
+		const packedIds = result.memories.map((hit) => hit.memory.id);
+		if (packedIds.length > 0) {
+			yield* repo.recordAccess(packedIds, Date.now());
 		}
-
-		const result: RecallResult = {
-			memories: packedMemories,
-			chunks: packedChunks,
-		};
 		return result;
 	});
 
 export { chunkVectorId, memoryVectorId, parseVectorId, VECTOR_KIND_CHUNK };
+export type { Memory };

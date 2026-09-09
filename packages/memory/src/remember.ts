@@ -142,7 +142,7 @@ const rememberOne = (params: {
 		if (params.clientRef) {
 			const existing = yield* repo.getMemoryByClientRef(params.clientRef);
 			if (existing) {
-				return toOutcome("duplicate", existing);
+				return { ...toOutcome("duplicate", existing), idempotent: true };
 			}
 		}
 		const coerced = coerceTypeKind(params.extracted.type, params.extracted.kind);
@@ -222,7 +222,7 @@ const rememberOne = (params: {
 				validFrom: params.extracted.validFrom,
 				origin: params.origin,
 				sourceId: params.sourceId,
-				clientRef: params.clientRef,
+				...(params.clientRef !== undefined ? { clientRef: params.clientRef } : {}),
 			};
 			const created = yield* repo.insertMemory(params.userId, insert);
 			yield* repo.insertEdge(created.id, target.id, "contradicts");
@@ -273,8 +273,8 @@ const rememberOne = (params: {
 				validTo,
 				origin: params.origin,
 				sourceId: params.sourceId,
-				clientRef: params.clientRef,
 				state,
+				...(params.clientRef !== undefined ? { clientRef: params.clientRef } : {}),
 			},
 			{ supersedes },
 		);
