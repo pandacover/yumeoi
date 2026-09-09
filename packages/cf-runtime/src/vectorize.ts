@@ -39,7 +39,7 @@ export const vectorizeLayer = (index: Vectorize) =>
 				const queryOptions: VectorizeQueryOptions = {
 					namespace,
 					topK,
-					returnMetadata: "all",
+					returnMetadata: "none",
 				};
 				if (filter) {
 					queryOptions.filter = filter as VectorizeVectorMetadataFilter;
@@ -50,5 +50,12 @@ export const vectorizeLayer = (index: Vectorize) =>
 					score: match.score,
 					...(match.metadata ? { metadata: match.metadata as Record<string, unknown> } : {}),
 				}));
+			}),
+		deleteByIds: (ids) =>
+			runVectorize(async () => {
+				if (ids.length === 0) {
+					return;
+				}
+				await index.deleteByIds([...ids]);
 			}),
 	});

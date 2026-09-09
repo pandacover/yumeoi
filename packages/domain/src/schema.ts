@@ -1,5 +1,10 @@
 import { Schema } from "effect";
 
+export const MemoryType = Schema.Literals(["semantic", "episodic", "procedural"]);
+export type MemoryType = typeof MemoryType.Type;
+
+export const MEMORY_TYPES = ["semantic", "episodic", "procedural"] as const;
+
 export const MemoryKind = Schema.Literals([
 	"fact",
 	"preference",
@@ -7,6 +12,8 @@ export const MemoryKind = Schema.Literals([
 	"task",
 	"relationship",
 	"event",
+	"procedure",
+	"rule",
 ]);
 export type MemoryKind = typeof MemoryKind.Type;
 
@@ -17,14 +24,65 @@ export const MEMORY_KINDS = [
 	"task",
 	"relationship",
 	"event",
+	"procedure",
+	"rule",
 ] as const;
+
+export const MemoryState = Schema.Literals([
+	"active",
+	"superseded",
+	"dormant",
+	"archived",
+	"forgotten",
+]);
+export type MemoryState = typeof MemoryState.Type;
+
+export const MemoryOrigin = Schema.Literals(["extracted", "agent", "user", "derived", "chat"]);
+export type MemoryOrigin = typeof MemoryOrigin.Type;
+
+export const EntityType = Schema.Literals([
+	"person",
+	"org",
+	"project",
+	"place",
+	"tool",
+	"topic",
+	"document",
+	"other",
+]);
+export type EntityType = typeof EntityType.Type;
+
+export const ExtractedEntity = Schema.Struct({
+	name: Schema.String,
+	type: EntityType,
+});
+export type ExtractedEntity = typeof ExtractedEntity.Type;
+
+export const ExtractedRelation = Schema.Struct({
+	subject: Schema.String,
+	predicate: Schema.String,
+	object: Schema.String,
+});
+export type ExtractedRelation = typeof ExtractedRelation.Type;
+
+export const MemoryEntityRef = Schema.Struct({
+	id: Schema.String,
+	name: Schema.String,
+	type: EntityType,
+});
+export type MemoryEntityRef = typeof MemoryEntityRef.Type;
 
 /** Structured-output shape used by extract (all fields required for OpenAI strict mode). */
 export const ExtractedMemory = Schema.Struct({
+	type: MemoryType,
 	kind: MemoryKind,
 	text: Schema.String,
 	confidence: Schema.Finite,
+	importance: Schema.Finite,
+	eventAt: Schema.NullOr(Schema.String),
 	validFrom: Schema.NullOr(Schema.String),
+	entities: Schema.Array(ExtractedEntity),
+	relations: Schema.Array(ExtractedRelation),
 });
 export type ExtractedMemory = typeof ExtractedMemory.Type;
 
@@ -33,12 +91,20 @@ export const ExtractedMemories = Schema.Struct({
 });
 export type ExtractedMemories = typeof ExtractedMemories.Type;
 
-export const ConsolidateAction = Schema.Literals(["new", "duplicate", "supersedes"]);
+export const ConsolidateAction = Schema.Literals([
+	"new",
+	"duplicate",
+	"supersedes",
+	"merge",
+	"contradicts",
+]);
 export type ConsolidateAction = typeof ConsolidateAction.Type;
 
 export const ConsolidateDecision = Schema.Struct({
 	action: ConsolidateAction,
 	targetId: Schema.NullOr(Schema.String),
+	mergedText: Schema.NullOr(Schema.String),
+	reason: Schema.String,
 });
 export type ConsolidateDecision = typeof ConsolidateDecision.Type;
 
@@ -55,8 +121,58 @@ export const Memory = Schema.Struct({
 	validFrom: Schema.NullOr(Schema.String),
 	validTo: Schema.NullOr(Schema.String),
 	supersedes: Schema.NullOr(Schema.String),
+	type: MemoryType,
+	state: MemoryState,
+	importance: Schema.Finite,
+	eventAt: Schema.NullOr(Schema.Finite),
+	observedAt: Schema.NullOr(Schema.Finite),
+	updatedAt: Schema.NullOr(Schema.Finite),
+	lastAccessedAt: Schema.NullOr(Schema.Finite),
+	accessCount: Schema.Int,
+	retention: Schema.Finite,
+	origin: MemoryOrigin,
+	clientRef: Schema.NullOr(Schema.String),
+	entities: Schema.Array(MemoryEntityRef),
 });
 export type Memory = typeof Memory.Type;
+
+export const defaultTypeForKind = (kind: MemoryKind): MemoryType => {
+	if (kind === "event" || kind === "task") {
+		return "episodic";
+	}
+	if (kind === "procedure" || kind === "rule") {
+		return "procedural";
+	}
+	return "semantic";
+};
+
+export const fillMemory = (
+	core: Pick<
+		Memory,
+		"id" | "kind" | "text" | "confidence" | "validFrom" | "validTo" | "supersedes"
+	> &
+		Partial<Memory>,
+): Memory => ({
+	id: core.id,
+	kind: core.kind,
+	text: core.text,
+	confidence: core.confidence,
+	validFrom: core.validFrom,
+	validTo: core.validTo,
+	supersedes: core.supersedes,
+	type: core.type ?? defaultTypeForKind(core.kind),
+	state: core.state ?? (core.validTo ? "superseded" : "active"),
+	importance: core.importance ?? core.confidence,
+	eventAt: core.eventAt ?? null,
+	observedAt: core.observedAt ?? null,
+	updatedAt: core.updatedAt ?? null,
+	lastAccessedAt: core.lastAccessedAt ?? null,
+	accessCount: core.accessCount ?? 0,
+	retention: core.retention ?? 1,
+	origin: core.origin ?? "extracted",
+	clientRef: core.clientRef ?? null,
+	entities: core.entities ?? [],
+});
 
 export const SourceKind = Schema.Literals(["notion", "gmail", "obsidian", "generic", "agent"]);
 export type SourceKind = typeof SourceKind.Type;
@@ -217,5 +333,26 @@ export const AddMemoryRequest = Schema.Struct({
 	kind: MemoryKind,
 	confidence: Schema.Finite,
 	sourceId: Schema.optionalKey(Schema.String),
+	type: Schema.optionalKey(MemoryType),
+	clientRef: Schema.optionalKey(Schema.String),
 });
 export type AddMemoryRequest = typeof AddMemoryRequest.Type;
+
+export const RememberAction = Schema.Literals([
+	"created",
+	"merged",
+	"duplicate",
+	"superseded",
+	"conflict",
+]);
+export type RememberAction = typeof RememberAction.Type;
+
+export const RememberOutcomeItem = Schema.Struct({
+	action: RememberAction,
+	id: Schema.String,
+	text: Schema.String,
+	type: MemoryType,
+	kind: MemoryKind,
+	affected: Schema.Array(Schema.String),
+});
+export type RememberOutcomeItem = typeof RememberOutcomeItem.Type;

@@ -30,6 +30,7 @@ import {
 	loadDocument,
 	MemoryRepo,
 	recallContext,
+	reindexStore,
 	runIngestStep,
 	searchMemories,
 } from "@yumeoi/memory";
@@ -356,6 +357,11 @@ export class MemoryAgent extends AIChatAgent<Env, MemoryAgentState> {
 		const userId = this.name;
 		const request = input.sourceId ? input : { ...input, sourceId: `agent:${userId}` };
 		return this.#runtime.runPromise(addMemory(userId, request));
+	}
+
+	@callable()
+	async reindex() {
+		return this.#runtime.runPromise(reindexStore(this.name));
 	}
 
 	@callable()

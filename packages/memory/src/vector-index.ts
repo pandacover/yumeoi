@@ -7,9 +7,13 @@ export interface VectorRecord {
 	readonly namespace: string;
 	readonly metadata: {
 		readonly sourceId: string;
-		readonly documentId: string;
+		readonly documentId?: string;
 		readonly kind: string;
+		readonly type?: string;
+		readonly state?: string;
 		readonly ts: number;
+		readonly eventAt?: number;
+		readonly validTo?: number;
 	};
 }
 
@@ -18,6 +22,8 @@ export interface VectorMatch {
 	readonly score: number;
 	readonly metadata?: Record<string, unknown>;
 }
+
+export const VALID_TO_SENTINEL = 8_640_000_000_000_000;
 
 export class VectorIndex extends Context.Service<
 	VectorIndex,
@@ -31,5 +37,6 @@ export class VectorIndex extends Context.Service<
 			readonly topK: number;
 			readonly filter?: Record<string, unknown>;
 		}) => Effect.Effect<ReadonlyArray<VectorMatch>, ProviderUnavailable>;
+		readonly deleteByIds: (ids: ReadonlyArray<string>) => Effect.Effect<void, ProviderUnavailable>;
 	}
 >()("@yumeoi/memory/VectorIndex") {}

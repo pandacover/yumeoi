@@ -1,8 +1,9 @@
 import type { Chunk, Document, Memory, Provenance, Source } from "@yumeoi/domain";
-import { NotFound } from "@yumeoi/domain";
+import { fillMemory, NotFound } from "@yumeoi/domain";
 import {
 	type CommitBatch,
 	MemoryRepo,
+	newShortId,
 	ObjectStore,
 	type SearchFilters,
 	VectorIndex,
@@ -34,6 +35,13 @@ type StoredMemory = {
 	validTo: string | null;
 	supersedes: string | null;
 	createdAt: number;
+	type: Memory["type"];
+	state: Memory["state"];
+	importance: number;
+	eventAt: number | null;
+	observedAt: number | null;
+	origin: Memory["origin"];
+	clientRef: string | null;
 };
 
 type Stored = {
@@ -43,6 +51,15 @@ type Stored = {
 	memories: StoredMemory[];
 	links: Array<Provenance & { memoryId: string }>;
 	updatedAt: Map<string, number>;
+	edges: Array<{ src: string; dst: string; relation: string }>;
+	entities: Array<{
+		id: string;
+		name: string;
+		canonical: string;
+		type: string;
+		mentionCount: number;
+	}>;
+	memoryEntities: Array<{ memoryId: string; entityId: string; role: string }>;
 };
 
 const empty = (): Stored => ({
@@ -52,6 +69,9 @@ const empty = (): Stored => ({
 	memories: [],
 	links: [],
 	updatedAt: new Map(),
+	edges: [],
+	entities: [],
+	memoryEntities: [],
 });
 
 export const inMemoryObjectStoreLayer = () => {
@@ -180,14 +200,19 @@ export const memoryMemoryRepoLayer = (userId = "test-user") => {
 		similarMemoryCandidates: (excludeIds, limit) =>
 			Effect.succeed(
 				db.memories
-					.filter((memory) => memory.validTo === null && !excludeIds.includes(memory.id))
+					.filter(
+						(memory) =>
+							memory.validTo === null &&
+							memory.state === "active" &&
+							!excludeIds.includes(memory.id),
+					)
 					.slice(0, limit)
 					.map(strip),
 			),
 		listRecentMemories: (limit) =>
 			Effect.succeed(
 				[...db.memories]
-					.filter((memory) => memory.validTo === null)
+					.filter((memory) => memory.validTo === null && memory.state === "active")
 					.sort((left, right) => right.createdAt - left.createdAt)
 					.slice(0, limit)
 					.map(strip),
@@ -241,6 +266,7 @@ export const memoryMemoryRepoLayer = (userId = "test-user") => {
 						const previous = db.memories.find((item) => item.id === memory.supersedes);
 						if (previous) {
 							previous.validTo = new Date(now).toISOString();
+							previous.state = "superseded";
 						}
 					}
 					db.memories.push({
@@ -252,6 +278,19 @@ export const memoryMemoryRepoLayer = (userId = "test-user") => {
 						validTo: memory.validTo,
 						supersedes: memory.supersedes,
 						createdAt: now,
+						type:
+							memory.type ??
+							(memory.kind === "event" || memory.kind === "task"
+								? "episodic"
+								: memory.kind === "procedure" || memory.kind === "rule"
+									? "procedural"
+									: "semantic"),
+						state: memory.state ?? "active",
+						importance: memory.importance ?? memory.confidence,
+						eventAt: memory.eventAt ?? null,
+						observedAt: now,
+						origin: memory.origin ?? "extracted",
+						clientRef: memory.clientRef ?? null,
 					});
 					for (const chunkId of memory.chunkIds) {
 						db.links.push({
@@ -274,18 +313,19 @@ export const memoryMemoryRepoLayer = (userId = "test-user") => {
 					skippedChunks: 0,
 				};
 			}),
-		addMemory: (userId, input, options) =>
+		insertMemory: (userId, input, options) =>
 			Effect.sync(() => {
 				const now = Date.now();
 				const sourceId = input.sourceId ?? `agent:${userId}`;
-				const documentId = `${sourceId}:notes`;
-				const chunkId = crypto.randomUUID();
-				const memoryId = crypto.randomUUID();
+				const documentId = input.documentId ?? `${sourceId}:notes`;
+				const chunkId = input.chunkId ?? crypto.randomUUID();
+				const memoryId = input.id ?? newShortId("m");
 				const supersedes = options?.supersedes ?? null;
 				if (supersedes) {
 					const previous = db.memories.find((item) => item.id === supersedes);
 					if (previous && previous.validTo === null) {
 						previous.validTo = new Date(now).toISOString();
+						previous.state = "superseded";
 					}
 				}
 				if (!db.sources.some((source) => source.id === sourceId)) {
@@ -308,23 +348,38 @@ export const memoryMemoryRepoLayer = (userId = "test-user") => {
 						r2Key: `${userId}/${sourceId}/notes.json`,
 					});
 				}
-				db.chunks.push({
-					id: chunkId,
-					documentId,
-					text: input.text,
-					contentHash: memoryId,
-					byteStart: 0,
-					byteEnd: input.text.length,
-				});
-				const memory = {
+				if (!db.chunks.some((chunk) => chunk.id === chunkId)) {
+					db.chunks.push({
+						id: chunkId,
+						documentId,
+						text: input.text,
+						contentHash: memoryId,
+						byteStart: 0,
+						byteEnd: input.text.length,
+					});
+				}
+				const memory: StoredMemory = {
 					id: memoryId,
 					kind: input.kind,
 					text: input.text,
 					confidence: input.confidence,
-					validFrom: null,
-					validTo: null,
+					validFrom: input.validFrom ?? null,
+					validTo: input.validTo ?? null,
 					supersedes,
 					createdAt: now,
+					type:
+						input.type ??
+						(input.kind === "event" || input.kind === "task"
+							? "episodic"
+							: input.kind === "procedure" || input.kind === "rule"
+								? "procedural"
+								: "semantic"),
+					state: input.state ?? (input.validTo ? "superseded" : "active"),
+					importance: input.importance ?? input.confidence,
+					eventAt: input.eventAt ?? null,
+					observedAt: now,
+					origin: input.origin ?? "agent",
+					clientRef: input.clientRef ?? null,
 				};
 				db.memories.push(memory);
 				db.links.push({
@@ -337,18 +392,119 @@ export const memoryMemoryRepoLayer = (userId = "test-user") => {
 				});
 				return strip(memory);
 			}),
+		updateMemory: (id, patch) =>
+			Effect.gen(function* () {
+				const memory = db.memories.find((item) => item.id === id);
+				if (!memory) {
+					return yield* Effect.fail(new NotFound({ entity: "memory", id }));
+				}
+				if (patch.text !== undefined) {
+					memory.text = patch.text;
+				}
+				if (patch.validTo !== undefined) {
+					memory.validTo = patch.validTo;
+				}
+				if (patch.state !== undefined) {
+					memory.state = patch.state;
+				}
+				if (patch.confidence !== undefined) {
+					memory.confidence = patch.confidence;
+				}
+				if (patch.importance !== undefined) {
+					memory.importance = patch.importance;
+				}
+				return strip(memory);
+			}),
+		insertEdge: (src, dst, relation) =>
+			Effect.sync(() => {
+				if (
+					!db.edges.some(
+						(edge) => edge.src === src && edge.dst === dst && edge.relation === relation,
+					)
+				) {
+					db.edges.push({ src, dst, relation });
+				}
+			}),
+		insertHistory: () => Effect.void,
+		getMemoryByClientRef: (clientRef) =>
+			Effect.succeed(
+				(() => {
+					const memory = db.memories.find((item) => item.clientRef === clientRef);
+					return memory ? strip(memory) : null;
+				})(),
+			),
+		upsertEntity: (input) =>
+			Effect.sync(() => {
+				const existing = db.entities.find(
+					(entity) => entity.canonical === input.canonical && entity.type === input.type,
+				);
+				if (existing) {
+					existing.mentionCount += 1;
+					return { id: existing.id };
+				}
+				const id = newShortId("e");
+				db.entities.push({
+					id,
+					name: input.name,
+					canonical: input.canonical,
+					type: input.type,
+					mentionCount: 1,
+				});
+				return { id };
+			}),
+		linkMemoryEntity: (memoryId, entityId, role) =>
+			Effect.sync(() => {
+				db.memoryEntities.push({ memoryId, entityId, role });
+			}),
+		listMemoriesPage: (options) =>
+			Effect.succeed(
+				db.memories
+					.filter(
+						(memory) =>
+							!options.activeOnly || (memory.validTo === null && memory.state === "active"),
+					)
+					.filter((memory) => !options.afterId || memory.id > options.afterId)
+					.sort((left, right) => left.id.localeCompare(right.id))
+					.slice(0, options.limit)
+					.map(strip),
+			),
+		listChunksPage: (options) =>
+			Effect.succeed(
+				db.chunks
+					.filter((chunk) => !options.afterId || chunk.id > options.afterId)
+					.sort((left, right) => left.id.localeCompare(right.id))
+					.slice(0, options.limit)
+					.map((chunk) => {
+						const document = db.documents.find((item) => item.id === chunk.documentId);
+						return { ...chunk, sourceId: document?.sourceId ?? "generic" };
+					}),
+			),
+		listInactiveMemoryIds: () =>
+			Effect.succeed(
+				db.memories
+					.filter((memory) => memory.validTo !== null || memory.state !== "active")
+					.map((memory) => memory.id),
+			),
 	});
 };
 
-const strip = (memory: StoredMemory): Memory => ({
-	id: memory.id,
-	kind: memory.kind,
-	text: memory.text,
-	confidence: memory.confidence,
-	validFrom: memory.validFrom,
-	validTo: memory.validTo,
-	supersedes: memory.supersedes,
-});
+const strip = (memory: StoredMemory): Memory =>
+	fillMemory({
+		id: memory.id,
+		kind: memory.kind,
+		text: memory.text,
+		confidence: memory.confidence,
+		validFrom: memory.validFrom,
+		validTo: memory.validTo,
+		supersedes: memory.supersedes,
+		type: memory.type,
+		state: memory.state,
+		importance: memory.importance,
+		eventAt: memory.eventAt,
+		observedAt: memory.observedAt,
+		origin: memory.origin,
+		clientRef: memory.clientRef,
+	});
 
 const needle = (match: string, text: string): boolean => {
 	const tokens = match
@@ -361,7 +517,7 @@ const needle = (match: string, text: string): boolean => {
 
 const filterMemories = (db: Stored, match: string, filters: SearchFilters) =>
 	db.memories.filter((memory) => {
-		if (memory.validTo !== null) {
+		if (memory.validTo !== null || memory.state !== "active") {
 			return false;
 		}
 		if (match.trim().length > 0 && !needle(match, memory.text)) {
@@ -422,6 +578,15 @@ export const inMemoryVectorIndexLayer = () => {
 					.sort((a, b) => b.score - a.score)
 					.slice(0, topK),
 			),
+		deleteByIds: (ids) =>
+			Effect.sync(() => {
+				const remove = new Set(ids);
+				for (let i = records.length - 1; i >= 0; i--) {
+					if (remove.has(records[i]?.id ?? "")) {
+						records.splice(i, 1);
+					}
+				}
+			}),
 	});
 };
 

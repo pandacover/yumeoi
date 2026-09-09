@@ -17,6 +17,7 @@ import { vectorizeLayer } from "./vectorize.ts";
 export const noopVectorIndexLayer = Layer.succeed(VectorIndex, {
 	upsert: () => Effect.void,
 	query: () => Effect.succeed([]),
+	deleteByIds: () => Effect.void,
 });
 
 export const llmLayerFor = (options: {

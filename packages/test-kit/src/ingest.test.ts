@@ -27,6 +27,7 @@ import { Effect, Layer } from "effect";
 const unavailableVectorIndexLayer = Layer.succeed(VectorIndex, {
 	upsert: () => Effect.fail(new ProviderUnavailable({ provider: "vectorize" })),
 	query: () => Effect.fail(new ProviderUnavailable({ provider: "vectorize" })),
+	deleteByIds: () => Effect.fail(new ProviderUnavailable({ provider: "vectorize" })),
 });
 
 const layer = Layer.mergeAll(

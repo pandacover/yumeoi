@@ -5,7 +5,9 @@ import {
 	FALLBACK_LLM_PROVIDER,
 	IngestRequest,
 	MEMORY_KINDS,
+	MEMORY_TYPES,
 	type MemoryKind,
+	type MemoryType,
 	RecallQuery,
 	SearchQuery,
 	type SourceKind,
@@ -127,13 +129,21 @@ const addMemoryFromUnknown = (raw: unknown): AddMemoryRequest | null => {
 	if (typeof body.text !== "string") {
 		return null;
 	}
+	const type = asType(body.type);
 	return decodeBody(AddMemoryRequest, {
 		text: body.text,
 		kind: asKinds([body.kind])[0] ?? "fact",
 		confidence: typeof body.confidence === "number" ? body.confidence : 1,
 		...(typeof body.sourceId === "string" ? { sourceId: body.sourceId } : {}),
+		...(type ? { type } : {}),
+		...(typeof body.clientRef === "string" ? { clientRef: body.clientRef } : {}),
 	});
 };
+
+const asType = (value: unknown): MemoryType | undefined =>
+	typeof value === "string" && (MEMORY_TYPES as readonly string[]).includes(value)
+		? (value as MemoryType)
+		: undefined;
 
 export async function handleApi(request: Request, env: Env): Promise<Response | null> {
 	const url = new URL(request.url);
@@ -159,6 +169,7 @@ export async function handleApi(request: Request, env: Env): Promise<Response | 
 			extractModel: defaultLlmConfig.extract,
 			consolidateModel: defaultLlmConfig.consolidate,
 			rerankModel: defaultLlmConfig.rerank,
+			classifyModel: defaultLlmConfig.classify,
 			llm: {
 				defaultProvider: DEFAULT_LLM_PROVIDER,
 				fallbackProvider: FALLBACK_LLM_PROVIDER,
@@ -216,7 +227,8 @@ export async function handleApi(request: Request, env: Env): Promise<Response | 
 		url.pathname.startsWith("/api/documents") ||
 		(url.pathname.startsWith("/api/sources") && !isPublicNotionOAuth) ||
 		url.pathname.startsWith("/api/keys") ||
-		url.pathname.startsWith("/api/grants");
+		url.pathname.startsWith("/api/grants") ||
+		url.pathname.startsWith("/api/admin/");
 
 	if (!needsAuth) {
 		if (url.pathname.startsWith("/api/") || url.pathname === "/ingest") {
@@ -280,6 +292,10 @@ export async function handleApi(request: Request, env: Env): Promise<Response | 
 			sourceId: body.sourceId ?? `agent:${auth.userId}`,
 		});
 		return json(memory, 201);
+	}
+
+	if (url.pathname === "/api/admin/reindex" && request.method === "POST") {
+		return json(await agent.reindex());
 	}
 
 	if (url.pathname.startsWith("/api/memories/") && request.method === "GET") {

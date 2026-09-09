@@ -12,10 +12,21 @@ if ! wrangler vectorize get "$INDEX" >/dev/null 2>&1; then
 	exit 1
 fi
 
+ensure_metadata_index() {
+	local property="$1"
+	local type="$2"
+	wrangler vectorize create-metadata-index "$INDEX" --property-name="$property" --type="$type" || true
+}
+
 if [[ "$create_ok" -eq 1 ]]; then
-	wrangler vectorize create-metadata-index "$INDEX" --property-name=sourceId --type=string || true
-	wrangler vectorize create-metadata-index "$INDEX" --property-name=kind --type=string || true
-	wrangler vectorize create-metadata-index "$INDEX" --property-name=ts --type=number || true
+	ensure_metadata_index sourceId string
+	ensure_metadata_index kind string
+	ensure_metadata_index ts number
 fi
+
+ensure_metadata_index type string
+ensure_metadata_index state string
+ensure_metadata_index eventAt number
+ensure_metadata_index validTo number
 
 wrangler vectorize list-metadata-index "$INDEX"

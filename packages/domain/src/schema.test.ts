@@ -4,6 +4,7 @@ import {
 	consolidateDecisionJsonSchema,
 	extractedMemoriesJsonSchema,
 	extractedMemoryJsonSchema,
+	isStrictOpenAiObjectSchema,
 	rerankResultJsonSchema,
 } from "./json-schema.ts";
 import {
@@ -31,6 +32,7 @@ describe("domain schemas", () => {
 		expect(defaultLlmConfig.extract).toEqual({ model: "gpt-5.6-luna", effort: "high" });
 		expect(defaultLlmConfig.consolidate).toEqual({ model: "gpt-5.6-luna", effort: "none" });
 		expect(defaultLlmConfig.rerank).toEqual({ model: "gpt-5.6-luna", effort: "none" });
+		expect(defaultLlmConfig.classify).toEqual({ model: "gpt-5.6-luna", effort: "none" });
 	});
 
 	test("parseResponseUsage reads input, output, and reasoning tokens", () => {
@@ -67,11 +69,22 @@ describe("domain schemas", () => {
 		expect(jsonSchema.type).toBe("object");
 		expect(jsonSchema.additionalProperties).toBe(false);
 		expect(jsonSchema.required).toEqual(
-			expect.arrayContaining(["kind", "text", "confidence", "validFrom"]),
+			expect.arrayContaining([
+				"type",
+				"kind",
+				"text",
+				"confidence",
+				"importance",
+				"eventAt",
+				"validFrom",
+				"entities",
+				"relations",
+			]),
 		);
 	});
 
-	test("ExtractedMemories / consolidate / rerank schemas are objects", () => {
+	test("ExtractedMemories nested objects are strict OpenAI objects", () => {
+		expect(isStrictOpenAiObjectSchema(extractedMemoriesJsonSchema())).toBe(true);
 		expect(extractedMemoriesJsonSchema().type).toBe("object");
 		expect(extractedMemoriesJsonSchema().required).toEqual(expect.arrayContaining(["memories"]));
 		expect(consolidateDecisionJsonSchema().type).toBe("object");
@@ -80,10 +93,15 @@ describe("domain schemas", () => {
 
 	test("ExtractedMemory decodes a valid payload", () => {
 		const decoded = Schema.decodeUnknownSync(ExtractedMemory)({
+			type: "semantic",
 			kind: "fact",
 			text: "Luv prefers Effect 4.",
 			confidence: 0.9,
+			importance: 0.7,
+			eventAt: null,
 			validFrom: null,
+			entities: [],
+			relations: [],
 		});
 		expect(decoded.text).toContain("Effect 4");
 	});
@@ -92,10 +110,15 @@ describe("domain schemas", () => {
 		const memories = Schema.decodeUnknownSync(ExtractedMemories)({
 			memories: [
 				{
+					type: "semantic",
 					kind: "preference",
 					text: "Luv prefers Effect 4.",
 					confidence: 0.9,
+					importance: 0.8,
+					eventAt: null,
 					validFrom: null,
+					entities: [],
+					relations: [],
 				},
 			],
 		});
@@ -103,6 +126,8 @@ describe("domain schemas", () => {
 		const decision = Schema.decodeUnknownSync(ConsolidateDecision)({
 			action: "new",
 			targetId: null,
+			mergedText: null,
+			reason: "distinct",
 		});
 		expect(decision.action).toBe("new");
 	});

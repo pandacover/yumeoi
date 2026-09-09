@@ -1,5 +1,6 @@
-import type { LlmJobConfig, LlmUsage } from "@yumeoi/domain";
+import { fillMemory, type LlmJobConfig, type LlmUsage } from "@yumeoi/domain";
 import { Effect } from "effect";
+import { classifyStatement } from "./classify.ts";
 import { Consolidator } from "./consolidator.ts";
 import {
 	addTokenTotals,
@@ -8,10 +9,13 @@ import {
 	type EvalTokenTotals,
 	emptyTokenTotals,
 	type RecallSet,
+	scoreClassification,
 	scoreExtraction,
 	scoreRecall,
+	summarizeClassification,
 	summarizeRecall,
 	summarizeScores,
+	type TypesCase,
 } from "./eval.ts";
 import { Extractor } from "./extractor.ts";
 import { ingestDocument } from "./ingest.ts";
@@ -84,7 +88,7 @@ export const evaluateConsolidation = (documents: ReadonlyArray<EvalDocument>) =>
 			}
 			duplicateTrials += 1;
 			const clone = yield* consolidator.decide(first.text, [
-				{
+				fillMemory({
 					id: "existing-1",
 					kind: first.kind,
 					text: first.text,
@@ -92,7 +96,7 @@ export const evaluateConsolidation = (documents: ReadonlyArray<EvalDocument>) =>
 					validFrom: first.validFrom,
 					validTo: null,
 					supersedes: null,
-				},
+				}),
 			]);
 			if (clone.action === "duplicate") {
 				duplicateHits += 1;
@@ -165,6 +169,27 @@ export const evaluateRecall = (
 		return {
 			job: "recall" as const,
 			summary: summarizeRecall(scores),
+			scores,
+		};
+	});
+
+export const evaluateClassification = (statements: ReadonlyArray<TypesCase>) =>
+	Effect.gen(function* () {
+		const llm = yield* Llm;
+		const config = llm.config.classify;
+		yield* llm.drainUsage();
+		const scores = [];
+		for (const item of statements) {
+			const extracted = yield* classifyStatement(item.text);
+			scores.push(scoreClassification(item, extracted.type));
+		}
+		const usage = sumUsage(yield* llm.drainUsage());
+		return {
+			job: "classify" as const,
+			model: config.model,
+			effort: config.effort,
+			summary: summarizeClassification(scores),
+			usage,
 			scores,
 		};
 	});
