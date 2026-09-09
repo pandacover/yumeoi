@@ -205,7 +205,6 @@ export const recallContext = (input: Partial<RecallQuery> & { query: string; nam
 		const repo = yield* MemoryRepo;
 		const embeddings = yield* Embeddings;
 		const index = yield* VectorIndex;
-		const llm = yield* Llm;
 
 		const [values] = yield* embedQuery(embeddings, query.query);
 		let memories = yield* searchMemoriesWithEmbedding(
@@ -255,6 +254,7 @@ export const recallContext = (input: Partial<RecallQuery> & { query: string; nam
 		const chunkById = new Map(chunks.map((chunk) => [chunk.id, chunk]));
 
 		if (query.rerank && memories.length > 1) {
+			const llm = yield* Llm;
 			const ranked = yield* llm.structured({
 				job: "rerank",
 				schema: RerankResult,

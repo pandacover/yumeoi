@@ -13,5 +13,20 @@
 			"tokensPerRecall": 743,
 			"p50LatencyMs": 1
 		}
+	},
+	"after-fixes": {
+		"live": false,
+		"generatedAt": "2026-09-09T09:11:47.218Z",
+		"embeddings": "hash",
+		"summary": {
+			"queries": 80,
+			"recallAt5": 0.35,
+			"recallAt10": 0.55,
+			"mrr": 0.22305737629083802,
+			"ndcgAt10": 0.3390132986657295,
+			"contextPrecision": 0.037360548807917206,
+			"tokensPerRecall": 739.425,
+			"p50LatencyMs": 1
+		}
 	}
 }

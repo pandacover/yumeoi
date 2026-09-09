@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import {
+	FakeEmbeddings,
 	inMemoryObjectStoreLayer,
 	inMemoryVectorIndexLayer,
 	memoryMemoryRepoLayer,
@@ -19,6 +20,7 @@ const userId = "p0-user";
 
 const base = Layer.mergeAll(
 	memoryMemoryRepoLayer(userId),
+	FakeEmbeddings,
 	heuristicLlmLayer,
 	Layer.provide(extractorLayer, heuristicLlmLayer),
 	Layer.provide(consolidatorLayer, heuristicLlmLayer),

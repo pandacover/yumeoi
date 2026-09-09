@@ -134,7 +134,7 @@ Labeled retrieval set: \`docs/eval/recall-set.json\` (${set.documents.length} da
 
 Harness: \`scoreRecall\` in \`packages/memory/src/eval.ts\`, runner \`apps/app/scripts/eval-recall.ts\` (\`bun run eval:recall\`). Deterministic path uses hash embeddings, in-memory Vectorize, and the heuristic extractor so CI can fail fusion/filter/pack regressions without keys.
 
-Live extraction uses OpenRouter (OpenAI fallback) when \`OPENROUTER_API_KEY\` / \`OPENAI_API_KEY\` are set. Embeddings stay hash in this bun runner; workerd tests cover the Vectorize emulator.
+Live extraction uses OpenRouter (OpenAI fallback) when \`EVAL_LIVE=1\` and \`OPENROUTER_API_KEY\` / \`OPENAI_API_KEY\` are set. Embeddings stay hash in this bun runner; workerd tests cover the Vectorize emulator.
 
 Raw numbers: \`docs/eval/recall-results.json\`. Set \`EVAL_STAGE=baseline\` or \`EVAL_STAGE=after-fixes\` when recording a phase.
 

@@ -13,5 +13,6 @@ Raw numbers: `docs/eval/recall-results.json`. Set `EVAL_STAGE=baseline` or `EVAL
 | Stage | Recall@5 | Recall@10 | MRR | nDCG@10 | Context P | Tokens/recall | p50 ms | Extract |
 |---|---|---|---|---|---|---|---|---|
 | baseline (before P0 fixes) | 0.35 | 0.55 | 0.221 | 0.333 | 0.036 | 743 | 1 | heuristic |
+| after P0 fixes | 0.35 | 0.55 | 0.223 | 0.339 | 0.037 | 739 | 1 | heuristic |
 
 P0 records a baseline **before** retrieval changes, then the same table after D1–D5 / D3 / D7. Later phases must not regress Recall@10 or nDCG@10.
