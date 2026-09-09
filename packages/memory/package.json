@@ -13,5 +13,8 @@
 	"dependencies": {
 		"@yumeoi/domain": "workspace:*",
 		"effect": "4.0.0-rc.112"
+	},
+	"devDependencies": {
+		"@yumeoi/test-kit": "workspace:*"
 	}
 }

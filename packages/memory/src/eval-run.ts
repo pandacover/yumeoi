@@ -7,11 +7,17 @@ import {
 	type EvalScore,
 	type EvalTokenTotals,
 	emptyTokenTotals,
+	type RecallSet,
 	scoreExtraction,
+	scoreRecall,
+	summarizeRecall,
 	summarizeScores,
 } from "./eval.ts";
 import { Extractor } from "./extractor.ts";
+import { ingestDocument } from "./ingest.ts";
 import { Llm } from "./llm.ts";
+import { recallContext } from "./recall.ts";
+import { estimateTokens } from "./rrf.ts";
 
 export type EvalDocumentRun = EvalScore & {
 	readonly model: string;
@@ -102,5 +108,63 @@ export const evaluateConsolidation = (documents: ReadonlyArray<EvalDocument>) =>
 			newTrials,
 			duplicateTrials,
 			usage,
+		};
+	});
+
+export const evaluateRecall = (
+	set: RecallSet,
+	options?: {
+		readonly userId?: string;
+		readonly rerank?: boolean;
+		readonly budgetTokens?: number;
+	},
+) =>
+	Effect.gen(function* () {
+		const userId = options?.userId ?? "recall-eval";
+		for (const document of set.documents) {
+			const dated =
+				document.date && !document.markdown.includes(document.date)
+					? `${document.markdown} Document date: ${document.date}.`
+					: document.markdown;
+			yield* ingestDocument({
+				userId,
+				request: {
+					externalId: document.id,
+					title: document.title,
+					markdown: dated,
+					sourceId: document.sourceId ?? "notes",
+					sourceLabel: document.sourceLabel ?? "Notes",
+					url: null,
+				},
+			});
+		}
+
+		const scores = [];
+		for (const query of set.queries) {
+			const started = Date.now();
+			const result = yield* recallContext({
+				query: query.query,
+				namespace: userId,
+				sources: [],
+				kinds: [],
+				since: null,
+				budgetTokens: options?.budgetTokens ?? 2000,
+				rerank: options?.rerank ?? false,
+			});
+			const latencyMs = Date.now() - started;
+			const packed = result.memories.map((hit) => ({
+				text: hit.memory.text,
+				kind: hit.memory.kind,
+			}));
+			const tokens =
+				packed.reduce((sum, item) => sum + estimateTokens(item.text), 0) +
+				result.chunks.reduce((sum, hit) => sum + estimateTokens(hit.chunk.text), 0);
+			scores.push(scoreRecall(query, packed, { tokens, latencyMs }));
+		}
+
+		return {
+			job: "recall" as const,
+			summary: summarizeRecall(scores),
+			scores,
 		};
 	});

@@ -123,6 +123,10 @@ export class MemoryRepo extends Context.Service<
 		) => Effect.Effect<ReadonlyArray<Memory>, unknown>;
 		readonly listRecentMemories: (limit: number) => Effect.Effect<ReadonlyArray<Memory>, unknown>;
 		readonly commit: (batch: CommitBatch) => Effect.Effect<IngestResult, unknown>;
-		readonly addMemory: (userId: string, input: AddMemoryRequest) => Effect.Effect<Memory, unknown>;
+		readonly addMemory: (
+			userId: string,
+			input: AddMemoryRequest,
+			options?: { readonly supersedes?: string | null },
+		) => Effect.Effect<Memory, unknown>;
 	}
 >()("@yumeoi/memory/MemoryRepo") {}

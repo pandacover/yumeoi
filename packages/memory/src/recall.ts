@@ -112,13 +112,16 @@ const queryOrEmpty = (
 		Effect.catchTag("ProviderUnavailable", () => Effect.succeed<ReadonlyArray<VectorMatch>>([])),
 	);
 
-export const searchMemories = (
+const isActiveMemory = (memory: { readonly validTo: string | null }): boolean =>
+	memory.validTo === null;
+
+const searchMemoriesWithEmbedding = (
 	input: Partial<SearchQuery> & { query: string; namespace: string },
+	queryValues: ReadonlyArray<number> | undefined,
 ) =>
 	Effect.gen(function* () {
 		const query = defaultSearch(input);
 		const repo = yield* MemoryRepo;
-		const embeddings = yield* Embeddings;
 		const index = yield* VectorIndex;
 
 		const match = ftsMatchQuery(query.query);
@@ -131,11 +134,10 @@ export const searchMemories = (
 				})
 			: [];
 
-		const [values] = yield* embedQuery(embeddings, query.query);
 		const memoryFilter = vectorFilter(query);
-		const vector = values
+		const vector = queryValues
 			? yield* queryOrEmpty(index, {
-					values,
+					values: queryValues,
 					namespace: input.namespace,
 					topK: Math.min(40, Math.max(query.limit, 10)),
 					...(memoryFilter ? { filter: memoryFilter } : {}),
@@ -147,7 +149,10 @@ export const searchMemories = (
 			.filter((parsed): parsed is { type: "memory"; id: string } => parsed?.type === "memory")
 			.map((parsed) => parsed.id);
 
-		const fused = rrfScore([fts.map((row) => row.id), memoryVectorIds]);
+		const vectorMemories = yield* repo.listMemoriesByIds(memoryVectorIds);
+		const activeVectorIds = vectorMemories.filter(isActiveMemory).map((memory) => memory.id);
+
+		const fused = rrfScore([fts.map((row) => row.id), activeVectorIds]);
 		const timestamps = yield* repo.memoryTimestamps([...fused.keys()]);
 		const tsById = new Map(timestamps.map((row) => [row.id, row.createdAt]));
 		const ranked = [...fused.entries()]
@@ -170,7 +175,7 @@ export const searchMemories = (
 
 		return ranked.flatMap((row) => {
 			const memory = byId.get(row.id);
-			if (!memory) {
+			if (!memory || !isActiveMemory(memory)) {
 				return [];
 			}
 			return [
@@ -185,23 +190,34 @@ export const searchMemories = (
 		});
 	});
 
+export const searchMemories = (
+	input: Partial<SearchQuery> & { query: string; namespace: string },
+) =>
+	Effect.gen(function* () {
+		const embeddings = yield* Embeddings;
+		const [values] = yield* embedQuery(embeddings, input.query);
+		return yield* searchMemoriesWithEmbedding(input, values);
+	});
+
 export const recallContext = (input: Partial<RecallQuery> & { query: string; namespace: string }) =>
 	Effect.gen(function* () {
 		const query = defaultRecall(input);
 		const repo = yield* MemoryRepo;
 		const embeddings = yield* Embeddings;
 		const index = yield* VectorIndex;
-		const llm = yield* Llm;
 
-		const searchQuery = {
-			query: query.query,
-			sources: query.sources,
-			kinds: query.kinds,
-			since: query.since,
-			limit: 40,
-			namespace: input.namespace,
-		};
-		let memories = yield* searchMemories(searchQuery);
+		const [values] = yield* embedQuery(embeddings, query.query);
+		let memories = yield* searchMemoriesWithEmbedding(
+			{
+				query: query.query,
+				sources: query.sources,
+				kinds: query.kinds,
+				since: query.since,
+				limit: 40,
+				namespace: input.namespace,
+			},
+			values,
+		);
 
 		const match = ftsMatchQuery(query.query);
 		const ftsChunks = match
@@ -212,7 +228,6 @@ export const recallContext = (input: Partial<RecallQuery> & { query: string; nam
 					limit: 40,
 				})
 			: [];
-		const [values] = yield* embedQuery(embeddings, query.query);
 		const vectorChunks = values
 			? yield* queryOrEmpty(index, {
 					values,
@@ -239,6 +254,7 @@ export const recallContext = (input: Partial<RecallQuery> & { query: string; nam
 		const chunkById = new Map(chunks.map((chunk) => [chunk.id, chunk]));
 
 		if (query.rerank && memories.length > 1) {
+			const llm = yield* Llm;
 			const ranked = yield* llm.structured({
 				job: "rerank",
 				schema: RerankResult,

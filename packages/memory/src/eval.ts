@@ -33,6 +33,52 @@ export type EvalSet = {
 	readonly rerank: ReadonlyArray<RerankCase>;
 };
 
+export type MemoryTypeName = "semantic" | "episodic" | "procedural";
+
+export type RecallMatcher = {
+	readonly contains: string;
+	readonly kind?: MemoryKind;
+	readonly type?: MemoryTypeName;
+};
+
+export type RecallQueryCase = {
+	readonly id: string;
+	readonly query: string;
+	readonly expected: ReadonlyArray<RecallMatcher>;
+	readonly asOf?: string;
+	readonly from?: string;
+	readonly to?: string;
+	readonly graph?: boolean;
+	readonly tags?: ReadonlyArray<string>;
+};
+
+export type RecallCorpusDocument = {
+	readonly id: string;
+	readonly title: string;
+	readonly markdown: string;
+	readonly date?: string;
+	readonly sourceId?: string;
+	readonly sourceLabel?: string;
+};
+
+export type RecallSet = {
+	readonly documents: ReadonlyArray<RecallCorpusDocument>;
+	readonly queries: ReadonlyArray<RecallQueryCase>;
+};
+
+export type RecallScore = {
+	readonly queryId: string;
+	readonly recallAt5: number;
+	readonly recallAt10: number;
+	readonly mrr: number;
+	readonly ndcgAt10: number;
+	readonly contextPrecision: number;
+	readonly packed: number;
+	readonly expected: number;
+	readonly tokens: number;
+	readonly latencyMs: number;
+};
+
 export type EvalScore = {
 	readonly documentId: string;
 	readonly precision: number;
@@ -198,3 +244,86 @@ export const summarizeRerank = (scores: ReadonlyArray<RerankScore>) => ({
 	top1: mean(scores.map((score) => (score.top1 ? 1 : 0))),
 	complete: mean(scores.map((score) => (score.complete ? 1 : 0))),
 });
+
+const matchesRecall = (
+	item: { readonly text: string; readonly kind?: MemoryKind },
+	matcher: RecallMatcher,
+): boolean => {
+	if (matcher.kind && item.kind && matcher.kind !== item.kind) {
+		return false;
+	}
+	return normalize(item.text).includes(normalize(matcher.contains));
+};
+
+const ndcgAt = (relevances: ReadonlyArray<number>, k: number, relevantCount: number): number => {
+	const dcg = relevances
+		.slice(0, k)
+		.reduce((sum, rel, index) => sum + rel / Math.log2(index + 2), 0);
+	const ideal = Math.min(relevantCount, k);
+	const idcg = Array.from({ length: ideal }, (_, index) => 1 / Math.log2(index + 2)).reduce(
+		(sum, value) => sum + value,
+		0,
+	);
+	return idcg === 0 ? 1 : dcg / idcg;
+};
+
+export const scoreRecall = (
+	query: RecallQueryCase,
+	packed: ReadonlyArray<{ readonly text: string; readonly kind?: MemoryKind }>,
+	usage?: { readonly tokens: number; readonly latencyMs: number },
+): RecallScore => {
+	const expected = query.expected;
+	const recallAt = (k: number): number => {
+		if (expected.length === 0) {
+			return 1;
+		}
+		const hits = expected.filter((matcher) =>
+			packed.slice(0, k).some((item) => matchesRecall(item, matcher)),
+		).length;
+		return hits / expected.length;
+	};
+	const firstHit = packed.findIndex((item) =>
+		expected.some((matcher) => matchesRecall(item, matcher)),
+	);
+	const mrr = expected.length === 0 ? 1 : firstHit < 0 ? 0 : 1 / (firstHit + 1);
+	const relevances = packed.map((item) =>
+		expected.some((matcher) => matchesRecall(item, matcher)) ? 1 : 0,
+	);
+	const relevantPacked = relevances.filter((rel) => rel > 0).length;
+	const emptyPrecision = expected.length === 0 ? 1 : 0;
+	return {
+		queryId: query.id,
+		recallAt5: recallAt(5),
+		recallAt10: recallAt(10),
+		mrr,
+		ndcgAt10: ndcgAt(relevances, 10, expected.length),
+		contextPrecision: packed.length === 0 ? emptyPrecision : relevantPacked / packed.length,
+		packed: packed.length,
+		expected: expected.length,
+		tokens: usage?.tokens ?? 0,
+		latencyMs: usage?.latencyMs ?? 0,
+	};
+};
+
+export const summarizeRecall = (scores: ReadonlyArray<RecallScore>) => ({
+	queries: scores.length,
+	recallAt5: mean(scores.map((score) => score.recallAt5)),
+	recallAt10: mean(scores.map((score) => score.recallAt10)),
+	mrr: mean(scores.map((score) => score.mrr)),
+	ndcgAt10: mean(scores.map((score) => score.ndcgAt10)),
+	contextPrecision: mean(scores.map((score) => score.contextPrecision)),
+	tokensPerRecall: mean(scores.map((score) => score.tokens)),
+	p50LatencyMs: percentile(
+		scores.map((score) => score.latencyMs),
+		0.5,
+	),
+});
+
+export const percentile = (values: ReadonlyArray<number>, p: number): number => {
+	if (values.length === 0) {
+		return 0;
+	}
+	const sorted = [...values].sort((left, right) => left - right);
+	const index = Math.min(sorted.length - 1, Math.max(0, Math.floor(p * (sorted.length - 1))));
+	return sorted[index] ?? 0;
+};

@@ -28,6 +28,7 @@
 		"@yumeoi/connectors": "workspace:*",
 		"@yumeoi/domain": "workspace:*",
 		"@yumeoi/memory": "workspace:*",
+		"@yumeoi/test-kit": "workspace:*",
 		"agents": "latest",
 		"ai": "^7.0.93",
 		"effect": "4.0.0-rc.112",
