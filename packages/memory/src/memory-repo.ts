@@ -12,6 +12,7 @@ import type {
 	MemoryKind,
 	MemoryOrigin,
 	MemoryState,
+	MemoryStats,
 	MemoryType,
 	NotFound,
 	Provenance,
@@ -67,6 +68,7 @@ export type MemoryPatch = {
 	readonly kind?: MemoryKind;
 	readonly eventAt?: number | null;
 	readonly observedAt?: number | null;
+	readonly retention?: number;
 };
 
 export type CommitBatch = {
@@ -192,6 +194,7 @@ export class MemoryRepo extends Context.Service<
 			readonly validTo: string | null;
 			readonly state: MemoryState;
 			readonly reason: string;
+			readonly changedAt?: number;
 		}) => Effect.Effect<void, unknown>;
 		readonly getMemoryByClientRef: (clientRef: string) => Effect.Effect<Memory | null, unknown>;
 		readonly upsertEntity: (input: {
@@ -292,6 +295,30 @@ export class MemoryRepo extends Context.Service<
 			entityId: string,
 			limit: number,
 		) => Effect.Effect<ReadonlyArray<Memory>, unknown>;
+		readonly listFeedbackSums: (
+			ids: ReadonlyArray<string>,
+		) => Effect.Effect<ReadonlyArray<{ readonly id: string; readonly sum: number }>, unknown>;
+		readonly listDerivedParents: (
+			ids: ReadonlyArray<string>,
+		) => Effect.Effect<ReadonlyArray<string>, unknown>;
+		readonly lastStateChange: (
+			memoryId: string,
+			state: MemoryState,
+		) => Effect.Effect<number | null, unknown>;
+		readonly archiveMemory: (id: string, now: number) => Effect.Effect<void, unknown>;
+		readonly restoreMemory: (id: string, now: number) => Effect.Effect<Memory, unknown>;
+		readonly hardDeleteMemory: (id: string) => Effect.Effect<void, unknown>;
+		readonly listArchived: (limit: number) => Effect.Effect<ReadonlyArray<Memory>, unknown>;
+		readonly countActive: () => Effect.Effect<number, unknown>;
+		readonly listLowestRetentionActive: (
+			limit: number,
+		) => Effect.Effect<ReadonlyArray<Memory>, unknown>;
+		readonly getStats: () => Effect.Effect<MemoryStats, unknown>;
+		readonly writeStats: (stats: MemoryStats) => Effect.Effect<void, unknown>;
+		readonly listDocuments: () => Effect.Effect<
+			ReadonlyArray<{ readonly id: string; readonly contentHash: string }>,
+			unknown
+		>;
 	}
 >()("@yumeoi/memory/MemoryRepo") {}
 

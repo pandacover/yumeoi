@@ -8,6 +8,7 @@ import {
 	memoryStoreV3Migration,
 	memoryStoreV4Migration,
 	memoryStoreV5Migration,
+	memoryStoreV6Migration,
 } from "./migrations.ts";
 
 export const sqliteDoLayer = (storage: DurableObjectStorage) => SqliteClient.layer({ storage });
@@ -19,6 +20,7 @@ const migrationLayer = SqliteMigrator.layer({
 		"0003_documents_r2_key": memoryStoreV3Migration,
 		"0004_memory_model_v2": memoryStoreV4Migration,
 		"0005_fts_porter": memoryStoreV5Migration,
+		"0006_memory_stats": memoryStoreV6Migration,
 	}),
 });
 
@@ -37,6 +39,7 @@ export const runMemoryStoreMigrations = (storage: DurableObjectStorage) =>
 				"0003_documents_r2_key": memoryStoreV3Migration,
 				"0004_memory_model_v2": memoryStoreV4Migration,
 				"0005_fts_porter": memoryStoreV5Migration,
+				"0006_memory_stats": memoryStoreV6Migration,
 			}),
 		}),
 		sqliteDoLayer(storage),

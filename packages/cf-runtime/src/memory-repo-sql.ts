@@ -218,7 +218,15 @@ export const sqlMemoryRepoLayer = Layer.effect(
 			getMemory: (id) =>
 				Effect.gen(function* () {
 					const rows = yield* sql<MemoryRow>`SELECT * FROM memories WHERE id = ${id} LIMIT 1`;
-					const row = rows[0];
+					const live = rows[0];
+					if (live) {
+						const [hydrated] = yield* hydrateMemories([toMemory(live)]);
+						return hydrated ?? toMemory(live);
+					}
+					const archived = yield* sql<MemoryRow>`
+						SELECT * FROM memories_archive WHERE id = ${id} LIMIT 1
+					`;
+					const row = archived[0];
 					if (!row) {
 						return yield* Effect.fail(new NotFound({ entity: "memory", id }));
 					}
@@ -434,6 +442,7 @@ export const sqlMemoryRepoLayer = Layer.effect(
 						`;
 						const keepChunkIds = batch.chunks.map((chunk) => chunk.id);
 						let orphanCount = 0;
+						let orphanIds: string[] = [];
 						if (keepChunkIds.length === 0) {
 							const affected = yield* sql<{ memory_id: string }>`
 								SELECT DISTINCT memory_id FROM memory_sources
@@ -450,7 +459,8 @@ export const sqlMemoryRepoLayer = Layer.effect(
 									)}
 								`;
 								const linked = new Set(remaining.map((row) => row.memory_id));
-								orphanCount = affected.filter((row) => !linked.has(row.memory_id)).length;
+								orphanIds = affected.map((row) => row.memory_id).filter((id) => !linked.has(id));
+								orphanCount = orphanIds.length;
 							}
 						} else {
 							const existingChunks = yield* sql<{ id: string }>`
@@ -475,7 +485,8 @@ export const sqlMemoryRepoLayer = Layer.effect(
 										)}
 									`;
 									const linked = new Set(remaining.map((row) => row.memory_id));
-									orphanCount = affected.filter((row) => !linked.has(row.memory_id)).length;
+									orphanIds = affected.map((row) => row.memory_id).filter((id) => !linked.has(id));
+									orphanCount = orphanIds.length;
 								}
 							}
 						}
@@ -483,6 +494,30 @@ export const sqlMemoryRepoLayer = Layer.effect(
 							yield* Effect.log(
 								`ingest orphaned ${orphanCount} memories on document ${batch.document.id}`,
 							);
+							const superseded = new Set(
+								batch.memories.flatMap((memory) => (memory.supersedes ? [memory.supersedes] : [])),
+							);
+							for (const id of orphanIds) {
+								if (superseded.has(id)) {
+									continue;
+								}
+								yield* sql`
+									UPDATE memories SET state = ${"dormant"}, updated_at = ${now}
+									WHERE id = ${id} AND state = ${"active"}
+								`;
+								const rows = yield* sql<MemoryRow>`SELECT * FROM memories WHERE id = ${id} LIMIT 1`;
+								const row = rows[0];
+								if (row) {
+									yield* sql`
+										INSERT INTO memory_history (
+											id, memory_id, text, type, kind, confidence, valid_from, valid_to, state, changed_at, reason
+										) VALUES (
+											${crypto.randomUUID()}, ${id}, ${row.text}, ${row.type ?? "semantic"}, ${row.kind},
+											${row.confidence}, ${row.valid_from}, ${row.valid_to}, ${"dormant"}, ${now}, ${"source_removed"}
+										)
+									`;
+								}
+							}
 						}
 						for (const chunk of batch.chunks) {
 							yield* sql`
@@ -647,6 +682,9 @@ export const sqlMemoryRepoLayer = Layer.effect(
 					if (patch.observedAt !== undefined) {
 						yield* sql`UPDATE memories SET observed_at = ${patch.observedAt}, updated_at = ${now} WHERE id = ${id}`;
 					}
+					if (patch.retention !== undefined) {
+						yield* sql`UPDATE memories SET retention = ${patch.retention}, updated_at = ${now} WHERE id = ${id}`;
+					}
 					const rows = yield* sql<MemoryRow>`SELECT * FROM memories WHERE id = ${id} LIMIT 1`;
 					const row = rows[0];
 					if (!row) {
@@ -665,7 +703,7 @@ export const sqlMemoryRepoLayer = Layer.effect(
 						id, memory_id, text, type, kind, confidence, valid_from, valid_to, state, changed_at, reason
 					) VALUES (
 						${crypto.randomUUID()}, ${row.memoryId}, ${row.text}, ${row.type}, ${row.kind},
-						${row.confidence}, ${row.validFrom}, ${row.validTo}, ${row.state}, ${Date.now()}, ${row.reason}
+						${row.confidence}, ${row.validFrom}, ${row.validTo}, ${row.state}, ${row.changedAt ?? Date.now()}, ${row.reason}
 					)
 				`.pipe(Effect.asVoid),
 			getMemoryByClientRef: (clientRef) =>
@@ -1127,6 +1165,166 @@ export const sqlMemoryRepoLayer = Layer.effect(
 					`;
 					return yield* hydrateMemories(rows.map(toMemory));
 				}),
+			listFeedbackSums: (ids) =>
+				Effect.gen(function* () {
+					if (ids.length === 0) {
+						return [];
+					}
+					const rows = yield* sql<{ memory_id: string; sum: number }>`
+						SELECT memory_id, COALESCE(SUM(signal), 0) AS sum
+						FROM memory_feedback
+						WHERE ${sql.in("memory_id", [...ids])}
+						GROUP BY memory_id
+					`;
+					return rows.map((row) => ({ id: row.memory_id, sum: row.sum }));
+				}),
+			listDerivedParents: (ids) =>
+				Effect.gen(function* () {
+					if (ids.length === 0) {
+						return [];
+					}
+					const rows = yield* sql<{ dst: string }>`
+						SELECT DISTINCT dst FROM memory_edges
+						WHERE relation = ${"derived_from"} AND ${sql.in("dst", [...ids])}
+					`;
+					return rows.map((row) => row.dst);
+				}),
+			lastStateChange: (memoryId, state) =>
+				Effect.gen(function* () {
+					const rows = yield* sql<{ changed_at: number }>`
+						SELECT changed_at FROM memory_history
+						WHERE memory_id = ${memoryId} AND state = ${state}
+						ORDER BY changed_at DESC LIMIT 1
+					`;
+					return rows[0]?.changed_at ?? null;
+				}),
+			archiveMemory: (id, now) =>
+				Effect.gen(function* () {
+					yield* sql`
+						INSERT OR REPLACE INTO memories_archive
+						SELECT * FROM memories WHERE id = ${id}
+					`;
+					yield* sql`UPDATE memories_archive SET state = ${"archived"}, updated_at = ${now} WHERE id = ${id}`;
+					yield* sql`DELETE FROM memories WHERE id = ${id}`;
+				}),
+			restoreMemory: (id, now) =>
+				Effect.gen(function* () {
+					const live = yield* sql<MemoryRow>`SELECT * FROM memories WHERE id = ${id} LIMIT 1`;
+					if (live[0]) {
+						yield* sql`
+							UPDATE memories SET state = ${"active"}, updated_at = ${now} WHERE id = ${id}
+						`;
+						return toMemory({ ...live[0], state: "active" });
+					}
+					const archived = yield* sql<MemoryRow>`
+						SELECT * FROM memories_archive WHERE id = ${id} LIMIT 1
+					`;
+					if (!archived[0]) {
+						return yield* Effect.fail(new NotFound({ entity: "memory", id }));
+					}
+					yield* sql`
+						INSERT OR REPLACE INTO memories
+						SELECT * FROM memories_archive WHERE id = ${id}
+					`;
+					yield* sql`
+						UPDATE memories SET state = ${"active"}, updated_at = ${now} WHERE id = ${id}
+					`;
+					yield* sql`DELETE FROM memories_archive WHERE id = ${id}`;
+					const rows = yield* sql<MemoryRow>`SELECT * FROM memories WHERE id = ${id} LIMIT 1`;
+					const row = rows[0];
+					if (!row) {
+						return yield* Effect.fail(new NotFound({ entity: "memory", id }));
+					}
+					return toMemory(row);
+				}),
+			hardDeleteMemory: (id) =>
+				Effect.gen(function* () {
+					yield* sql`DELETE FROM memories WHERE id = ${id}`;
+					yield* sql`DELETE FROM memories_archive WHERE id = ${id}`;
+				}),
+			listArchived: (limit) =>
+				Effect.gen(function* () {
+					const rows = yield* sql<MemoryRow>`
+						SELECT * FROM memories_archive ORDER BY updated_at DESC LIMIT ${limit}
+					`;
+					return rows.map(toMemory);
+				}),
+			countActive: () =>
+				sql<{ n: number }>`SELECT COUNT(*) AS n FROM memories WHERE state = ${"active"}`.pipe(
+					Effect.map((rows) => rows[0]?.n ?? 0),
+				),
+			listLowestRetentionActive: (limit) =>
+				Effect.gen(function* () {
+					const rows = yield* sql<MemoryRow>`
+						SELECT * FROM memories
+						WHERE state = ${"active"}
+						ORDER BY retention ASC, created_at ASC
+						LIMIT ${limit}
+					`;
+					return rows.map(toMemory);
+				}),
+			getStats: () =>
+				Effect.gen(function* () {
+					const stored = yield* sql<{
+						last_sweep_at: number | null;
+						vectors_deleted: number;
+						cursor: string | null;
+					}>`SELECT last_sweep_at, vectors_deleted, cursor FROM memory_stats WHERE id = 1 LIMIT 1`;
+					const byState = yield* sql<{ state: string; n: number }>`
+						SELECT state, COUNT(*) AS n FROM memories GROUP BY state
+					`;
+					const byType = yield* sql<{ type: string; n: number }>`
+						SELECT type, COUNT(*) AS n FROM memories GROUP BY type
+					`;
+					const archived = yield* sql<{ n: number }>`
+						SELECT COUNT(*) AS n FROM memories_archive
+					`;
+					const count = (
+						rows: ReadonlyArray<{ state?: string; type?: string; n: number }>,
+						key: string,
+					) => rows.find((row) => row.state === key || row.type === key)?.n ?? 0;
+					const snapshot = stored[0];
+					return {
+						lastSweepAt: snapshot?.last_sweep_at ?? null,
+						vectorsDeleted: snapshot?.vectors_deleted ?? 0,
+						active: count(byState, "active"),
+						dormant: count(byState, "dormant"),
+						archived: archived[0]?.n ?? 0,
+						forgotten: count(byState, "forgotten"),
+						semantic: count(byType, "semantic"),
+						episodic: count(byType, "episodic"),
+						procedural: count(byType, "procedural"),
+						cursor: snapshot?.cursor ?? null,
+					};
+				}),
+			writeStats: (stats) =>
+				sql`
+					INSERT INTO memory_stats (
+						id, last_sweep_at, vectors_deleted, active_count, dormant_count, archived_count,
+						forgotten_count, semantic_count, episodic_count, procedural_count, cursor
+					) VALUES (
+						1, ${stats.lastSweepAt}, ${stats.vectorsDeleted}, ${stats.active}, ${stats.dormant},
+						${stats.archived}, ${stats.forgotten}, ${stats.semantic}, ${stats.episodic},
+						${stats.procedural}, ${stats.cursor}
+					)
+					ON CONFLICT(id) DO UPDATE SET
+						last_sweep_at = excluded.last_sweep_at,
+						vectors_deleted = excluded.vectors_deleted,
+						active_count = excluded.active_count,
+						dormant_count = excluded.dormant_count,
+						archived_count = excluded.archived_count,
+						forgotten_count = excluded.forgotten_count,
+						semantic_count = excluded.semantic_count,
+						episodic_count = excluded.episodic_count,
+						procedural_count = excluded.procedural_count,
+						cursor = excluded.cursor
+				`.pipe(Effect.asVoid),
+			listDocuments: () =>
+				sql<{ id: string; content_hash: string }>`
+					SELECT id, content_hash FROM documents ORDER BY id
+				`.pipe(
+					Effect.map((rows) => rows.map((row) => ({ id: row.id, contentHash: row.content_hash }))),
+				),
 		});
 	}),
 );

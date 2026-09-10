@@ -249,6 +249,7 @@ export const MemoryHit = Schema.Struct({
 	score: Schema.Finite,
 	provenance: Schema.Array(Provenance),
 	why: Schema.optionalKey(Schema.Array(WhyFlag)),
+	stale: Schema.optionalKey(Schema.Boolean),
 });
 export type MemoryHit = typeof MemoryHit.Type;
 
@@ -467,3 +468,17 @@ export const MemoryEdgeRow = Schema.Struct({
 	relation: Schema.String,
 });
 export type MemoryEdgeRow = typeof MemoryEdgeRow.Type;
+
+export const MemoryStats = Schema.Struct({
+	lastSweepAt: Schema.NullOr(Schema.Finite),
+	vectorsDeleted: Schema.Int,
+	active: Schema.Int,
+	dormant: Schema.Int,
+	archived: Schema.Int,
+	forgotten: Schema.Int,
+	semantic: Schema.Int,
+	episodic: Schema.Int,
+	procedural: Schema.Int,
+	cursor: Schema.NullOr(Schema.String),
+});
+export type MemoryStats = typeof MemoryStats.Type;

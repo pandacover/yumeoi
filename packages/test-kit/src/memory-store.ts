@@ -3,6 +3,7 @@ import type {
 	Document,
 	EntityType,
 	Memory,
+	MemoryStats,
 	Provenance,
 	QueryPlan,
 	Source,
@@ -53,6 +54,7 @@ type StoredMemory = {
 	accessCount: number;
 	lastAccessedAt: number | null;
 	updatedAt: number | null;
+	retention: number;
 };
 
 type Stored = {
@@ -97,6 +99,9 @@ type Stored = {
 		validTo: string | null;
 		confidence: number;
 	}>;
+	archive: StoredMemory[];
+	feedback: Array<{ memoryId: string; clientId: string; signal: number }>;
+	stats: MemoryStats;
 };
 
 const empty = (): Stored => ({
@@ -113,6 +118,20 @@ const empty = (): Stored => ({
 	queryCache: new Map(),
 	aliases: new Map(),
 	relations: [],
+	archive: [],
+	feedback: [],
+	stats: {
+		lastSweepAt: null,
+		vectorsDeleted: 0,
+		active: 0,
+		dormant: 0,
+		archived: 0,
+		forgotten: 0,
+		semantic: 0,
+		episodic: 0,
+		procedural: 0,
+		cursor: null,
+	},
 });
 
 export const inMemoryObjectStoreLayer = () => {
@@ -164,7 +183,8 @@ export const memoryMemoryRepoLayer = (userId = "test-user") => {
 					.map((chunk, rank) => ({ id: chunk.id, rank })),
 			),
 		getMemory: (id) => {
-			const memory = db.memories.find((item) => item.id === id);
+			const memory =
+				db.memories.find((item) => item.id === id) ?? db.archive.find((item) => item.id === id);
 			return memory
 				? Effect.succeed(toMemory(memory))
 				: Effect.fail(new NotFound({ entity: "memory", id }));
@@ -287,7 +307,40 @@ export const memoryMemoryRepoLayer = (userId = "test-user") => {
 					.filter((chunk) => chunk.documentId === batch.document.id && !keep.has(chunk.id))
 					.map((chunk) => chunk.id);
 				if (dropped.length > 0) {
-					db.links = db.links.filter((link) => !dropped.includes(link.chunkId));
+					const droppedSet = new Set(dropped);
+					const affected = [
+						...new Set(
+							db.links.filter((link) => droppedSet.has(link.chunkId)).map((link) => link.memoryId),
+						),
+					];
+					db.links = db.links.filter((link) => !droppedSet.has(link.chunkId));
+					const remaining = new Set(db.links.map((link) => link.memoryId));
+					const superseded = new Set(
+						batch.memories.flatMap((memory) => (memory.supersedes ? [memory.supersedes] : [])),
+					);
+					for (const id of affected) {
+						if (remaining.has(id) || superseded.has(id)) {
+							continue;
+						}
+						const memory = db.memories.find((item) => item.id === id);
+						if (memory && memory.state === "active") {
+							memory.state = "dormant";
+							memory.updatedAt = now;
+							db.history.push({
+								id: newShortId("h"),
+								memoryId: id,
+								text: memory.text,
+								type: memory.type,
+								kind: memory.kind,
+								confidence: memory.confidence,
+								validFrom: memory.validFrom,
+								validTo: memory.validTo,
+								state: "dormant",
+								changedAt: now,
+								reason: "source_removed",
+							});
+						}
+					}
 				}
 				db.chunks = db.chunks.filter(
 					(chunk) => chunk.documentId !== batch.document.id || keep.has(chunk.id),
@@ -336,6 +389,7 @@ export const memoryMemoryRepoLayer = (userId = "test-user") => {
 						accessCount: 0,
 						lastAccessedAt: null,
 						updatedAt: now,
+						retention: 1,
 					});
 					for (const chunkId of memory.chunkIds) {
 						db.links.push({
@@ -428,6 +482,7 @@ export const memoryMemoryRepoLayer = (userId = "test-user") => {
 					accessCount: 0,
 					lastAccessedAt: null,
 					updatedAt: now,
+					retention: 1,
 				};
 				db.memories.push(memory);
 				db.links.push({
@@ -470,6 +525,9 @@ export const memoryMemoryRepoLayer = (userId = "test-user") => {
 				if (patch.observedAt !== undefined) {
 					memory.observedAt = patch.observedAt;
 				}
+				if (patch.retention !== undefined) {
+					memory.retention = patch.retention;
+				}
 				memory.updatedAt = Date.now();
 				return toMemory(memory);
 			}),
@@ -495,7 +553,7 @@ export const memoryMemoryRepoLayer = (userId = "test-user") => {
 					validFrom: row.validFrom,
 					validTo: row.validTo,
 					state: row.state,
-					changedAt: Date.now(),
+					changedAt: row.changedAt ?? Date.now(),
 					reason: row.reason,
 				});
 			}),
@@ -616,7 +674,14 @@ export const memoryMemoryRepoLayer = (userId = "test-user") => {
 			Effect.succeed(db.edges.filter((edge) => ids.includes(edge.src) || ids.includes(edge.dst))),
 		listHistory: (memoryId) =>
 			Effect.succeed(db.history.filter((row) => row.memoryId === memoryId)),
-		insertFeedback: () => Effect.void,
+		insertFeedback: (row) =>
+			Effect.sync(() => {
+				db.feedback.push({
+					memoryId: row.memoryId,
+					clientId: row.clientId,
+					signal: row.signal,
+				});
+			}),
 		getQueryPlan: (hash, now) =>
 			Effect.sync(() => {
 				const cached = db.queryCache.get(hash);
@@ -773,6 +838,105 @@ export const memoryMemoryRepoLayer = (userId = "test-user") => {
 						return memory ? [toMemory(memory)] : [];
 					}),
 			),
+		listFeedbackSums: (ids) =>
+			Effect.succeed(
+				ids.map((id) => ({
+					id,
+					sum: db.feedback
+						.filter((row) => row.memoryId === id)
+						.reduce((total, row) => total + row.signal, 0),
+				})),
+			),
+		listDerivedParents: (ids) =>
+			Effect.succeed(
+				ids.filter((id) =>
+					db.edges.some((edge) => edge.relation === "derived_from" && edge.dst === id),
+				),
+			),
+		lastStateChange: (memoryId, state) =>
+			Effect.succeed(
+				db.history
+					.filter((row) => row.memoryId === memoryId && row.state === state)
+					.sort((left, right) => right.changedAt - left.changedAt)[0]?.changedAt ?? null,
+			),
+		archiveMemory: (id, now) =>
+			Effect.sync(() => {
+				const index = db.memories.findIndex((item) => item.id === id);
+				const memory = index >= 0 ? db.memories[index] : undefined;
+				if (!memory) {
+					return;
+				}
+				db.memories.splice(index, 1);
+				memory.state = "archived";
+				memory.updatedAt = now;
+				db.archive.push(memory);
+			}),
+		restoreMemory: (id, now) =>
+			Effect.gen(function* () {
+				const live = db.memories.find((item) => item.id === id);
+				if (live) {
+					live.state = "active";
+					live.updatedAt = now;
+					return toMemory(live);
+				}
+				const index = db.archive.findIndex((item) => item.id === id);
+				const archived = index >= 0 ? db.archive[index] : undefined;
+				if (!archived) {
+					return yield* Effect.fail(new NotFound({ entity: "memory", id }));
+				}
+				db.archive.splice(index, 1);
+				archived.state = "active";
+				archived.updatedAt = now;
+				db.memories.push(archived);
+				return toMemory(archived);
+			}),
+		hardDeleteMemory: (id) =>
+			Effect.sync(() => {
+				db.memories = db.memories.filter((item) => item.id !== id);
+				db.archive = db.archive.filter((item) => item.id !== id);
+			}),
+		listArchived: (limit) =>
+			Effect.succeed(
+				[...db.archive]
+					.sort((left, right) => (right.updatedAt ?? 0) - (left.updatedAt ?? 0))
+					.slice(0, limit)
+					.map(toMemory),
+			),
+		countActive: () =>
+			Effect.succeed(db.memories.filter((memory) => memory.state === "active").length),
+		listLowestRetentionActive: (limit) =>
+			Effect.succeed(
+				[...db.memories]
+					.filter((memory) => memory.state === "active")
+					.sort(
+						(left, right) => left.retention - right.retention || left.createdAt - right.createdAt,
+					)
+					.slice(0, limit)
+					.map(toMemory),
+			),
+		getStats: () =>
+			Effect.sync(() => {
+				const countState = (state: Memory["state"]) =>
+					db.memories.filter((memory) => memory.state === state).length;
+				const countType = (type: Memory["type"]) =>
+					db.memories.filter((memory) => memory.type === type).length;
+				return {
+					...db.stats,
+					active: countState("active"),
+					dormant: countState("dormant"),
+					archived: db.archive.length,
+					forgotten: countState("forgotten"),
+					semantic: countType("semantic"),
+					episodic: countType("episodic"),
+					procedural: countType("procedural"),
+				};
+			}),
+		writeStats: (stats) =>
+			Effect.sync(() => {
+				db.stats = { ...stats };
+			}),
+		listDocuments: () =>
+			Effect.succeed(db.documents.map((doc) => ({ id: doc.id, contentHash: doc.contentHash }))),
 	});
 };
 
@@ -795,6 +959,7 @@ const strip = (memory: StoredMemory, store: Stored): Memory =>
 		accessCount: memory.accessCount,
 		lastAccessedAt: memory.lastAccessedAt,
 		updatedAt: memory.updatedAt,
+		retention: memory.retention,
 		entities: store.memoryEntities.flatMap((link) => {
 			if (link.memoryId !== memory.id) {
 				return [];
@@ -872,7 +1037,9 @@ const filterMemories = (db: Stored, match: string, filters: SearchFilters) =>
 		return true;
 	});
 
-export const inMemoryVectorIndexLayer = () => {
+export const inMemoryVectorIndexLayer = (options?: {
+	readonly onDelete?: (ids: ReadonlyArray<string>) => void;
+}) => {
 	const records: Array<{
 		id: string;
 		values: ReadonlyArray<number>;
@@ -913,6 +1080,7 @@ export const inMemoryVectorIndexLayer = () => {
 			),
 		deleteByIds: (ids) =>
 			Effect.sync(() => {
+				options?.onDelete?.(ids);
 				const remove = new Set(ids);
 				for (let i = records.length - 1; i >= 0; i--) {
 					if (remove.has(records[i]?.id ?? "")) {
