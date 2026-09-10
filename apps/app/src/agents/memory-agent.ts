@@ -44,8 +44,8 @@ import {
 	restoreArchivedMemory,
 	runIngestStep,
 	runLayerJobs,
-	searchMemories,
 	SWEEP_INTERVAL_SECONDS,
+	searchMemories,
 	sweepStore,
 	timelineAbout,
 	updateMemoryRecord,
@@ -606,22 +606,26 @@ export class MemoryAgent extends AIChatAgent<Env, MemoryAgentState> {
 	@callable()
 	async sweep(payload?: { cursor?: string | null; now?: number; maxActive?: number }) {
 		const now = payload?.now ?? Date.now();
-		const lastActivity = this.state.lastActivityAt ?? now;
-		if (now - lastActivity >= IDLE_CANCEL_MS) {
-			await this.#cancelSweepSchedules();
-			return {
-				cancelled: true,
-				scanned: 0,
-				dormanted: [],
-				archived: [],
-				forgotten: [],
-				merged: [],
-				budgeted: [],
-				vectorsDeleted: [],
-				stats: await this.memoryStats(),
-				nextCursor: null,
-				done: true,
-			};
+		// Idle-cancel only applies to the repeating scheduled job (no explicit `now`).
+		// RPC / admin / tests pass `now` and must still run.
+		if (payload?.now === undefined) {
+			const lastActivity = this.state.lastActivityAt ?? now;
+			if (now - lastActivity >= IDLE_CANCEL_MS) {
+				await this.#cancelSweepSchedules();
+				return {
+					cancelled: true,
+					scanned: 0,
+					dormanted: [],
+					archived: [],
+					forgotten: [],
+					merged: [],
+					budgeted: [],
+					vectorsDeleted: [],
+					stats: await this.memoryStats(),
+					nextCursor: null,
+					done: true,
+				};
+			}
 		}
 		const result = await this.#runtime.runPromise(
 			sweepStore({

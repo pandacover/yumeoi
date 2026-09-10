@@ -9,9 +9,9 @@ import {
 	MAX_ACTIVE_MEMORIES,
 	normalizeMemoryText,
 	retentionScore,
+	SWEEP_SLICE,
 	shouldArchive,
 	shouldDormant,
-	SWEEP_SLICE,
 } from "./retention.ts";
 import { VectorIndex } from "./vector-index.ts";
 
@@ -24,6 +24,7 @@ export type SweepInput = {
 	readonly maxActive?: number;
 	readonly sliceSize?: number;
 	readonly skipPromote?: boolean;
+	readonly log?: boolean;
 };
 
 export type SweepResult = {
@@ -39,12 +40,7 @@ export type SweepResult = {
 	readonly done: boolean;
 };
 
-const historyFor = (
-	memory: Memory,
-	state: Memory["state"],
-	reason: string,
-	now: number,
-) => ({
+const historyFor = (memory: Memory, state: Memory["state"], reason: string, now: number) => ({
 	memoryId: memory.id,
 	text: memory.text,
 	type: memory.type,
@@ -76,7 +72,11 @@ const mergeExactDuplicates = (now: number) =>
 		let afterId: string | null = null;
 		const groups = new Map<string, Memory[]>();
 		for (;;) {
-			const page = yield* repo.listMemoriesPage({ afterId, limit: SWEEP_SLICE, activeOnly: false });
+			const page: ReadonlyArray<Memory> = yield* repo.listMemoriesPage({
+				afterId,
+				limit: SWEEP_SLICE,
+				activeOnly: false,
+			});
 			if (page.length === 0) {
 				break;
 			}
@@ -142,7 +142,11 @@ const hardDeleteForgotten = (now: number) =>
 		const forgotten: string[] = [];
 		let afterId: string | null = null;
 		for (;;) {
-			const page = yield* repo.listMemoriesPage({ afterId, limit: SWEEP_SLICE, activeOnly: false });
+			const page: ReadonlyArray<Memory> = yield* repo.listMemoriesPage({
+				afterId,
+				limit: SWEEP_SLICE,
+				activeOnly: false,
+			});
 			if (page.length === 0) {
 				break;
 			}
@@ -275,20 +279,22 @@ export const sweepStore = (input: SweepInput) =>
 			nextCursor,
 			done,
 		};
-		yield* Effect.sync(() =>
-			console.info("yumeoi sweep", {
-				userId: input.userId,
-				scanned: result.scanned,
-				dormanted: result.dormanted.length,
-				archived: result.archived.length,
-				forgotten: result.forgotten.length,
-				merged: result.merged.length,
-				budgeted: result.budgeted.length,
-				vectorsDeleted: result.vectorsDeleted.length,
-				active: stats.active,
-				done: result.done,
-			}),
-		);
+		if (input.log !== false) {
+			yield* Effect.sync(() =>
+				console.info("yumeoi sweep", {
+					userId: input.userId,
+					scanned: result.scanned,
+					dormanted: result.dormanted.length,
+					archived: result.archived.length,
+					forgotten: result.forgotten.length,
+					merged: result.merged.length,
+					budgeted: result.budgeted.length,
+					vectorsDeleted: result.vectorsDeleted.length,
+					active: stats.active,
+					done: result.done,
+				}),
+			);
+		}
 		return result;
 	});
 

@@ -51,7 +51,7 @@ function MemoriesPage() {
 	const [hits, setHits] = useState<MemoryHit[]>(initial.memories);
 	const [sourceList, setSourceList] = useState<SourceView[]>(initial.sources);
 	const [stats, setStats] = useState<MemoryStats>(initial.stats);
-	const [archived, setArchived] = useState<Memory[]>(initial.archived);
+	const [archived, setArchived] = useState<Memory[]>([...initial.archived]);
 	const [selected, setSelected] = useState<MemoryHit | null>(null);
 	const [documentText, setDocumentText] = useState("");
 	const [busy, setBusy] = useState(false);
@@ -63,7 +63,7 @@ function MemoriesPage() {
 			setHits(result.memories);
 			setSourceList(result.sources);
 			setStats(result.stats);
-			setArchived(result.archived);
+			setArchived([...result.archived]);
 		} finally {
 			setBusy(false);
 		}

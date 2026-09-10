@@ -63,9 +63,9 @@ describe("P6 retention formula", () => {
 	});
 
 	test("semantic memories go stale after two half-lives", () => {
-		expect(
-			isSemanticStale({ type: "semantic", observedAt: 0 }, 2 * HALF_LIFE_MS.semantic),
-		).toBe(true);
+		expect(isSemanticStale({ type: "semantic", observedAt: 0 }, 2 * HALF_LIFE_MS.semantic)).toBe(
+			true,
+		);
 		expect(
 			isSemanticStale({ type: "semantic", observedAt: 0 }, 2 * HALF_LIFE_MS.semantic - 1),
 		).toBe(false);

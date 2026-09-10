@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { readFileSync } from "node:fs";
 import { fillMemory } from "@yumeoi/domain";
 import {
 	inMemoryObjectStoreLayer,
@@ -6,7 +7,6 @@ import {
 	memoryMemoryRepoLayer,
 } from "@yumeoi/test-kit";
 import { Effect, Layer } from "effect";
-import { readFileSync } from "node:fs";
 import { mutableClockLayer } from "./clock.ts";
 import { consolidatorLayer } from "./consolidator.ts";
 import type { RecallSet } from "./eval.ts";
@@ -241,9 +241,9 @@ describe("P6 decay and lifecycle", () => {
 			expect(docs.length).toBeGreaterThan(0);
 			return true;
 		});
-		expect(
-			await Effect.runPromise(program.pipe(Effect.provide(layerFor(box, deleted)))),
-		).toBe(true);
+		expect(await Effect.runPromise(program.pipe(Effect.provide(layerFor(box, deleted))))).toBe(
+			true,
+		);
 		expect(deleted.some((id) => id.startsWith("m:"))).toBe(true);
 	});
 
@@ -300,9 +300,9 @@ describe("P6 decay and lifecycle", () => {
 						text: hit.memory.text,
 						kind: hit.memory.kind,
 					}));
-					const expected =
-						set.queries.find((item) => item.query === query)?.expected ??
-						[{ contains: query.split(" ").slice(-1)[0] ?? "Effect" }];
+					const expected = set.queries.find((item) => item.query === query)?.expected ?? [
+						{ contains: query.split(" ").slice(-1)[0] ?? "Effect" },
+					];
 					scores.push(scoreRecall({ id: query, query, expected }, packed));
 				}
 				return summarizeRecall(scores).recallAt10;
@@ -319,6 +319,7 @@ describe("P6 decay and lifecycle", () => {
 					userId,
 					now: box.now,
 					skipPromote: true,
+					log: false,
 				});
 			}
 			const activeAfter = yield* repo.countActive();
@@ -336,8 +337,8 @@ describe("P6 decay and lifecycle", () => {
 			expect(stats.archived).toBeGreaterThan(0);
 			return true;
 		});
-		expect(
-			await Effect.runPromise(program.pipe(Effect.provide(layerFor(box, deleted)))),
-		).toBe(true);
+		expect(await Effect.runPromise(program.pipe(Effect.provide(layerFor(box, deleted))))).toBe(
+			true,
+		);
 	}, 60_000);
 });

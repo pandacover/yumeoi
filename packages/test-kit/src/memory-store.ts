@@ -183,7 +183,8 @@ export const memoryMemoryRepoLayer = (userId = "test-user") => {
 					.map((chunk, rank) => ({ id: chunk.id, rank })),
 			),
 		getMemory: (id) => {
-			const memory = db.memories.find((item) => item.id === id) ?? db.archive.find((item) => item.id === id);
+			const memory =
+				db.memories.find((item) => item.id === id) ?? db.archive.find((item) => item.id === id);
 			return memory
 				? Effect.succeed(toMemory(memory))
 				: Effect.fail(new NotFound({ entity: "memory", id }));
@@ -907,7 +908,9 @@ export const memoryMemoryRepoLayer = (userId = "test-user") => {
 			Effect.succeed(
 				[...db.memories]
 					.filter((memory) => memory.state === "active")
-					.sort((left, right) => left.retention - right.retention || left.createdAt - right.createdAt)
+					.sort(
+						(left, right) => left.retention - right.retention || left.createdAt - right.createdAt,
+					)
 					.slice(0, limit)
 					.map(toMemory),
 			),

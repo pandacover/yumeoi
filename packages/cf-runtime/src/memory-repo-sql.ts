@@ -459,9 +459,7 @@ export const sqlMemoryRepoLayer = Layer.effect(
 									)}
 								`;
 								const linked = new Set(remaining.map((row) => row.memory_id));
-								orphanIds = affected
-									.map((row) => row.memory_id)
-									.filter((id) => !linked.has(id));
+								orphanIds = affected.map((row) => row.memory_id).filter((id) => !linked.has(id));
 								orphanCount = orphanIds.length;
 							}
 						} else {
@@ -487,9 +485,7 @@ export const sqlMemoryRepoLayer = Layer.effect(
 										)}
 									`;
 									const linked = new Set(remaining.map((row) => row.memory_id));
-									orphanIds = affected
-										.map((row) => row.memory_id)
-										.filter((id) => !linked.has(id));
+									orphanIds = affected.map((row) => row.memory_id).filter((id) => !linked.has(id));
 									orphanCount = orphanIds.length;
 								}
 							}
@@ -1283,8 +1279,10 @@ export const sqlMemoryRepoLayer = Layer.effect(
 					const archived = yield* sql<{ n: number }>`
 						SELECT COUNT(*) AS n FROM memories_archive
 					`;
-					const count = (rows: ReadonlyArray<{ state?: string; type?: string; n: number }>, key: string) =>
-						rows.find((row) => row.state === key || row.type === key)?.n ?? 0;
+					const count = (
+						rows: ReadonlyArray<{ state?: string; type?: string; n: number }>,
+						key: string,
+					) => rows.find((row) => row.state === key || row.type === key)?.n ?? 0;
 					const snapshot = stored[0];
 					return {
 						lastSweepAt: snapshot?.last_sweep_at ?? null,
@@ -1324,7 +1322,9 @@ export const sqlMemoryRepoLayer = Layer.effect(
 			listDocuments: () =>
 				sql<{ id: string; content_hash: string }>`
 					SELECT id, content_hash FROM documents ORDER BY id
-				`.pipe(Effect.map((rows) => rows.map((row) => ({ id: row.id, contentHash: row.content_hash })))),
+				`.pipe(
+					Effect.map((rows) => rows.map((row) => ({ id: row.id, contentHash: row.content_hash }))),
+				),
 		});
 	}),
 );

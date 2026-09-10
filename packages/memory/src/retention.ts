@@ -67,7 +67,10 @@ export const retentionScore = (input: {
 	return clamp01(importance ** 0.5 * input.confidence * recency * use);
 };
 
-export const isSemanticStale = (memory: Pick<Memory, "type" | "observedAt">, now: number): boolean => {
+export const isSemanticStale = (
+	memory: Pick<Memory, "type" | "observedAt">,
+	now: number,
+): boolean => {
 	if (memory.type !== "semantic") {
 		return false;
 	}
