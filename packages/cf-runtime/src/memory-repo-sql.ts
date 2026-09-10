@@ -1183,11 +1183,11 @@ export const sqlMemoryRepoLayer = Layer.effect(
 					if (ids.length === 0) {
 						return [];
 					}
-					const rows = yield* sql<{ src: string }>`
-						SELECT DISTINCT src FROM memory_edges
-						WHERE relation = ${"derived_from"} AND ${sql.in("src", [...ids])}
+					const rows = yield* sql<{ dst: string }>`
+						SELECT DISTINCT dst FROM memory_edges
+						WHERE relation = ${"derived_from"} AND ${sql.in("dst", [...ids])}
 					`;
-					return rows.map((row) => row.src);
+					return rows.map((row) => row.dst);
 				}),
 			lastStateChange: (memoryId, state) =>
 				Effect.gen(function* () {

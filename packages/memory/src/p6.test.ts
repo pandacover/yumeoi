@@ -116,6 +116,49 @@ describe("P6 decay and lifecycle", () => {
 		expect(await Effect.runPromise(program.pipe(Effect.provide(layerFor(box))))).toBe(true);
 	});
 
+	test("summarized episodes keep the derived_from importance floor", async () => {
+		const box = { now: Date.now() };
+		const program = Effect.gen(function* () {
+			const episode = yield* remember({
+				userId,
+				items: [
+					{
+						text: "On 2026-01-01 Luv decided to keep Effect in the domain layer.",
+						type: "episodic",
+						kind: "decision",
+						importance: 0.05,
+						confidence: 1,
+					},
+				],
+				mode: "verbatim",
+				origin: "extracted",
+			});
+			const summary = yield* remember({
+				userId,
+				items: [
+					{
+						text: "Luv prefers Effect for the domain layer.",
+						type: "semantic",
+						kind: "preference",
+						importance: 0.8,
+						confidence: 1,
+					},
+				],
+				mode: "verbatim",
+				origin: "derived",
+			});
+			const episodeId = episode.items[0]?.id ?? "";
+			const summaryId = summary.items[0]?.id ?? "";
+			const repo = yield* MemoryRepo;
+			yield* repo.insertEdge(summaryId, episodeId, "derived_from");
+			yield* sweepStore({ userId, now: box.now, skipPromote: true, log: false });
+			const scored = yield* repo.getMemory(episodeId);
+			expect(scored.retention).toBeCloseTo(Math.sqrt(0.3), 5);
+			return true;
+		});
+		expect(await Effect.runPromise(program.pipe(Effect.provide(layerFor(box))))).toBe(true);
+	});
+
 	test("exact duplicates are merged and budget dormants the lowest retention", async () => {
 		const box = { now: Date.now() };
 		const program = Effect.gen(function* () {

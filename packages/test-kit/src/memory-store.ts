@@ -850,7 +850,7 @@ export const memoryMemoryRepoLayer = (userId = "test-user") => {
 		listDerivedParents: (ids) =>
 			Effect.succeed(
 				ids.filter((id) =>
-					db.edges.some((edge) => edge.relation === "derived_from" && edge.src === id),
+					db.edges.some((edge) => edge.relation === "derived_from" && edge.dst === id),
 				),
 			),
 		lastStateChange: (memoryId, state) =>
