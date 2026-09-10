@@ -1,3 +1,4 @@
+import type { Chunk, Memory } from "@yumeoi/domain";
 import { Effect } from "effect";
 import { Embeddings } from "./embeddings.ts";
 import { MemoryRepo } from "./memory-repo.ts";
@@ -21,7 +22,11 @@ export const reindexStore = (userId: string) =>
 		let memories = 0;
 		let chunks = 0;
 		for (;;) {
-			const page = yield* repo.listMemoriesPage({ afterId: after, limit: PAGE, activeOnly: true });
+			const page: ReadonlyArray<Memory> = yield* repo.listMemoriesPage({
+				afterId: after,
+				limit: PAGE,
+				activeOnly: true,
+			});
 			if (page.length === 0) {
 				break;
 			}
@@ -70,7 +75,12 @@ export const reindexStore = (userId: string) =>
 		}
 		after = null;
 		for (;;) {
-			const page = yield* repo.listChunksPage({ afterId: after, limit: PAGE });
+			const page: ReadonlyArray<Chunk & { readonly sourceId: string }> = yield* repo.listChunksPage(
+				{
+					afterId: after,
+					limit: PAGE,
+				},
+			);
 			if (page.length === 0) {
 				break;
 			}

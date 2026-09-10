@@ -3,6 +3,7 @@ import { fillMemory, NotFound } from "@yumeoi/domain";
 import { MemoryRepo, newShortId } from "@yumeoi/memory";
 import { Effect, Layer } from "effect";
 import { SqlClient } from "effect/unstable/sql/SqlClient";
+import type { Fragment } from "effect/unstable/sql/Statement";
 
 type MemoryRow = {
 	id: string;
@@ -55,9 +56,9 @@ const toMemory = (row: MemoryRow): Memory =>
 		validFrom: row.valid_from,
 		validTo: row.valid_to,
 		supersedes: row.supersedes,
-		type: row.type ?? undefined,
-		state: row.state ?? undefined,
-		importance: row.importance ?? undefined,
+		...(row.type ? { type: row.type } : {}),
+		...(row.state ? { state: row.state } : {}),
+		...(row.importance != null ? { importance: row.importance } : {}),
 		eventAt: row.event_at ?? null,
 		observedAt: row.observed_at ?? row.created_at,
 		updatedAt: row.updated_at ?? row.created_at,
@@ -144,7 +145,7 @@ export const sqlMemoryRepoLayer = Layer.effect(
 				),
 			searchMemoryFts: (match, filters) =>
 				Effect.gen(function* () {
-					const clauses = [sql`memories_fts MATCH ${match}`];
+					const clauses: Array<Fragment> = [sql`memories_fts MATCH ${match}`];
 					const asOf = filters.asOf ?? null;
 					if (asOf != null) {
 						clauses.push(sql`memories.observed_at <= ${asOf}`);
@@ -199,7 +200,7 @@ export const sqlMemoryRepoLayer = Layer.effect(
 				}),
 			searchChunkFts: (match, filters) =>
 				Effect.gen(function* () {
-					const clauses = [sql`chunks_fts MATCH ${match}`];
+					const clauses: Array<Fragment> = [sql`chunks_fts MATCH ${match}`];
 					if (filters.sources.length > 0) {
 						clauses.push(sql.in("documents.source_id", [...filters.sources]));
 					}
@@ -373,7 +374,7 @@ export const sqlMemoryRepoLayer = Layer.effect(
 				`.pipe(Effect.asVoid),
 			listMemories: (filters) =>
 				Effect.gen(function* () {
-					const clauses = [sql`valid_to IS NULL`, sql`state = ${"active"}`];
+					const clauses: Array<Fragment> = [sql`valid_to IS NULL`, sql`state = ${"active"}`];
 					if (filters.kinds.length > 0) {
 						clauses.push(sql.in("kind", [...filters.kinds]));
 					}
@@ -707,7 +708,7 @@ export const sqlMemoryRepoLayer = Layer.effect(
 				sql`UPDATE entities SET description = ${description} WHERE id = ${id}`.pipe(Effect.asVoid),
 			listMemoriesPage: (options) =>
 				Effect.gen(function* () {
-					const clauses = options.activeOnly
+					const clauses: Array<Fragment> = options.activeOnly
 						? [sql`valid_to IS NULL`, sql`state = ${"active"}`]
 						: [];
 					if (options.afterId) {
@@ -762,7 +763,7 @@ export const sqlMemoryRepoLayer = Layer.effect(
 					if (entityIds.length === 0) {
 						return [];
 					}
-					const clauses = [sql.in("memory_entities.entity_id", [...entityIds])];
+					const clauses: Array<Fragment> = [sql.in("memory_entities.entity_id", [...entityIds])];
 					if (filters.asOf != null) {
 						clauses.push(sql`memories.observed_at <= ${filters.asOf}`);
 						clauses.push(

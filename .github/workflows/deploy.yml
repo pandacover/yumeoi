@@ -1,0 +1,77 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cloudflare-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+  CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+jobs:
+  preview:
+    name: Preview Worker
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+      - run: bun install --frozen-lockfile
+      - name: Check Cloudflare credentials
+        run: |
+          if [[ -z "${CLOUDFLARE_API_TOKEN}" ]]; then
+            echo "CLOUDFLARE_API_TOKEN is empty; preview upload will be skipped."
+          else
+            echo "CLOUDFLARE_API_TOKEN is set."
+          fi
+          if [[ -z "${CLOUDFLARE_ACCOUNT_ID}" ]]; then
+            echo "CLOUDFLARE_ACCOUNT_ID is empty."
+          else
+            echo "CLOUDFLARE_ACCOUNT_ID is set."
+          fi
+      - name: Upload preview version
+        if: env.CLOUDFLARE_API_TOKEN != ''
+        run: bun run deploy:preview
+
+  production:
+    name: Production Worker
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+      - run: bun install --frozen-lockfile
+      - name: Check Cloudflare credentials
+        run: |
+          if [[ -z "${CLOUDFLARE_API_TOKEN}" ]]; then
+            echo "CLOUDFLARE_API_TOKEN is missing. Add it under Settings → Secrets and variables → Actions." >&2
+            exit 1
+          fi
+          if [[ -z "${CLOUDFLARE_ACCOUNT_ID}" ]]; then
+            echo "CLOUDFLARE_ACCOUNT_ID is missing. Add it under Settings → Secrets and variables → Actions." >&2
+            exit 1
+          fi
+      - name: Deploy production
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          YUMEOI_API_KEY: ${{ secrets.YUMEOI_API_KEY }}
+          YUMEOI_USER_ID: ${{ secrets.YUMEOI_USER_ID }}
+          TOKEN_ENCRYPTION_KEY: ${{ secrets.TOKEN_ENCRYPTION_KEY }}
+          NOTION_CLIENT_ID: ${{ secrets.NOTION_CLIENT_ID }}
+          NOTION_CLIENT_SECRET: ${{ secrets.NOTION_CLIENT_SECRET }}
+          NOTION_REDIRECT_URI: ${{ secrets.NOTION_REDIRECT_URI }}
+        run: bun run deploy

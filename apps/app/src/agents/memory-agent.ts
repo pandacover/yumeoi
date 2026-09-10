@@ -501,7 +501,11 @@ export class MemoryAgent extends AIChatAgent<Env, MemoryAgentState> {
 	}
 
 	@callable()
-	async getEntity(input: { name?: string; id?: string; hops?: number }) {
+	async getEntity(input: {
+		name?: string | undefined;
+		id?: string | undefined;
+		hops?: number | undefined;
+	}) {
 		return this.#runtime.runPromise(
 			getEntityView({
 				namespace: this.name,

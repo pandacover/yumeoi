@@ -20,7 +20,7 @@ export const promoteEpisodes = (userId: string, now = Date.now()) =>
 		const cutoff = now - 14 * MS_DAY;
 		const episodes = yield* repo.listRecentEpisodic(0, 500);
 		const old = episodes.filter(
-			(memory) => (memory.eventAt ?? memory.observedAt ?? memory.createdAt) <= cutoff,
+			(memory) => (memory.eventAt ?? memory.observedAt ?? memory.updatedAt ?? 0) <= cutoff,
 		);
 		const groups = new Map<string, typeof old>();
 		for (const memory of old) {
@@ -122,19 +122,21 @@ export const runLayerJobs = (userId: string, now = Date.now()) =>
 		return { promoted, procedures };
 	});
 
-export const recordChatEpisode = (userId: string, text: string) => {
-	const lower = text.toLowerCase();
-	if (!/\b(prefer|prefers|decided|decision|will|commit|agreed)\b/.test(lower)) {
-		return Effect.succeed({ recorded: false as const });
-	}
-	return remember({
-		userId,
-		text,
-		mode: "verbatim",
-		origin: "chat",
-		sourceId: `chat:${userId}`,
-	}).pipe(Effect.map(() => ({ recorded: true as const })));
-};
+export const recordChatEpisode = (userId: string, text: string) =>
+	Effect.gen(function* () {
+		const lower = text.toLowerCase();
+		if (!/\b(prefer|prefers|decided|decision|will|commit|agreed)\b/.test(lower)) {
+			return { recorded: false as const };
+		}
+		yield* remember({
+			userId,
+			text,
+			mode: "verbatim",
+			origin: "chat",
+			sourceId: `chat:${userId}`,
+		});
+		return { recorded: true as const };
+	});
 
 export const profileLines = (_userId: string, limit = 25) =>
 	Effect.gen(function* () {

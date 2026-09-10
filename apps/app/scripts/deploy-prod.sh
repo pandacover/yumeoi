@@ -4,7 +4,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 if [[ -z "${CLOUDFLARE_API_TOKEN:-}" ]]; then
-	echo "CLOUDFLARE_API_TOKEN is not set. Add it as a Cursor Runtime Secret and rerun." >&2
+	echo "CLOUDFLARE_API_TOKEN is not set. Add it as a GitHub Actions secret (and Cloud Agent secret) and rerun." >&2
 	exit 1
 fi
 

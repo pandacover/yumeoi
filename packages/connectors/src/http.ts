@@ -26,7 +26,7 @@ const readAuthError = (response: Response) =>
 			return code ? `${fallback} ${code}` : fallback;
 		},
 		catch: () => `http ${response.status}`,
-	});
+	}).pipe(Effect.orElseSucceed(() => `http ${response.status}`));
 
 export const fetchHttpLayer = (fetchImpl: FetchFn = (url, init) => fetch(url, init)) =>
 	Layer.succeed(ConnectorHttp, {
