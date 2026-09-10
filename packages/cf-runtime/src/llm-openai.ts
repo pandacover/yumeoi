@@ -66,12 +66,12 @@ export const resolveGatewayLlmProvidersFromKeys = (options: {
 	readonly openaiApiKey?: string | undefined;
 }): ReadonlyArray<GatewayLlmProvider> =>
 	resolveGatewayLlmProviders({
-		openrouter: options.openrouterApiKey
-			? { apiKey: options.openrouterApiKey, baseURL: OPENROUTER_API_BASE }
-			: undefined,
-		openai: options.openaiApiKey
-			? { apiKey: options.openaiApiKey, baseURL: OPENAI_API_BASE }
-			: undefined,
+		...(options.openrouterApiKey
+			? { openrouter: { apiKey: options.openrouterApiKey, baseURL: OPENROUTER_API_BASE } }
+			: {}),
+		...(options.openaiApiKey
+			? { openai: { apiKey: options.openaiApiKey, baseURL: OPENAI_API_BASE } }
+			: {}),
 	});
 
 const httpStatusOf = (cause: unknown): number | undefined => {
