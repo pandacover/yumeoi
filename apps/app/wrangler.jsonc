@@ -12,12 +12,14 @@
 		"AI_GATEWAY_ID": "default"
 	},
 	"ai": {
-		"binding": "AI"
+		"binding": "AI",
+		"remote": true
 	},
 	"vectorize": [
 		{
 			"binding": "VECTORIZE",
-			"index_name": "yumeoi-memories"
+			"index_name": "yumeoi-memories",
+			"remote": true
 		}
 	],
 	"r2_buckets": [

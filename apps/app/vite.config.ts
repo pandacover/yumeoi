@@ -15,8 +15,10 @@ export default defineConfig({
 	plugins: [
 		cloudflare({
 			viteEnvironment: { name: "ssr" },
-			// Remote AI/Vectorize bindings require Cloudflare login; M0 uses local fakes.
-			remoteBindings: false,
+			// Use real Workers AI + Vectorize in local dev so retrieval matches
+			// production. Requires CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID and
+			// the provisioned "yumeoi-memories" index (bun run provision:vectorize).
+			remoteBindings: true,
 		}),
 		agents(),
 		tailwindcss(),
