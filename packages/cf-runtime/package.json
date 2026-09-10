@@ -5,6 +5,7 @@
 	"type": "module",
 	"exports": {
 		".": "./src/index.ts",
+		"./embeddings-rest": "./src/embeddings-rest.ts",
 		"./llm-openai": "./src/llm-openai.ts"
 	},
 	"scripts": {

@@ -1,9 +1,11 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { restWorkersAiEmbeddingsLayer } from "@yumeoi/cf-runtime/embeddings-rest";
 import { gatewayLlmLayer, resolveGatewayLlmProviders } from "@yumeoi/cf-runtime/llm-openai";
 import { defaultLlmConfig } from "@yumeoi/domain";
 import {
 	consolidatorLayer,
+	EMBEDDING_MODEL,
 	evaluateRecall,
 	extractorLayer,
 	hashEmbeddingsLayer,
@@ -45,9 +47,24 @@ const providers = resolveGatewayLlmProviders({
 const live = providers.length > 0 && process.env.EVAL_LIVE === "1";
 const llm = live ? gatewayLlmLayer({ config: defaultLlmConfig, providers }) : heuristicLlmLayer;
 
+// Benchmark against real Workers AI (bge-m3) embeddings when EVAL_LIVE=1 and
+// Cloudflare credentials are present; otherwise fall back to deterministic hash
+// embeddings so keyless CI stays green. The vector search stays exact (in-memory)
+// so scores reflect embedding quality without Vectorize's ANN approximation.
+const cfAccountId = process.env.CLOUDFLARE_ACCOUNT_ID;
+const cfApiToken = process.env.CLOUDFLARE_API_TOKEN;
+const useRealEmbeddings =
+	process.env.EVAL_LIVE === "1" && Boolean(cfAccountId) && Boolean(cfApiToken);
+const embeddings = useRealEmbeddings
+	? restWorkersAiEmbeddingsLayer({
+			accountId: cfAccountId as string,
+			apiToken: cfApiToken as string,
+		})
+	: hashEmbeddingsLayer;
+
 const layer = Layer.mergeAll(
 	memoryMemoryRepoLayer("recall-eval"),
-	hashEmbeddingsLayer,
+	embeddings,
 	llm,
 	Layer.provide(extractorLayer, llm),
 	Layer.provide(consolidatorLayer, llm),
@@ -78,7 +95,7 @@ const previous = (() => {
 const snapshot: StageResult = {
 	live,
 	generatedAt: new Date().toISOString(),
-	embeddings: "hash",
+	embeddings: useRealEmbeddings ? "workers-ai" : "hash",
 	summary: run.summary,
 };
 
@@ -138,7 +155,7 @@ Labeled retrieval set: \`docs/eval/recall-set.json\` (${set.documents.length} da
 
 Harness: \`scoreRecall\` in \`packages/memory/src/eval.ts\`, runner \`apps/app/scripts/eval-recall.ts\` (\`bun run eval:recall\`). Deterministic path uses hash embeddings, in-memory Vectorize, and the heuristic extractor so CI can fail fusion/filter/pack regressions without keys.
 
-Live extraction uses OpenRouter (OpenAI fallback) when \`EVAL_LIVE=1\` and \`OPENROUTER_API_KEY\` / \`OPENAI_API_KEY\` are set. Embeddings stay hash in this bun runner; workerd tests cover the Vectorize emulator.
+Live extraction uses OpenRouter (OpenAI fallback) when \`EVAL_LIVE=1\` and \`OPENROUTER_API_KEY\` / \`OPENAI_API_KEY\` are set. With \`EVAL_LIVE=1\` plus \`CLOUDFLARE_ACCOUNT_ID\` / \`CLOUDFLARE_API_TOKEN\`, embeddings come from real Workers AI (\`${EMBEDDING_MODEL}\`) over REST (\`embeddings: workers-ai\`); the vector search stays exact in-memory so scores reflect embedding quality without Vectorize's ANN approximation. Without those keys it falls back to hash embeddings.
 
 Raw numbers: \`docs/eval/recall-results.json\`. Set \`EVAL_STAGE=baseline\`, \`after-fixes\`, \`p3\`, or \`p4\` when recording a phase.
 
@@ -146,7 +163,7 @@ Raw numbers: \`docs/eval/recall-results.json\`. Set \`EVAL_STAGE=baseline\`, \`a
 
 ${table}
 
-P0 records a baseline **before** retrieval changes, then the same table after D1–D5 / D3 / D7. P3 records the rewritten retrieval pipeline (porter FTS, weighted RRF, type freshness, access tracking). P4+P5 add graph expansion and \`asOf\` / timeline / promotion. Heuristic CI must not regress Recall@10 or nDCG@10 versus after-fixes. Single-hop Recall@10 must not drop more than 0.02 versus P3. The live gate (nDCG@10 ≥ baseline + 0.10, Recall@10 ≥ 0.85) needs Workers AI embeddings; this bun runner keeps hash embeddings.
+P0 records a baseline **before** retrieval changes, then the same table after D1–D5 / D3 / D7. P3 records the rewritten retrieval pipeline (porter FTS, weighted RRF, type freshness, access tracking). P4+P5 add graph expansion and \`asOf\` / timeline / promotion. Heuristic CI must not regress Recall@10 or nDCG@10 versus after-fixes. Single-hop Recall@10 must not drop more than 0.02 versus P3. The live gate (nDCG@10 ≥ baseline + 0.10, Recall@10 ≥ 0.85) needs Workers AI embeddings; run \`EVAL_LIVE=1\` with Cloudflare credentials so this runner embeds against real Workers AI.
 `,
 );
 
