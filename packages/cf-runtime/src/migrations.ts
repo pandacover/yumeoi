@@ -371,3 +371,30 @@ export const memoryStoreV5Migration: Effect.Effect<void, unknown, SqlClient> = E
 		console.info(`0005_fts_porter rebuilt FTS in ${Date.now() - started}ms`);
 	},
 );
+
+export const memoryStoreV6Migration: Effect.Effect<void, unknown, SqlClient> = Effect.gen(
+	function* () {
+		const sql = yield* SqlClient;
+		yield* sql.unsafe(`
+			CREATE TABLE IF NOT EXISTS memory_stats (
+				id INTEGER PRIMARY KEY CHECK (id = 1),
+				last_sweep_at INTEGER,
+				vectors_deleted INTEGER NOT NULL DEFAULT 0,
+				active_count INTEGER NOT NULL DEFAULT 0,
+				dormant_count INTEGER NOT NULL DEFAULT 0,
+				archived_count INTEGER NOT NULL DEFAULT 0,
+				forgotten_count INTEGER NOT NULL DEFAULT 0,
+				semantic_count INTEGER NOT NULL DEFAULT 0,
+				episodic_count INTEGER NOT NULL DEFAULT 0,
+				procedural_count INTEGER NOT NULL DEFAULT 0,
+				cursor TEXT
+			)
+		`);
+		yield* sql.unsafe(`
+			INSERT OR IGNORE INTO memory_stats (
+				id, last_sweep_at, vectors_deleted, active_count, dormant_count, archived_count,
+				forgotten_count, semantic_count, episodic_count, procedural_count, cursor
+			) VALUES (1, NULL, 0, 0, 0, 0, 0, 0, 0, 0, NULL)
+		`);
+	},
+);

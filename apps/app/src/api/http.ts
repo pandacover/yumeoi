@@ -193,9 +193,15 @@ export async function handleApi(request: Request, env: Env): Promise<Response | 
 	const url = new URL(request.url);
 
 	if (url.pathname === "/api/health") {
+		const userId = appUserId(env);
+		const stats = await env.MemoryAgent.getByName(userId)
+			.memoryStats()
+			.catch(() => null);
 		return json({
 			ok: true,
 			milestone: "m4",
+			phase: "p6",
+			memory: stats,
 			chat: {
 				model: defaultLlmConfig.chat,
 				resumable: true,
@@ -387,6 +393,25 @@ export async function handleApi(request: Request, env: Env): Promise<Response | 
 
 	if (url.pathname === "/api/admin/reindex" && request.method === "POST") {
 		return json(await agent.reindex());
+	}
+
+	if (url.pathname === "/api/admin/sweep" && request.method === "POST") {
+		const raw = ((await request.json().catch(() => ({}))) ?? {}) as Record<string, unknown>;
+		return json(
+			await agent.sweep({
+				...(typeof raw.cursor === "string" ? { cursor: raw.cursor } : {}),
+				...(typeof raw.now === "number" ? { now: raw.now } : {}),
+				...(typeof raw.maxActive === "number" ? { maxActive: raw.maxActive } : {}),
+			}),
+		);
+	}
+
+	if (url.pathname === "/api/admin/restore" && request.method === "POST") {
+		const raw = ((await request.json().catch(() => ({}))) ?? {}) as Record<string, unknown>;
+		if (typeof raw.id !== "string") {
+			return json({ error: "invalid_input", hint: "id is required" }, 400);
+		}
+		return json(await agent.restoreMemory(raw.id));
 	}
 
 	if (url.pathname === "/api/admin/promote" && request.method === "POST") {

@@ -26,6 +26,7 @@ import {
 	getEntityView,
 	getMemoryDetail,
 	heuristicChatAnswer,
+	IDLE_CANCEL_MS,
 	type IngestState,
 	type IngestStepName,
 	ingestDocument,
@@ -40,9 +41,12 @@ import {
 	recordFeedback,
 	reindexStore,
 	remember,
+	restoreArchivedMemory,
 	runIngestStep,
 	runLayerJobs,
 	searchMemories,
+	SWEEP_INTERVAL_SECONDS,
+	sweepStore,
 	timelineAbout,
 	updateMemoryRecord,
 } from "@yumeoi/memory";
@@ -64,6 +68,8 @@ export type MemoryAgentState = {
 	lastIngest?: IngestResult;
 	sources: SourceView[];
 	ingestProgress?: { step: string; percent: number; sourceId?: string };
+	lastActivityAt?: number;
+	sweepArmed?: boolean;
 };
 
 type AgentRuntime = ReturnType<typeof makeMemoryAgentRuntime>;
@@ -127,6 +133,9 @@ export class MemoryAgent extends AIChatAgent<Env, MemoryAgentState> {
 				});
 				await this.#runtime.context();
 				this.setState({ ...this.state, ready: true });
+				if (this.state.sweepArmed) {
+					await this.scheduleEvery(SWEEP_INTERVAL_SECONDS, "sweep");
+				}
 			} catch (error) {
 				console.error("MemoryAgent init failed", error);
 				throw error;
@@ -186,6 +195,25 @@ export class MemoryAgent extends AIChatAgent<Env, MemoryAgentState> {
 		}
 		const { text, citations } = await this.answerQuestion(query);
 		return heuristicChatResponse(text, citations);
+	}
+
+	async #touch(now = Date.now()) {
+		const next = { ...this.state, lastActivityAt: now };
+		if (!this.state.sweepArmed) {
+			await this.scheduleEvery(SWEEP_INTERVAL_SECONDS, "sweep");
+			next.sweepArmed = true;
+		}
+		this.setState(next);
+	}
+
+	async #cancelSweepSchedules() {
+		const schedules = await this.listSchedules();
+		for (const item of schedules) {
+			if (item.callback === "sweep") {
+				await this.cancelSchedule(item.id);
+			}
+		}
+		this.setState({ ...this.state, sweepArmed: false });
 	}
 
 	@callable()
@@ -253,6 +281,7 @@ export class MemoryAgent extends AIChatAgent<Env, MemoryAgentState> {
 	@callable()
 	async ingest(request: IngestRequest): Promise<IngestResult> {
 		try {
+			await this.#touch();
 			const result = await this.#runtime.runPromise(ingestDocument({ userId: this.name, request }));
 			this.setState({ ...this.state, lastIngest: result });
 			return result;
@@ -342,6 +371,7 @@ export class MemoryAgent extends AIChatAgent<Env, MemoryAgentState> {
 		limit?: number;
 		includeDormant?: boolean;
 	}) {
+		await this.#touch();
 		return this.#runtime.runPromise(
 			searchMemories({
 				query: query.query,
@@ -378,6 +408,7 @@ export class MemoryAgent extends AIChatAgent<Env, MemoryAgentState> {
 		rerank?: boolean;
 		rerankMode?: "none" | "cross" | "llm";
 	}): Promise<RecallResult> {
+		await this.#touch();
 		return this.#runtime.runPromise(
 			recallContext({
 				query: query.query,
@@ -435,6 +466,7 @@ export class MemoryAgent extends AIChatAgent<Env, MemoryAgentState> {
 		origin?: "extracted" | "agent" | "user" | "derived" | "chat";
 		observedAt?: number | null;
 	}) {
+		await this.#touch();
 		return this.#runtime.runPromise(
 			remember({
 				userId: this.name,
@@ -461,6 +493,7 @@ export class MemoryAgent extends AIChatAgent<Env, MemoryAgentState> {
 		return this.#runtime.runPromise(
 			updateMemoryRecord({
 				id: input.id,
+				namespace: this.name,
 				...(input.text !== undefined ? { text: input.text } : {}),
 				...(input.validTo !== undefined ? { validTo: input.validTo } : {}),
 				...(input.importance !== undefined ? { importance: input.importance } : {}),
@@ -472,6 +505,7 @@ export class MemoryAgent extends AIChatAgent<Env, MemoryAgentState> {
 
 	@callable()
 	async forget(input: { id?: string; query?: string; confirm?: boolean; reason?: string }) {
+		await this.#touch();
 		return this.#runtime.runPromise(
 			forgetMemories({
 				userId: this.name,
@@ -485,11 +519,13 @@ export class MemoryAgent extends AIChatAgent<Env, MemoryAgentState> {
 
 	@callable()
 	async feedback(input: { id: string; signal: 1 | -1; note?: string; clientId?: string }) {
+		await this.#touch();
 		return this.#runtime.runPromise(
 			recordFeedback({
 				id: input.id,
 				signal: input.signal,
 				clientId: input.clientId ?? this.name,
+				namespace: this.name,
 				...(input.note !== undefined ? { note: input.note } : {}),
 			}),
 		);
@@ -563,7 +599,58 @@ export class MemoryAgent extends AIChatAgent<Env, MemoryAgentState> {
 
 	@callable()
 	async reindex() {
+		await this.#touch();
 		return this.#runtime.runPromise(reindexStore(this.name));
+	}
+
+	@callable()
+	async sweep(payload?: { cursor?: string | null; now?: number; maxActive?: number }) {
+		const now = payload?.now ?? Date.now();
+		const lastActivity = this.state.lastActivityAt ?? now;
+		if (now - lastActivity >= IDLE_CANCEL_MS) {
+			await this.#cancelSweepSchedules();
+			return {
+				cancelled: true,
+				scanned: 0,
+				dormanted: [],
+				archived: [],
+				forgotten: [],
+				merged: [],
+				budgeted: [],
+				vectorsDeleted: [],
+				stats: await this.memoryStats(),
+				nextCursor: null,
+				done: true,
+			};
+		}
+		const result = await this.#runtime.runPromise(
+			sweepStore({
+				userId: this.name,
+				now,
+				cursor: payload?.cursor ?? null,
+				...(payload?.maxActive !== undefined ? { maxActive: payload.maxActive } : {}),
+			}),
+		);
+		if (result.nextCursor) {
+			await this.schedule(1, "sweep", { cursor: result.nextCursor, now });
+		}
+		return result;
+	}
+
+	@callable()
+	async restoreMemory(id: string) {
+		await this.#touch();
+		return this.#runtime.runPromise(restoreArchivedMemory(id, this.name));
+	}
+
+	@callable()
+	async memoryStats() {
+		return this.#runtime.runPromise(Effect.flatMap(MemoryRepo, (repo) => repo.getStats()));
+	}
+
+	@callable()
+	async listArchived(limit = 20) {
+		return this.#runtime.runPromise(Effect.flatMap(MemoryRepo, (repo) => repo.listArchived(limit)));
 	}
 
 	@callable()
@@ -637,6 +724,7 @@ export class MemoryAgent extends AIChatAgent<Env, MemoryAgentState> {
 		since?: number | null;
 		limit?: number;
 	}): Promise<MemoryHit[]> {
+		await this.#touch();
 		const sources = query.sources ? [...query.sources] : [];
 		const kinds = query.kinds ? [...query.kinds] : [];
 		const since = query.since ?? null;

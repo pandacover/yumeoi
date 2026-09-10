@@ -1,7 +1,14 @@
 import { env } from "cloudflare:workers";
 import { createFileRoute } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
-import { MEMORY_KINDS, type MemoryHit, type MemoryKind, type SourceView } from "@yumeoi/domain";
+import {
+	MEMORY_KINDS,
+	type Memory,
+	type MemoryHit,
+	type MemoryKind,
+	type MemoryStats,
+	type SourceView,
+} from "@yumeoi/domain";
 import { useMemo, useState } from "react";
 import { appUserId } from "../api/sources.ts";
 
@@ -10,7 +17,7 @@ const getMemories = createServerFn({ method: "POST" })
 	.handler(async ({ data }) => {
 		const userId = appUserId(env);
 		const agent = env.MemoryAgent.getByName(userId);
-		const [memories, sources] = await Promise.all([
+		const [memories, sources, stats, archived] = await Promise.all([
 			agent.browseMemories({
 				query: data.query,
 				kinds: data.kinds,
@@ -18,8 +25,17 @@ const getMemories = createServerFn({ method: "POST" })
 				limit: 50,
 			}),
 			agent.listSources(),
+			agent.memoryStats(),
+			agent.listArchived(12),
 		]);
-		return { memories, sources };
+		return { memories, sources, stats, archived };
+	});
+
+const restoreMemoryFn = createServerFn({ method: "POST" })
+	.validator((data: { id: string }) => data)
+	.handler(async ({ data }) => {
+		const userId = appUserId(env);
+		return env.MemoryAgent.getByName(userId).restoreMemory(data.id);
 	});
 
 export const Route = createFileRoute("/memories")({
@@ -34,6 +50,8 @@ function MemoriesPage() {
 	const [sources, setSources] = useState<string[]>([]);
 	const [hits, setHits] = useState<MemoryHit[]>(initial.memories);
 	const [sourceList, setSourceList] = useState<SourceView[]>(initial.sources);
+	const [stats, setStats] = useState<MemoryStats>(initial.stats);
+	const [archived, setArchived] = useState<Memory[]>(initial.archived);
 	const [selected, setSelected] = useState<MemoryHit | null>(null);
 	const [documentText, setDocumentText] = useState("");
 	const [busy, setBusy] = useState(false);
@@ -44,6 +62,8 @@ function MemoriesPage() {
 			const result = await getMemories({ data: next });
 			setHits(result.memories);
 			setSourceList(result.sources);
+			setStats(result.stats);
+			setArchived(result.archived);
 		} finally {
 			setBusy(false);
 		}
@@ -71,6 +91,34 @@ function MemoriesPage() {
 					Search extracted memories and open provenance back to the source document.
 				</p>
 			</header>
+
+			<section className="grid gap-3 rounded-2xl border border-[var(--line)] bg-[var(--card)] p-6 sm:grid-cols-2 lg:grid-cols-4">
+				<div>
+					<p className="text-xs uppercase tracking-wide text-[var(--muted)]">Active</p>
+					<p className="mt-1 text-2xl font-semibold">{stats.active}</p>
+				</div>
+				<div>
+					<p className="text-xs uppercase tracking-wide text-[var(--muted)]">Dormant / archived</p>
+					<p className="mt-1 text-2xl font-semibold">
+						{stats.dormant} / {stats.archived}
+					</p>
+				</div>
+				<div>
+					<p className="text-xs uppercase tracking-wide text-[var(--muted)]">Types</p>
+					<p className="mt-1 text-sm text-[var(--muted)]">
+						semantic {stats.semantic} · episodic {stats.episodic} · procedural {stats.procedural}
+					</p>
+				</div>
+				<div>
+					<p className="text-xs uppercase tracking-wide text-[var(--muted)]">Last sweep</p>
+					<p className="mt-1 text-sm text-[var(--muted)]">
+						{stats.lastSweepAt
+							? new Date(stats.lastSweepAt).toISOString().slice(0, 16).replace("T", " ")
+							: "not yet"}
+					</p>
+					<p className="text-xs text-[var(--muted)]">vectors deleted {stats.vectorsDeleted}</p>
+				</div>
+			</section>
 
 			<form
 				className="grid gap-4 rounded-2xl border border-[var(--line)] bg-[var(--card)] p-6"
@@ -215,6 +263,44 @@ function MemoriesPage() {
 					</aside>
 				) : null}
 			</section>
+
+			{archived.length > 0 ? (
+				<section className="flex flex-col gap-3">
+					<h2 className="text-lg font-medium">Archived</h2>
+					<p className="text-sm text-[var(--muted)]">
+						Archived memories are out of recall. Restore puts them back in the active set.
+					</p>
+					{archived.map((memory) => (
+						<div
+							key={memory.id}
+							className="flex items-start justify-between gap-4 rounded-2xl border border-[var(--line)] bg-[var(--card)] p-5"
+						>
+							<div>
+								<p className="text-xs uppercase tracking-wide text-[var(--muted)]">
+									{memory.type} · {memory.kind}
+								</p>
+								<p className="mt-2">{memory.text}</p>
+							</div>
+							<button
+								type="button"
+								className="shrink-0 rounded-lg border border-[var(--line)] px-3 py-1 text-xs"
+								disabled={busy}
+								onClick={async () => {
+									setBusy(true);
+									try {
+										await restoreMemoryFn({ data: { id: memory.id } });
+										await load();
+									} finally {
+										setBusy(false);
+									}
+								}}
+							>
+								Restore
+							</button>
+						</div>
+					))}
+				</section>
+			) : null}
 		</main>
 	);
 }

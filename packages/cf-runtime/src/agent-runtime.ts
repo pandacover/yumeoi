@@ -5,6 +5,7 @@ import {
 	hashEmbeddingsLayer,
 	heuristicLlmLayer,
 	identityRerankerLayer,
+	systemClockLayer,
 	VectorIndex,
 } from "@yumeoi/memory";
 import { Effect, Layer, ManagedRuntime } from "effect";
@@ -79,6 +80,7 @@ export const makeMemoryAgentLayer = (options: {
 		vectors,
 		objects,
 		reranker,
+		systemClockLayer,
 	);
 };
 

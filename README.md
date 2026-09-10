@@ -25,6 +25,7 @@ The Worker serves:
 - MCP OAuth at `/authorize`, `/token`, `/register` (PKCE + dynamic client registration)
 - Agents at `/agents/memory-agent/:name` and `/agents/source-agent/:name`
 - `POST /ingest`, `/api/search`, `/api/recall`, `/api/remember`, `/api/forget`, `/api/feedback`, `/api/sources`, `/api/keys`, `/api/grants` with `Authorization: Bearer ym_…`
+- `GET /api/health` includes per-user `memory` stats from the last decay sweep (active/dormant/archived counts, vectors deleted)
 
 Point Cursor or Claude Desktop at `/mcp`. Agent-facing guidance lives in [`docs/agents.md`](docs/agents.md) and is also the MCP server `instructions` string. The first connection opens the consent page; connected clients and API keys are managed on **Agents**. Headless agents that cannot do OAuth still send `Authorization: Bearer ym_…`.
 

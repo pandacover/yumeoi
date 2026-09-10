@@ -1,9 +1,13 @@
 import { InvalidRequest, type Memory, NotFound, type RememberOutcomeItem } from "@yumeoi/domain";
 import { Effect } from "effect";
+import { nowMillis } from "./clock.ts";
 import { MemoryRepo } from "./memory-repo.ts";
 import { ftsMatchQuery } from "./rrf.ts";
+import { restoreArchivedMemory } from "./sweep.ts";
+import { VectorIndex } from "./vector-index.ts";
 
 const writableOrigins = new Set(["agent", "user", "chat"]);
+const memoryVectorId = (id: string) => `m:${id}`;
 
 export const updateMemoryRecord = (input: {
 	readonly id: string;
@@ -12,10 +16,15 @@ export const updateMemoryRecord = (input: {
 	readonly importance?: number;
 	readonly kind?: Memory["kind"];
 	readonly eventAt?: string | null;
+	readonly namespace?: string;
 }) =>
 	Effect.gen(function* () {
 		const repo = yield* MemoryRepo;
-		const current = yield* repo.getMemory(input.id);
+		const now = yield* nowMillis;
+		let current = yield* repo.getMemory(input.id);
+		if (current.state === "archived") {
+			current = yield* restoreArchivedMemory(input.id, input.namespace ?? "default");
+		}
 		const eventAt =
 			input.eventAt === undefined ? undefined : input.eventAt ? Date.parse(input.eventAt) : null;
 		const updated = yield* repo.updateMemory(input.id, {
@@ -35,6 +44,7 @@ export const updateMemoryRecord = (input: {
 			validTo: updated.validTo,
 			state: updated.state,
 			reason: "correct",
+			changedAt: now,
 		});
 		return { memory: updated, previous: current };
 	});
@@ -48,6 +58,8 @@ export const forgetMemories = (input: {
 }) =>
 	Effect.gen(function* () {
 		const repo = yield* MemoryRepo;
+		const index = yield* VectorIndex;
+		const now = yield* nowMillis;
 		const ids: string[] = [];
 		if (input.id) {
 			ids.push(input.id);
@@ -77,6 +89,9 @@ export const forgetMemories = (input: {
 					}),
 				);
 			}
+			if (memory.state === "archived") {
+				yield* repo.restoreMemory(id, now);
+			}
 			yield* repo.updateMemory(id, { state: "forgotten" });
 			yield* repo.insertHistory({
 				memoryId: id,
@@ -88,7 +103,11 @@ export const forgetMemories = (input: {
 				validTo: memory.validTo,
 				state: "forgotten",
 				reason: input.reason ?? "forget",
+				changedAt: now,
 			});
+			yield* index
+				.deleteByIds([memoryVectorId(id)])
+				.pipe(Effect.catchTag("ProviderUnavailable", () => Effect.void));
 			forgotten.push(id);
 		}
 		return { ids: forgotten };
@@ -99,6 +118,7 @@ export const recordFeedback = (input: {
 	readonly signal: 1 | -1;
 	readonly note?: string;
 	readonly clientId: string;
+	readonly namespace?: string;
 }) =>
 	Effect.gen(function* () {
 		const repo = yield* MemoryRepo;
@@ -113,10 +133,15 @@ export const recordFeedback = (input: {
 			1,
 			Math.max(0, memory.importance + (input.signal === 1 ? 0.05 : -0.2)),
 		);
+		if (input.signal === 1 && memory.state === "archived") {
+			yield* restoreArchivedMemory(input.id, input.namespace ?? "default");
+		}
 		const patch =
 			input.signal === -1 && nextImportance <= 0.1
 				? { importance: nextImportance, state: "dormant" as const }
-				: { importance: nextImportance };
+				: input.signal === 1 && memory.state === "dormant"
+					? { importance: nextImportance, state: "active" as const }
+					: { importance: nextImportance };
 		yield* repo.updateMemory(input.id, patch);
 		return { ok: true as const, id: input.id };
 	});

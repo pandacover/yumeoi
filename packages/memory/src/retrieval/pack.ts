@@ -9,6 +9,7 @@ import type {
 	WhyFlag,
 } from "@yumeoi/domain";
 import { packMarkdown } from "../format.ts";
+import { isSemanticStale } from "../retention.ts";
 import { estimateTokens } from "../rrf.ts";
 
 export const packRecall = (input: {
@@ -29,6 +30,7 @@ export const packRecall = (input: {
 	readonly conflicts: ReadonlyArray<{ readonly src: string; readonly dst: string }>;
 	readonly format: "markdown" | "json";
 	readonly relations?: ReadonlyArray<GraphRelationLine>;
+	readonly now?: number;
 }): RecallResult => {
 	const provenanceByMemory = new Map<string, Provenance[]>();
 	for (const row of input.provenance) {
@@ -40,14 +42,16 @@ export const packRecall = (input: {
 
 	const rankedMemories = [...input.memories]
 		.sort((a, b) => (input.scores.get(b.id) ?? 0) - (input.scores.get(a.id) ?? 0))
-		.map(
-			(memory): MemoryHit => ({
+		.map((memory): MemoryHit => {
+			const stale = isSemanticStale(memory, input.now ?? Date.now());
+			return {
 				memory,
 				score: input.scores.get(memory.id) ?? 0,
 				provenance: provenanceByMemory.get(memory.id) ?? [],
 				why: [...(input.why.get(memory.id) ?? [])],
-			}),
-		);
+				...(stale ? { stale: true } : {}),
+			};
+		});
 
 	const packedMemories: MemoryHit[] = [];
 	let used = 0;

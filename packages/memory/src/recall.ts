@@ -1,5 +1,6 @@
 import type { Memory, RecallQuery, RecallResult, SearchQuery } from "@yumeoi/domain";
 import { Effect } from "effect";
+import { nowMillis } from "./clock.ts";
 import { Embeddings } from "./embeddings.ts";
 import { MemoryRepo } from "./memory-repo.ts";
 import { collectCandidates } from "./retrieval/candidates.ts";
@@ -243,6 +244,7 @@ export const recallContext = (input: Partial<RecallQuery> & { query: string; nam
 				},
 			];
 		});
+		const now = yield* nowMillis;
 		const result: RecallResult = packRecall({
 			memories: keptMemories,
 			scores,
@@ -256,10 +258,11 @@ export const recallContext = (input: Partial<RecallQuery> & { query: string; nam
 			conflicts: edges.filter((edge) => edge.relation === "contradicts"),
 			format,
 			relations,
+			now,
 		});
 		const packedIds = result.memories.map((hit) => hit.memory.id);
 		if (packedIds.length > 0) {
-			yield* repo.recordAccess(packedIds, Date.now());
+			yield* repo.recordAccess(packedIds, now);
 		}
 		return result;
 	});

@@ -32,10 +32,13 @@ export const formatMemoryLine = (
 			? `(${memory.type}·${memory.kind}, conf ${conf}${srcBit})`
 			: `(${memory.type}·${memory.kind}, conf ${conf}, ${eventPrefix.replace(/, $/, "")}${srcBit})`;
 	const conflict = options?.conflictWith ? ` ⚠ conflicts with [${options.conflictWith}]` : "";
+	const stale = hit.stale
+		? ` ⚠ last confirmed ${isoDate(memory.observedAt)?.slice(0, 7) ?? "unknown"}`
+		: "";
 	const line =
 		memory.type === "episodic"
-			? `[${index}] ${eventPrefix}${meta} ${memory.text}.${whyText(hit.why)}${conflict}`
-			: `[${index}] ${meta} ${memory.text}${whyText(hit.why)}${conflict}`;
+			? `[${index}] ${eventPrefix}${meta} ${memory.text}.${whyText(hit.why)}${conflict}${stale}`
+			: `[${index}] ${meta} ${memory.text}${whyText(hit.why)}${conflict}${stale}`;
 	return line.replaceAll("..", ".");
 };
 
