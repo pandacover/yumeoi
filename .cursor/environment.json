@@ -1,11 +1,11 @@
 {
 	"name": "yumeoi",
-	"install": "bun install --frozen-lockfile",
+	"install": "bash .cursor/install.sh",
 	"terminals": [
 		{
 			"name": "dev",
 			"command": "bun run dev",
-			"description": "Local Worker via Vite + Wrangler: UI, MCP, ingest, and agents."
+			"description": "Local Worker via Vite + Wrangler on http://localhost:3000: UI, MCP, ingest, and agents."
 		}
 	]
 }
