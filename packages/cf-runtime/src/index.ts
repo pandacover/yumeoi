@@ -1,4 +1,5 @@
 export * from "./agent-runtime.ts";
+export * from "./embeddings-rest.ts";
 export * from "./embeddings-workers-ai.ts";
 export * from "./llm-openai.ts";
 export * from "./memory-repo-sql.ts";
