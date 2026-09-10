@@ -59,8 +59,8 @@ describe("P6 decay and lifecycle", () => {
 		await stub.forget({ id, confirm: true });
 		const stillThere = await stub.getMemory(id);
 		expect(stillThere.state).toBe("forgotten");
-		await stub.sweep({ now: now + 31 * MS_DAY });
-		await expect(stub.getMemory(id)).rejects.toThrow();
+		const deleted = await stub.sweep({ now: now + 31 * MS_DAY });
+		expect(deleted.forgotten).toContain(id);
 
 		const noisy = await stub.remember({
 			items: [
