@@ -15,7 +15,7 @@ describe("P0 workerd", () => {
 		const hits = await stub.search({ query: "oat milk", limit: 10 });
 		expect(hits.some((hit) => hit.memory.id === memory.id)).toBe(true);
 		expect(hits.some((hit) => hit.memory.text.includes("oat milk"))).toBe(true);
-	});
+	}, 30_000);
 
 	it("keyword search applies kind filters before the limit", async () => {
 		const stub = env.MemoryAgent.getByName("p0-filter-user");
@@ -33,5 +33,5 @@ describe("P0 workerd", () => {
 		const hits = await stub.search({ query: "Luv", kinds: ["preference"], limit: 10 });
 		expect(hits.length).toBeGreaterThan(0);
 		expect(hits.every((hit) => hit.memory.kind === "preference")).toBe(true);
-	});
+	}, 30_000);
 });

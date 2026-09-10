@@ -1,0 +1,364 @@
+{
+	"pairs": [
+		{
+			"id": "e01",
+			"left": { "name": "Luv", "type": "person" },
+			"right": { "name": "Luv", "type": "person" },
+			"same": true
+		},
+		{
+			"id": "e02",
+			"left": { "name": "Anna", "type": "person" },
+			"right": { "name": "Anna", "type": "person" },
+			"same": true
+		},
+		{
+			"id": "e03",
+			"left": { "name": "Sam", "type": "person" },
+			"right": { "name": "Sam", "type": "person" },
+			"same": true
+		},
+		{
+			"id": "e04",
+			"left": { "name": "Maya", "type": "person" },
+			"right": { "name": "Maya", "type": "person" },
+			"same": true
+		},
+		{
+			"id": "e05",
+			"left": { "name": "Priya", "type": "person" },
+			"right": { "name": "Priya", "type": "person" },
+			"same": true
+		},
+		{
+			"id": "e06",
+			"left": { "name": "Jordan", "type": "person" },
+			"right": { "name": "Jordan", "type": "person" },
+			"same": true
+		},
+		{
+			"id": "e07",
+			"left": { "name": "Alex", "type": "person" },
+			"right": { "name": "Alex", "type": "person" },
+			"same": true
+		},
+		{
+			"id": "e08",
+			"left": { "name": "Riley", "type": "person" },
+			"right": { "name": "Riley", "type": "person" },
+			"same": true
+		},
+		{
+			"id": "e09",
+			"left": { "name": "Mr Luv", "type": "person" },
+			"right": { "name": "Luv", "type": "person" },
+			"same": true
+		},
+		{
+			"id": "e10",
+			"left": { "name": "Dr Anna", "type": "person" },
+			"right": { "name": "Anna", "type": "person" },
+			"same": true
+		},
+		{
+			"id": "e11",
+			"left": { "name": "Acme Labs", "type": "org" },
+			"right": { "name": "Acme Labs", "type": "org" },
+			"same": true
+		},
+		{
+			"id": "e12",
+			"left": { "name": "Globex", "type": "org" },
+			"right": { "name": "Globex", "type": "org" },
+			"same": true
+		},
+		{
+			"id": "e13",
+			"left": { "name": "Notion", "type": "org" },
+			"right": { "name": "Notion", "type": "org" },
+			"same": true
+		},
+		{
+			"id": "e14",
+			"left": { "name": "Cloudflare", "type": "org" },
+			"right": { "name": "Cloudflare", "type": "org" },
+			"same": true
+		},
+		{
+			"id": "e15",
+			"left": { "name": "The Notion", "type": "org" },
+			"right": { "name": "Notion", "type": "org" },
+			"same": true
+		},
+		{
+			"id": "e16",
+			"left": { "name": "Aurora", "type": "project" },
+			"right": { "name": "Aurora", "type": "project" },
+			"same": true
+		},
+		{
+			"id": "e17",
+			"left": { "name": "yumeoi", "type": "project" },
+			"right": { "name": "yumeoi", "type": "project" },
+			"same": true
+		},
+		{
+			"id": "e18",
+			"left": { "name": "The Aurora", "type": "project" },
+			"right": { "name": "Aurora", "type": "project" },
+			"same": true
+		},
+		{
+			"id": "e19",
+			"left": { "name": "Hamburg Launch", "type": "project" },
+			"right": { "name": "Hamburg Launch", "type": "project" },
+			"same": true
+		},
+		{
+			"id": "e20",
+			"left": { "name": "Vectorize", "type": "tool" },
+			"right": { "name": "Vectorize", "type": "tool" },
+			"same": true
+		},
+		{
+			"id": "e21",
+			"left": { "name": "Effect", "type": "tool" },
+			"right": { "name": "Effect", "type": "tool" },
+			"same": true
+		},
+		{
+			"id": "e22",
+			"left": { "name": "Bun", "type": "tool" },
+			"right": { "name": "Bun", "type": "tool" },
+			"same": true
+		},
+		{
+			"id": "e23",
+			"left": { "name": "Hamburg", "type": "place" },
+			"right": { "name": "Hamburg", "type": "place" },
+			"same": true
+		},
+		{
+			"id": "e24",
+			"left": { "name": "Austin", "type": "place" },
+			"right": { "name": "Austin", "type": "place" },
+			"same": true
+		},
+		{
+			"id": "e25",
+			"left": { "name": "Lisbon", "type": "place" },
+			"right": { "name": "Lisbon", "type": "place" },
+			"same": true
+		},
+		{
+			"id": "e26",
+			"left": { "name": "Sydney", "type": "place" },
+			"right": { "name": "Sydney", "type": "place" },
+			"same": true
+		},
+		{
+			"id": "e27",
+			"left": { "name": "OpenRouter", "type": "org" },
+			"right": { "name": "OpenRouter", "type": "org" },
+			"same": true
+		},
+		{
+			"id": "e28",
+			"left": { "name": "Workers", "type": "tool" },
+			"right": { "name": "Workers", "type": "tool" },
+			"same": true
+		},
+		{
+			"id": "e29",
+			"left": { "name": "Cursor", "type": "tool" },
+			"right": { "name": "Cursor", "type": "tool" },
+			"same": true
+		},
+		{
+			"id": "e30",
+			"left": { "name": "Ms Priya", "type": "person" },
+			"right": { "name": "Priya", "type": "person" },
+			"same": true
+		},
+		{
+			"id": "e31",
+			"left": { "name": "Anna", "type": "person" },
+			"right": { "name": "Sam", "type": "person" },
+			"same": false
+		},
+		{
+			"id": "e32",
+			"left": { "name": "Luv", "type": "person" },
+			"right": { "name": "Anna", "type": "person" },
+			"same": false
+		},
+		{
+			"id": "e33",
+			"left": { "name": "Anna", "type": "person" },
+			"right": { "name": "Annabelle", "type": "person" },
+			"same": false
+		},
+		{
+			"id": "e34",
+			"left": { "name": "Sam", "type": "person" },
+			"right": { "name": "Samuel", "type": "person" },
+			"same": false
+		},
+		{
+			"id": "e35",
+			"left": { "name": "Luv", "type": "person" },
+			"right": { "name": "Lucas", "type": "person" },
+			"same": false
+		},
+		{
+			"id": "e36",
+			"left": { "name": "Alex", "type": "person" },
+			"right": { "name": "Alexander", "type": "person" },
+			"same": false
+		},
+		{
+			"id": "e37",
+			"left": { "name": "Maya", "type": "person" },
+			"right": { "name": "May", "type": "person" },
+			"same": false
+		},
+		{
+			"id": "e38",
+			"left": { "name": "Jordan", "type": "person" },
+			"right": { "name": "Riley", "type": "person" },
+			"same": false
+		},
+		{
+			"id": "e39",
+			"left": { "name": "Priya", "type": "person" },
+			"right": { "name": "Maya", "type": "person" },
+			"same": false
+		},
+		{
+			"id": "e40",
+			"left": { "name": "Sam", "type": "person" },
+			"right": { "name": "Jordan", "type": "person" },
+			"same": false
+		},
+		{
+			"id": "e41",
+			"left": { "name": "Acme Labs", "type": "org" },
+			"right": { "name": "Globex", "type": "org" },
+			"same": false
+		},
+		{
+			"id": "e42",
+			"left": { "name": "Notion", "type": "org" },
+			"right": { "name": "Cloudflare", "type": "org" },
+			"same": false
+		},
+		{
+			"id": "e43",
+			"left": { "name": "OpenRouter", "type": "org" },
+			"right": { "name": "Notion", "type": "org" },
+			"same": false
+		},
+		{
+			"id": "e44",
+			"left": { "name": "Aurora", "type": "project" },
+			"right": { "name": "yumeoi", "type": "project" },
+			"same": false
+		},
+		{
+			"id": "e45",
+			"left": { "name": "Aurora", "type": "project" },
+			"right": { "name": "Hamburg Launch", "type": "project" },
+			"same": false
+		},
+		{
+			"id": "e46",
+			"left": { "name": "yumeoi", "type": "project" },
+			"right": { "name": "Hamburg Launch", "type": "project" },
+			"same": false
+		},
+		{
+			"id": "e47",
+			"left": { "name": "Hamburg", "type": "place" },
+			"right": { "name": "Austin", "type": "place" },
+			"same": false
+		},
+		{
+			"id": "e48",
+			"left": { "name": "Austin", "type": "place" },
+			"right": { "name": "Lisbon", "type": "place" },
+			"same": false
+		},
+		{
+			"id": "e49",
+			"left": { "name": "Lisbon", "type": "place" },
+			"right": { "name": "Sydney", "type": "place" },
+			"same": false
+		},
+		{
+			"id": "e50",
+			"left": { "name": "Hamburg", "type": "place" },
+			"right": { "name": "Sydney", "type": "place" },
+			"same": false
+		},
+		{
+			"id": "e51",
+			"left": { "name": "Vectorize", "type": "tool" },
+			"right": { "name": "Bun", "type": "tool" },
+			"same": false
+		},
+		{
+			"id": "e52",
+			"left": { "name": "Effect", "type": "tool" },
+			"right": { "name": "Cursor", "type": "tool" },
+			"same": false
+		},
+		{
+			"id": "e53",
+			"left": { "name": "Workers", "type": "tool" },
+			"right": { "name": "Vectorize", "type": "tool" },
+			"same": false
+		},
+		{
+			"id": "e54",
+			"left": { "name": "Anna", "type": "person" },
+			"right": { "name": "Aurora", "type": "project" },
+			"same": false
+		},
+		{
+			"id": "e55",
+			"left": { "name": "Luv", "type": "person" },
+			"right": { "name": "yumeoi", "type": "project" },
+			"same": false
+		},
+		{
+			"id": "e56",
+			"left": { "name": "Sam", "type": "person" },
+			"right": { "name": "Notion", "type": "org" },
+			"same": false
+		},
+		{
+			"id": "e57",
+			"left": { "name": "Hamburg", "type": "place" },
+			"right": { "name": "Aurora", "type": "project" },
+			"same": false
+		},
+		{
+			"id": "e58",
+			"left": { "name": "Cloudflare", "type": "org" },
+			"right": { "name": "Workers", "type": "tool" },
+			"same": false
+		},
+		{
+			"id": "e59",
+			"left": { "name": "Anna", "type": "person" },
+			"right": { "name": "Hamburg", "type": "place" },
+			"same": false
+		},
+		{
+			"id": "e60",
+			"left": { "name": "Luv Patel", "type": "person" },
+			"right": { "name": "Luv", "type": "person" },
+			"same": false
+		}
+	]
+}

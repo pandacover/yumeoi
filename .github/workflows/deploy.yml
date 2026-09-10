@@ -20,23 +20,8 @@ env:
 jobs:
   preview:
     name: Preview Worker
-    if: ${{ github.event_name == 'pull_request' && secrets.CLOUDFLARE_API_TOKEN != '' }}
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
-    environment: preview
-    steps:
-      - uses: actions/checkout@v4
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: 1.4.2
-      - run: bun install --frozen-lockfile
-      - name: Upload preview version
-        run: bun run deploy:preview
-
-  production:
-    name: Production Worker
-    if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
-    runs-on: ubuntu-latest
-    environment: production
     steps:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
@@ -46,11 +31,37 @@ jobs:
       - name: Check Cloudflare credentials
         run: |
           if [[ -z "${CLOUDFLARE_API_TOKEN}" ]]; then
-            echo "CLOUDFLARE_API_TOKEN is missing. Add it under Settings → Secrets and variables → Actions (and the production environment)." >&2
+            echo "CLOUDFLARE_API_TOKEN is empty; preview upload will be skipped."
+          else
+            echo "CLOUDFLARE_API_TOKEN is set."
+          fi
+          if [[ -z "${CLOUDFLARE_ACCOUNT_ID}" ]]; then
+            echo "CLOUDFLARE_ACCOUNT_ID is empty."
+          else
+            echo "CLOUDFLARE_ACCOUNT_ID is set."
+          fi
+      - name: Upload preview version
+        if: env.CLOUDFLARE_API_TOKEN != ''
+        run: bun run deploy:preview
+
+  production:
+    name: Production Worker
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+      - run: bun install --frozen-lockfile
+      - name: Check Cloudflare credentials
+        run: |
+          if [[ -z "${CLOUDFLARE_API_TOKEN}" ]]; then
+            echo "CLOUDFLARE_API_TOKEN is missing. Add it under Settings → Secrets and variables → Actions." >&2
             exit 1
           fi
           if [[ -z "${CLOUDFLARE_ACCOUNT_ID}" ]]; then
-            echo "CLOUDFLARE_ACCOUNT_ID is missing. Add it under Settings → Secrets and variables → Actions (and the production environment)." >&2
+            echo "CLOUDFLARE_ACCOUNT_ID is missing. Add it under Settings → Secrets and variables → Actions." >&2
             exit 1
           fi
       - name: Deploy production

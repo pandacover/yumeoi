@@ -33,6 +33,7 @@ describe("domain schemas", () => {
 		expect(defaultLlmConfig.consolidate).toEqual({ model: "gpt-5.6-luna", effort: "none" });
 		expect(defaultLlmConfig.rerank).toEqual({ model: "gpt-5.6-luna", effort: "none" });
 		expect(defaultLlmConfig.classify).toEqual({ model: "gpt-5.6-luna", effort: "none" });
+		expect(defaultLlmConfig.query).toEqual({ model: "gpt-5.6-luna", effort: "none" });
 	});
 
 	test("parseResponseUsage reads input, output, and reasoning tokens", () => {

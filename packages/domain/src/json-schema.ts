@@ -1,5 +1,13 @@
 import { Schema } from "effect";
-import { ConsolidateDecision, ExtractedMemories, ExtractedMemory, RerankResult } from "./schema.ts";
+import {
+	ConsolidateDecision,
+	ExtractedMemories,
+	ExtractedMemory,
+	QueryPlan,
+	RerankResult,
+	ResolveDecision,
+	SummaryResult,
+} from "./schema.ts";
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
 	value !== null && typeof value === "object" && !Array.isArray(value);
@@ -35,6 +43,9 @@ export const extractedMemoryJsonSchema = () => toOpenAiJsonSchema(ExtractedMemor
 export const extractedMemoriesJsonSchema = () => toOpenAiJsonSchema(ExtractedMemories);
 export const consolidateDecisionJsonSchema = () => toOpenAiJsonSchema(ConsolidateDecision);
 export const rerankResultJsonSchema = () => toOpenAiJsonSchema(RerankResult);
+export const queryPlanJsonSchema = () => toOpenAiJsonSchema(QueryPlan);
+export const resolveDecisionJsonSchema = () => toOpenAiJsonSchema(ResolveDecision);
+export const summaryResultJsonSchema = () => toOpenAiJsonSchema(SummaryResult);
 
 const everyObjectStrict = (node: unknown): boolean => {
 	if (Array.isArray(node)) {

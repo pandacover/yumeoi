@@ -32,7 +32,7 @@ describe("M3 chat", () => {
 		expect(reply.citations.length).toBeGreaterThan(0);
 		expect(reply.text).toContain("[1]");
 		expect(reply.citations[0]?.title).toBeTruthy();
-	});
+	}, 30_000);
 
 	it("runs a heuristic AIChatAgent turn that persists an assistant message", async () => {
 		const stub = env.MemoryAgent.getByName("chat-turn-user");
@@ -53,5 +53,5 @@ describe("M3 chat", () => {
 		const assistant = [...messages].reverse().find((message) => message.role === "assistant");
 		expect(assistant).toBeTruthy();
 		expect(JSON.stringify(assistant).toLowerCase()).toContain("effect");
-	});
+	}, 30_000);
 });

@@ -1067,6 +1067,111 @@
 					"contains": "Hamburg"
 				}
 			]
+		},
+		{
+			"id": "q81",
+			"query": "Who works with Anna on the memory model?",
+			"expected": [{ "contains": "Luv" }],
+			"graph": true,
+			"tags": ["graph"]
+		},
+		{
+			"id": "q82",
+			"query": "Who reports to Luv on connectors?",
+			"expected": [{ "contains": "Sam" }],
+			"graph": true,
+			"tags": ["graph"]
+		},
+		{
+			"id": "q83",
+			"query": "Who leads the Hamburg launch project?",
+			"expected": [{ "contains": "Anna" }],
+			"graph": true,
+			"tags": ["graph"]
+		},
+		{
+			"id": "q84",
+			"query": "Who did Luv meet in August about Aurora?",
+			"expected": [{ "contains": "Anna" }],
+			"graph": true,
+			"tags": ["graph"]
+		},
+		{
+			"id": "q85",
+			"query": "Who owns Aurora customer interviews?",
+			"expected": [{ "contains": "Anna" }],
+			"graph": true,
+			"tags": ["graph"]
+		},
+		{
+			"id": "q86",
+			"query": "Who works with Cursor agents on Notion OAuth?",
+			"expected": [{ "contains": "Sam" }],
+			"graph": true,
+			"tags": ["graph"]
+		},
+		{
+			"id": "q87",
+			"query": "Who agreed with Luv to ship M4 first?",
+			"expected": [{ "contains": "Anna" }],
+			"graph": true,
+			"tags": ["graph"]
+		},
+		{
+			"id": "q88",
+			"query": "What project does Anna lead for Hamburg?",
+			"expected": [{ "contains": "Aurora" }],
+			"graph": true,
+			"tags": ["graph"]
+		},
+		{
+			"id": "q89",
+			"query": "Who is on the memory model with Anna?",
+			"expected": [{ "contains": "Luv" }],
+			"graph": true,
+			"tags": ["graph"]
+		},
+		{
+			"id": "q90",
+			"query": "Who does Sam report to?",
+			"expected": [{ "contains": "Luv" }],
+			"graph": true,
+			"tags": ["graph"]
+		},
+		{
+			"id": "q91",
+			"query": "Who met about freezing the v1 memory schema?",
+			"expected": [{ "contains": "Anna" }],
+			"graph": true,
+			"tags": ["graph"]
+		},
+		{
+			"id": "q92",
+			"query": "Which teammate works with Luv on Aurora's lead?",
+			"expected": [{ "contains": "Anna" }],
+			"graph": true,
+			"tags": ["graph"]
+		},
+		{
+			"id": "q93",
+			"query": "Who wants Aurora interviews finished before the launch blog?",
+			"expected": [{ "contains": "Anna" }],
+			"graph": true,
+			"tags": ["graph"]
+		},
+		{
+			"id": "q94",
+			"query": "Who is doing connector work that reports to Luv?",
+			"expected": [{ "contains": "Sam" }],
+			"graph": true,
+			"tags": ["graph"]
+		},
+		{
+			"id": "q95",
+			"query": "What Hamburg project is led by Anna that Luv met about?",
+			"expected": [{ "contains": "Aurora" }],
+			"graph": true,
+			"tags": ["graph"]
 		}
 	]
 }

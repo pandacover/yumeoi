@@ -378,3 +378,62 @@ export const summarizeClassification = (scores: ReadonlyArray<ClassificationScor
 		confusion,
 	};
 };
+
+export type EntityPair = {
+	readonly id: string;
+	readonly left: {
+		readonly name: string;
+		readonly type: "person" | "org" | "project" | "place" | "tool" | "topic" | "document" | "other";
+	};
+	readonly right: {
+		readonly name: string;
+		readonly type: "person" | "org" | "project" | "place" | "tool" | "topic" | "document" | "other";
+	};
+	readonly same: boolean;
+};
+
+export type EntitiesSet = {
+	readonly pairs: ReadonlyArray<EntityPair>;
+};
+
+export type ResolutionScore = {
+	readonly caseId: string;
+	readonly expectedSame: boolean;
+	readonly predictedSame: boolean;
+	readonly correct: boolean;
+};
+
+export const scoreResolution = (pair: EntityPair, predictedSame: boolean): ResolutionScore => ({
+	caseId: pair.id,
+	expectedSame: pair.same,
+	predictedSame,
+	correct: predictedSame === pair.same,
+});
+
+export const summarizeResolution = (scores: ReadonlyArray<ResolutionScore>) => {
+	let tp = 0;
+	let fp = 0;
+	let fn = 0;
+	let tn = 0;
+	for (const score of scores) {
+		if (score.predictedSame && score.expectedSame) {
+			tp += 1;
+		} else if (score.predictedSame && !score.expectedSame) {
+			fp += 1;
+		} else if (!score.predictedSame && score.expectedSame) {
+			fn += 1;
+		} else {
+			tn += 1;
+		}
+	}
+	return {
+		cases: scores.length,
+		precision: tp + fp === 0 ? 1 : tp / (tp + fp),
+		recall: tp + fn === 0 ? 1 : tp / (tp + fn),
+		accuracy: mean(scores.map((score) => (score.correct ? 1 : 0))),
+		truePositives: tp,
+		falsePositives: fp,
+		falseNegatives: fn,
+		trueNegatives: tn,
+	};
+};

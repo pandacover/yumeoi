@@ -12,6 +12,7 @@ import { evaluateRecall } from "./eval-run.ts";
 import { extractorLayer } from "./extractor.ts";
 import { hashEmbeddingsLayer } from "./hash-embeddings.ts";
 import { heuristicLlmLayer } from "./heuristic-llm.ts";
+import { identityRerankerLayer } from "./reranker.ts";
 
 const set = JSON.parse(
 	readFileSync(new URL("../../../docs/eval/recall-set.json", import.meta.url), "utf8"),
@@ -25,12 +26,13 @@ const layer = Layer.mergeAll(
 	Layer.provide(consolidatorLayer, heuristicLlmLayer),
 	inMemoryVectorIndexLayer(),
 	inMemoryObjectStoreLayer(),
+	identityRerankerLayer,
 );
 
 describe("recall eval set", () => {
 	test("has ~40 dated docs and ~80 queries with matcher labels", () => {
 		expect(set.documents.length).toBe(40);
-		expect(set.queries.length).toBe(80);
+		expect(set.queries.length).toBeGreaterThanOrEqual(80);
 		expect(set.documents.every((doc) => typeof doc.date === "string")).toBe(true);
 		expect(set.queries.every((query) => query.expected.length > 0)).toBe(true);
 		expect(set.queries.some((query) => query.asOf)).toBe(true);

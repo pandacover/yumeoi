@@ -241,10 +241,14 @@ export const Provenance = Schema.Struct({
 });
 export type Provenance = typeof Provenance.Type;
 
+export const WhyFlag = Schema.Literals(["kw", "vec", "graph", "recent"]);
+export type WhyFlag = typeof WhyFlag.Type;
+
 export const MemoryHit = Schema.Struct({
 	memory: Memory,
 	score: Schema.Finite,
 	provenance: Schema.Array(Provenance),
+	why: Schema.optionalKey(Schema.Array(WhyFlag)),
 });
 export type MemoryHit = typeof MemoryHit.Type;
 
@@ -257,9 +261,20 @@ export const ChunkHit = Schema.Struct({
 });
 export type ChunkHit = typeof ChunkHit.Type;
 
+export const GraphRelationLine = Schema.Struct({
+	src: Schema.String,
+	predicate: Schema.String,
+	dst: Schema.String,
+	memoryId: Schema.String,
+	since: Schema.NullOr(Schema.String),
+});
+export type GraphRelationLine = typeof GraphRelationLine.Type;
+
 export const RecallResult = Schema.Struct({
 	memories: Schema.Array(MemoryHit),
 	chunks: Schema.Array(ChunkHit),
+	markdown: Schema.optionalKey(Schema.String),
+	relations: Schema.optionalKey(Schema.Array(GraphRelationLine)),
 });
 export type RecallResult = typeof RecallResult.Type;
 
@@ -281,8 +296,57 @@ export const SearchQuery = Schema.Struct({
 	kinds: Schema.Array(MemoryKind),
 	since: Schema.NullOr(Schema.Finite),
 	limit: Schema.Int,
+	types: Schema.optionalKey(Schema.Array(MemoryType)),
+	from: Schema.optionalKey(Schema.NullOr(Schema.Finite)),
+	to: Schema.optionalKey(Schema.NullOr(Schema.Finite)),
+	asOf: Schema.optionalKey(Schema.NullOr(Schema.Finite)),
+	entities: Schema.optionalKey(Schema.Array(Schema.String)),
+	includeDormant: Schema.optionalKey(Schema.Boolean),
+	cursor: Schema.optionalKey(Schema.NullOr(Schema.String)),
 });
 export type SearchQuery = typeof SearchQuery.Type;
+
+export const RecallInclude = Schema.Literals(["memories", "evidence", "entities", "conflicts"]);
+export type RecallInclude = typeof RecallInclude.Type;
+
+export const RecallFormat = Schema.Literals(["markdown", "json"]);
+export type RecallFormat = typeof RecallFormat.Type;
+
+export const RecallPlanMode = Schema.Literals(["fast", "full"]);
+export type RecallPlanMode = typeof RecallPlanMode.Type;
+
+export const RerankMode = Schema.Literals(["none", "cross", "llm"]);
+export type RerankMode = typeof RerankMode.Type;
+
+export const QueryIntent = Schema.Literals(["lookup", "howto", "history", "who", "open"]);
+export type QueryIntent = typeof QueryIntent.Type;
+
+export const ResolveDecision = Schema.Struct({
+	same: Schema.Boolean,
+	reason: Schema.String,
+});
+export type ResolveDecision = typeof ResolveDecision.Type;
+
+export const SummaryResult = Schema.Struct({
+	text: Schema.String,
+});
+export type SummaryResult = typeof SummaryResult.Type;
+
+export const QueryPlan = Schema.Struct({
+	text: Schema.String,
+	terms: Schema.Array(Schema.String),
+	temporalFrom: Schema.NullOr(Schema.Finite),
+	temporalTo: Schema.NullOr(Schema.Finite),
+	asOf: Schema.NullOr(Schema.Finite),
+	typeWeights: Schema.Struct({
+		semantic: Schema.Finite,
+		episodic: Schema.Finite,
+		procedural: Schema.Finite,
+	}),
+	entities: Schema.Array(Schema.String),
+	intent: QueryIntent,
+});
+export type QueryPlan = typeof QueryPlan.Type;
 
 export const RecallQuery = Schema.Struct({
 	query: Schema.String,
@@ -291,6 +355,15 @@ export const RecallQuery = Schema.Struct({
 	since: Schema.NullOr(Schema.Finite),
 	budgetTokens: Schema.Int,
 	rerank: Schema.Boolean,
+	types: Schema.optionalKey(Schema.Array(MemoryType)),
+	from: Schema.optionalKey(Schema.NullOr(Schema.Finite)),
+	to: Schema.optionalKey(Schema.NullOr(Schema.Finite)),
+	asOf: Schema.optionalKey(Schema.NullOr(Schema.Finite)),
+	entities: Schema.optionalKey(Schema.Array(Schema.String)),
+	include: Schema.optionalKey(Schema.Array(RecallInclude)),
+	format: Schema.optionalKey(RecallFormat),
+	plan: Schema.optionalKey(RecallPlanMode),
+	rerankMode: Schema.optionalKey(RerankMode),
 });
 export type RecallQuery = typeof RecallQuery.Type;
 
@@ -354,5 +427,43 @@ export const RememberOutcomeItem = Schema.Struct({
 	type: MemoryType,
 	kind: MemoryKind,
 	affected: Schema.Array(Schema.String),
+	idempotent: Schema.optionalKey(Schema.Boolean),
 });
 export type RememberOutcomeItem = typeof RememberOutcomeItem.Type;
+
+export const ToolErrorCode = Schema.Literals([
+	"not_found",
+	"invalid_input",
+	"scope_required",
+	"rate_limited",
+	"conflict",
+]);
+export type ToolErrorCode = typeof ToolErrorCode.Type;
+
+export const ToolError = Schema.Struct({
+	error: ToolErrorCode,
+	hint: Schema.String,
+});
+export type ToolError = typeof ToolError.Type;
+
+export const MemoryHistoryRow = Schema.Struct({
+	id: Schema.String,
+	memoryId: Schema.String,
+	text: Schema.String,
+	type: MemoryType,
+	kind: MemoryKind,
+	confidence: Schema.Finite,
+	validFrom: Schema.NullOr(Schema.String),
+	validTo: Schema.NullOr(Schema.String),
+	state: MemoryState,
+	changedAt: Schema.Finite,
+	reason: Schema.String,
+});
+export type MemoryHistoryRow = typeof MemoryHistoryRow.Type;
+
+export const MemoryEdgeRow = Schema.Struct({
+	src: Schema.String,
+	dst: Schema.String,
+	relation: Schema.String,
+});
+export type MemoryEdgeRow = typeof MemoryEdgeRow.Type;

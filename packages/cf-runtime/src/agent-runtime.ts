@@ -4,6 +4,7 @@ import {
 	extractorLayer,
 	hashEmbeddingsLayer,
 	heuristicLlmLayer,
+	identityRerankerLayer,
 	VectorIndex,
 } from "@yumeoi/memory";
 import { Effect, Layer, ManagedRuntime } from "effect";
@@ -11,6 +12,7 @@ import { workersAiEmbeddingsLayer } from "./embeddings-workers-ai.ts";
 import { type GatewayLlmProvider, gatewayLlmLayer } from "./llm-openai.ts";
 import { sqlMemoryRepoLayer } from "./memory-repo-sql.ts";
 import { memoryObjectStoreLayer, r2ObjectStoreLayer } from "./object-store.ts";
+import { workersAiRerankerLayer } from "./reranker-workers-ai.ts";
 import { memoryStoreLayer } from "./sqlite-do.ts";
 import { vectorizeLayer } from "./vectorize.ts";
 
@@ -66,7 +68,18 @@ export const makeMemoryAgentLayer = (options: {
 	const consolidator = Layer.provide(consolidatorLayer, llm);
 	const vectors = options.vectorize ? vectorizeLayer(options.vectorize) : noopVectorIndexLayer;
 	const objects = options.docs ? r2ObjectStoreLayer(options.docs) : memoryObjectStoreLayer();
-	return Layer.mergeAll(store, repo, embeddings, llm, extractor, consolidator, vectors, objects);
+	const reranker = options.ai ? workersAiRerankerLayer(options.ai) : identityRerankerLayer;
+	return Layer.mergeAll(
+		store,
+		repo,
+		embeddings,
+		llm,
+		extractor,
+		consolidator,
+		vectors,
+		objects,
+		reranker,
+	);
 };
 
 export const makeMemoryAgentRuntime = (options: {

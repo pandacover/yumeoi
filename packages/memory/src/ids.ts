@@ -19,5 +19,5 @@ const encode12 = (value: bigint): string => {
 	return out;
 };
 
-export const newShortId = (prefix: "m" | "e" | "r"): string =>
+export const newShortId = (prefix: "m" | "e" | "r" | "h"): string =>
 	`${prefix}_${encode12(randomBits60())}`;

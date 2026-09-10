@@ -21,12 +21,12 @@ bun run dev
 The Worker serves:
 
 - UI at `/`, `/sources`, `/memories`, `/chat`, `/agents`
-- MCP at `/mcp` (OAuth or API key; tools: `search_memories`, `recall_context`, `get_memory`, `get_document`, `add_memory`, `list_sources`)
+- MCP at `/mcp` (OAuth or API key; tools: `recall`, `search_memories`, `remember`, `update_memory`, `forget`, `feedback`, `get_memory`, `get_document`, `list_sources`; `recall_context` / `add_memory` remain as deprecated aliases)
 - MCP OAuth at `/authorize`, `/token`, `/register` (PKCE + dynamic client registration)
 - Agents at `/agents/memory-agent/:name` and `/agents/source-agent/:name`
-- `POST /ingest`, `/api/search`, `/api/recall`, `/api/sources`, `/api/keys`, `/api/grants` with `Authorization: Bearer ym_…`
+- `POST /ingest`, `/api/search`, `/api/recall`, `/api/remember`, `/api/forget`, `/api/feedback`, `/api/sources`, `/api/keys`, `/api/grants` with `Authorization: Bearer ym_…`
 
-Point Cursor or Claude Desktop at `/mcp`. The first connection opens the consent page; connected clients and API keys are managed on **Agents**. Headless agents that cannot do OAuth still send `Authorization: Bearer ym_…`.
+Point Cursor or Claude Desktop at `/mcp`. Agent-facing guidance lives in [`docs/agents.md`](docs/agents.md) and is also the MCP server `instructions` string. The first connection opens the consent page; connected clients and API keys are managed on **Agents**. Headless agents that cannot do OAuth still send `Authorization: Bearer ym_…`.
 
 Chat uses `AIChatAgent` + `useAgentChat` with tools bound to `recall` and `get_document`. Streaming is resumable. Without an LLM key, chat answers from recalled memories with the same citation marks.
 
@@ -57,20 +57,14 @@ GitHub Actions:
 
 Cloud Agent environment: [`.cursor/environment.json`](.cursor/environment.json) (`bun install --frozen-lockfile`, plus a `dev` terminal). Add the same Cloudflare credentials as Cloud Agent secrets so agents can run Wrangler.
 
-Required GitHub Actions secrets (`Settings → Secrets and variables → Actions`, and optionally Environments `preview` / `production`):
+Required GitHub Actions secrets (`Settings → Secrets and variables → Actions`):
 
 | Secret | Used by |
 |---|---|
-| `CLOUDFLARE_API_TOKEN` | Preview and production Wrangler (Workers Scripts Edit, D1 Edit, Vectorize Edit, R2 Edit, Account Settings Read) |
+| `CLOUDFLARE_API_TOKEN` | Preview and production Wrangler (Workers Scripts Edit, plus D1 Edit, Vectorize Edit, R2 Edit, KV Edit, Workers AI Edit, Account Settings Read) |
 | `CLOUDFLARE_ACCOUNT_ID` | Wrangler account |
-| `OPENROUTER_API_KEY` | Production Worker secret |
-| `OPENAI_API_KEY` | Optional production fallback |
-| `YUMEOI_API_KEY` | Production Worker secret |
-| `YUMEOI_USER_ID` | Production Worker secret |
-| `TOKEN_ENCRYPTION_KEY` | Production Worker secret |
-| `NOTION_CLIENT_ID` | Production Notion OAuth |
-| `NOTION_CLIENT_SECRET` | Production Notion OAuth |
-| `NOTION_REDIRECT_URI` | Production Notion OAuth |
+
+OpenRouter, OpenAI, Notion, `YUMEOI_API_KEY`, `YUMEOI_USER_ID`, and `TOKEN_ENCRYPTION_KEY` live as Cloudflare Worker secrets. GitHub may also hold copies; `deploy-prod.sh` only uploads keys that are present in the job env.
 
 Create the API token at [Cloudflare API Tokens](https://dash.cloudflare.com/profile/api-tokens). Production deploy runs `bun run deploy` (`apps/app/scripts/deploy-prod.sh`): provision Vectorize metadata indexes, apply D1 migrations, build, then `wrangler deploy` with a secrets file.
 

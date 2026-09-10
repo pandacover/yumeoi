@@ -1,0 +1,236 @@
+{
+	"scenarios": [
+		{
+			"id": "remember-then-answer",
+			"name": "Remember three facts then answer",
+			"seed": "Luv prefers Effect 4 for the yumeoi domain layer. The stack uses Bun 1.4.2. Chat is pinned to GPT-5.6 Luna.",
+			"steps": [
+				{
+					"tool": "remember",
+					"input": {
+						"text": "Luv prefers Effect 4 for the yumeoi domain layer. The stack uses Bun 1.4.2. Chat is pinned to GPT-5.6 Luna.",
+						"mode": "extract"
+					}
+				},
+				{ "tool": "recall", "input": { "query": "What does Luv prefer for the domain layer?" } }
+			],
+			"assert": { "recallContains": "Effect 4", "rememberMin": 1 }
+		},
+		{
+			"id": "correct-fact",
+			"name": "Correct a wrong fact",
+			"seed": "Luv prefers RxJS for the domain layer.",
+			"steps": [
+				{
+					"tool": "remember",
+					"input": { "text": "Luv prefers RxJS for the domain layer.", "mode": "verbatim" }
+				},
+				{
+					"tool": "update_memory",
+					"input": { "text": "Luv prefers Effect 4 for the domain layer." }
+				},
+				{ "tool": "recall", "input": { "query": "What does Luv prefer?" } }
+			],
+			"assert": { "recallContains": "Effect 4", "updated": true }
+		},
+		{
+			"id": "august-decision",
+			"name": "What did we decide in August",
+			"seed": "On 2026-08-12 Luv decided to ship M4 before the Gmail connector.",
+			"steps": [
+				{
+					"tool": "remember",
+					"input": {
+						"text": "On 2026-08-12 Luv decided to ship M4 before the Gmail connector.",
+						"mode": "verbatim"
+					}
+				},
+				{ "tool": "recall", "input": { "query": "What did we decide about M4 in August?" } }
+			],
+			"assert": { "recallContains": "M4" }
+		},
+		{
+			"id": "forget-agent-write",
+			"name": "Forget something the agent wrote",
+			"seed": "Temporary scratch note about lunch.",
+			"steps": [
+				{
+					"tool": "remember",
+					"input": { "text": "Temporary scratch note about lunch.", "mode": "verbatim" }
+				},
+				{ "tool": "forget", "input": {} },
+				{ "tool": "recall", "input": { "query": "lunch" } }
+			],
+			"assert": { "forgotten": true }
+		},
+		{
+			"id": "feedback-plus",
+			"name": "Feedback +1 on a recalled line",
+			"seed": "Luv likes short ids in MCP output.",
+			"steps": [
+				{
+					"tool": "remember",
+					"input": { "text": "Luv likes short ids in MCP output.", "mode": "verbatim" }
+				},
+				{ "tool": "recall", "input": { "query": "ids" } },
+				{ "tool": "feedback", "input": { "signal": 1 } }
+			],
+			"assert": { "feedbackOk": true }
+		},
+		{
+			"id": "feedback-minus",
+			"name": "Feedback -1 on a recalled line",
+			"seed": "The office plant is named Greg.",
+			"steps": [
+				{
+					"tool": "remember",
+					"input": { "text": "The office plant is named Greg.", "mode": "verbatim" }
+				},
+				{ "tool": "recall", "input": { "query": "plant" } },
+				{ "tool": "feedback", "input": { "signal": -1 } }
+			],
+			"assert": { "feedbackOk": true }
+		},
+		{
+			"id": "extract-mode",
+			"name": "Extract mode yields several memories",
+			"seed": "Luv prefers Effect 4. Deploy with bun run deploy. Always cite memories with [n].",
+			"steps": [
+				{
+					"tool": "remember",
+					"input": {
+						"text": "Luv prefers Effect 4. Deploy with bun run deploy. Always cite memories with [n].",
+						"mode": "extract"
+					}
+				}
+			],
+			"assert": { "rememberMin": 2 }
+		},
+		{
+			"id": "client-ref",
+			"name": "Idempotent clientRef retry",
+			"seed": "Token encryption key lives in Worker secrets.",
+			"steps": [
+				{
+					"tool": "remember",
+					"input": {
+						"text": "Token encryption key lives in Worker secrets.",
+						"mode": "verbatim",
+						"clientRef": "ref-ax-1"
+					}
+				},
+				{
+					"tool": "remember",
+					"input": {
+						"text": "Token encryption key lives in Worker secrets.",
+						"mode": "verbatim",
+						"clientRef": "ref-ax-1"
+					}
+				}
+			],
+			"assert": { "idempotent": true }
+		},
+		{
+			"id": "conflict-pair",
+			"name": "Conflict pair surfaces both sides",
+			"seed": "We use Postgres.",
+			"steps": [
+				{ "tool": "remember", "input": { "text": "We use Postgres.", "mode": "verbatim" } },
+				{ "tool": "recall", "input": { "query": "database" } }
+			],
+			"assert": { "recallContains": "Postgres" }
+		},
+		{
+			"id": "markdown-default",
+			"name": "Recall returns markdown citations",
+			"seed": "Luv prefers Effect 4 for the yumeoi domain layer.",
+			"steps": [
+				{
+					"tool": "remember",
+					"input": {
+						"text": "Luv prefers Effect 4 for the yumeoi domain layer.",
+						"mode": "verbatim"
+					}
+				},
+				{ "tool": "recall", "input": { "query": "Effect" } }
+			],
+			"assert": { "markdownCitation": true, "tokenReduction": 0.4 }
+		},
+		{
+			"id": "search-list",
+			"name": "search_memories returns a ranked list",
+			"seed": "Vectorize index is yumeoi-memories.",
+			"steps": [
+				{
+					"tool": "remember",
+					"input": { "text": "Vectorize index is yumeoi-memories.", "mode": "verbatim" }
+				},
+				{ "tool": "search_memories", "input": { "query": "Vectorize" } }
+			],
+			"assert": { "searchHit": true }
+		},
+		{
+			"id": "get-memory-history",
+			"name": "get_memory returns history after a correction",
+			"seed": "Budget is 10k memories.",
+			"steps": [
+				{ "tool": "remember", "input": { "text": "Budget is 10k memories.", "mode": "verbatim" } },
+				{ "tool": "update_memory", "input": { "text": "Budget is 20k active memories." } },
+				{ "tool": "get_memory", "input": {} }
+			],
+			"assert": { "hasHistory": true }
+		},
+		{
+			"id": "howto-intent",
+			"name": "How-to query prefers procedures",
+			"seed": "When deploying yumeoi, run bun run deploy:dry-run before deploy:prod.",
+			"steps": [
+				{
+					"tool": "remember",
+					"input": {
+						"text": "When deploying yumeoi, run bun run deploy:dry-run before deploy:prod.",
+						"mode": "verbatim"
+					}
+				},
+				{ "tool": "recall", "input": { "query": "How do I deploy yumeoi?" } }
+			],
+			"assert": { "recallContains": "deploy:dry-run" }
+		},
+		{
+			"id": "json-format",
+			"name": "JSON format still available",
+			"seed": "R2 bucket is yumeoi-docs.",
+			"steps": [
+				{
+					"tool": "remember",
+					"input": { "text": "R2 bucket is yumeoi-docs.", "mode": "verbatim" }
+				},
+				{ "tool": "recall", "input": { "query": "R2", "format": "json" } }
+			],
+			"assert": { "jsonFormat": true }
+		},
+		{
+			"id": "list-sources",
+			"name": "list_sources still works",
+			"seed": "",
+			"steps": [{ "tool": "list_sources", "input": {} }],
+			"assert": { "sourcesOk": true }
+		},
+		{
+			"id": "profile-inject",
+			"name": "Profile is stable semantic only",
+			"seed": "Luv prefers Effect 4 for the yumeoi domain layer.",
+			"steps": [
+				{
+					"tool": "remember",
+					"input": {
+						"text": "Luv prefers Effect 4 for the yumeoi domain layer.",
+						"mode": "verbatim"
+					}
+				},
+				{ "tool": "profile", "input": {} }
+			],
+			"assert": { "profileContains": "Effect 4" }
+		}
+	]
+}

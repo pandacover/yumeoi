@@ -1,0 +1,137 @@
+{
+	"live": false,
+	"generatedAt": "2026-09-09T20:27:44.427Z",
+	"success": 0.9375,
+	"tokenRatio": 0.17581728500242938,
+	"docsMatch": true,
+	"results": [
+		{
+			"id": "remember-then-answer",
+			"name": "Remember three facts then answer",
+			"ok": true,
+			"jsonTokens": 926,
+			"mdTokens": 110,
+			"rememberCount": 3
+		},
+		{
+			"id": "correct-fact",
+			"name": "Correct a wrong fact",
+			"ok": true,
+			"jsonTokens": 287,
+			"mdTokens": 40,
+			"rememberCount": 1
+		},
+		{
+			"id": "august-decision",
+			"name": "What did we decide in August",
+			"ok": false,
+			"jsonTokens": 9,
+			"mdTokens": 1,
+			"rememberCount": 1
+		},
+		{
+			"id": "forget-agent-write",
+			"name": "Forget something the agent wrote",
+			"ok": true,
+			"jsonTokens": 9,
+			"mdTokens": 1,
+			"rememberCount": 1
+		},
+		{
+			"id": "feedback-plus",
+			"name": "Feedback +1 on a recalled line",
+			"ok": true,
+			"jsonTokens": 282,
+			"mdTokens": 36,
+			"rememberCount": 1
+		},
+		{
+			"id": "feedback-minus",
+			"name": "Feedback -1 on a recalled line",
+			"ok": true,
+			"jsonTokens": 280,
+			"mdTokens": 34,
+			"rememberCount": 1
+		},
+		{
+			"id": "extract-mode",
+			"name": "Extract mode yields several memories",
+			"ok": true,
+			"jsonTokens": 0,
+			"mdTokens": 0,
+			"rememberCount": 3
+		},
+		{
+			"id": "client-ref",
+			"name": "Idempotent clientRef retry",
+			"ok": true,
+			"jsonTokens": 0,
+			"mdTokens": 0,
+			"rememberCount": 1
+		},
+		{
+			"id": "conflict-pair",
+			"name": "Conflict pair surfaces both sides",
+			"ok": true,
+			"jsonTokens": 273,
+			"mdTokens": 30,
+			"rememberCount": 1
+		},
+		{
+			"id": "markdown-default",
+			"name": "Recall returns markdown citations",
+			"ok": true,
+			"jsonTokens": 287,
+			"mdTokens": 40,
+			"rememberCount": 1
+		},
+		{
+			"id": "search-list",
+			"name": "search_memories returns a ranked list",
+			"ok": true,
+			"jsonTokens": 0,
+			"mdTokens": 0,
+			"rememberCount": 1
+		},
+		{
+			"id": "get-memory-history",
+			"name": "get_memory returns history after a correction",
+			"ok": true,
+			"jsonTokens": 0,
+			"mdTokens": 0,
+			"rememberCount": 1
+		},
+		{
+			"id": "howto-intent",
+			"name": "How-to query prefers procedures",
+			"ok": true,
+			"jsonTokens": 259,
+			"mdTokens": 45,
+			"rememberCount": 1
+		},
+		{
+			"id": "json-format",
+			"name": "JSON format still available",
+			"ok": true,
+			"jsonTokens": 246,
+			"mdTokens": 149,
+			"rememberCount": 1
+		},
+		{
+			"id": "list-sources",
+			"name": "list_sources still works",
+			"ok": true,
+			"jsonTokens": 0,
+			"mdTokens": 0,
+			"rememberCount": 0
+		},
+		{
+			"id": "profile-inject",
+			"name": "Profile is stable semantic only",
+			"ok": true,
+			"jsonTokens": 0,
+			"mdTokens": 0,
+			"rememberCount": 1
+		}
+	]
+}

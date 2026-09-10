@@ -19,14 +19,17 @@ export const recencyBoost = (score: number, timestampMs: number, now = Date.now(
 export const estimateTokens = (text: string): number => Math.max(1, Math.ceil(text.length / 4));
 
 export const ftsMatchQuery = (query: string): string | null => {
+	const stop = new Set(["a", "an", "and", "the", "to", "of", "in", "on", "for", "is", "are"]);
 	const tokens = query
 		.replace(/[^\p{L}\p{N}\s]+/gu, " ")
 		.trim()
 		.split(/\s+/)
-		.filter((token) => token.length > 0)
-		.slice(0, 12);
-	if (tokens.length === 0) {
+		.filter((token) => token.length > 0);
+	const meaningful = tokens.filter((token) => !stop.has(token.toLowerCase()));
+	const used = meaningful.length > 0 ? meaningful : tokens;
+	const clipped = used.slice(0, 12);
+	if (clipped.length === 0) {
 		return null;
 	}
-	return tokens.map((token) => `"${token.replaceAll('"', "")}"`).join(" OR ");
+	return clipped.map((token) => `"${token.replaceAll('"', "")}"`).join(" OR ");
 };

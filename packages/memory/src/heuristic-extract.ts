@@ -1,4 +1,5 @@
 import type { ExtractedMemory, MemoryKind, MemoryType } from "@yumeoi/domain";
+import { extractMentions, extractRelations } from "./graph/names.ts";
 
 const classifyKind = (text: string): MemoryKind => {
 	const lower = text.toLowerCase();
@@ -74,6 +75,7 @@ export const heuristicExtract = (text: string): ReadonlyArray<ExtractedMemory> =
 	return unique.map((sentence) => {
 		const kind = classifyKind(sentence);
 		const type = classifyType(sentence, kind);
+		const entities = extractMentions(sentence);
 		return {
 			type,
 			kind,
@@ -82,8 +84,8 @@ export const heuristicExtract = (text: string): ReadonlyArray<ExtractedMemory> =
 			importance: type === "semantic" ? 0.7 : 0.5,
 			eventAt: null,
 			validFrom: null,
-			entities: [],
-			relations: [],
+			entities,
+			relations: extractRelations(sentence, entities),
 		};
 	});
 };

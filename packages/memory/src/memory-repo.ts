@@ -7,12 +7,15 @@ import type {
 	ExtractedRelation,
 	IngestResult,
 	Memory,
+	MemoryEdgeRow,
+	MemoryHistoryRow,
 	MemoryKind,
 	MemoryOrigin,
 	MemoryState,
 	MemoryType,
 	NotFound,
 	Provenance,
+	QueryPlan,
 	Source,
 } from "@yumeoi/domain";
 import { Context, type Effect } from "effect";
@@ -52,6 +55,7 @@ export type InsertMemoryInput = AddMemoryRequest & {
 	readonly origin?: MemoryOrigin;
 	readonly documentId?: string;
 	readonly chunkId?: string;
+	readonly observedAt?: number | null;
 };
 
 export type MemoryPatch = {
@@ -60,6 +64,9 @@ export type MemoryPatch = {
 	readonly state?: MemoryState;
 	readonly confidence?: number;
 	readonly importance?: number;
+	readonly kind?: MemoryKind;
+	readonly eventAt?: number | null;
+	readonly observedAt?: number | null;
 };
 
 export type CommitBatch = {
@@ -97,11 +104,17 @@ export type SearchFilters = {
 	readonly kinds: ReadonlyArray<MemoryKind>;
 	readonly since: number | null;
 	readonly limit: number;
+	readonly types?: ReadonlyArray<MemoryType>;
+	readonly from?: number | null;
+	readonly to?: number | null;
+	readonly asOf?: number | null;
+	readonly includeDormant?: boolean;
 };
 
 export type RankedId = {
 	readonly id: string;
 	readonly rank: number;
+	readonly bm25?: number;
 };
 
 export class MemoryRepo extends Context.Service<
@@ -186,7 +199,11 @@ export class MemoryRepo extends Context.Service<
 			readonly canonical: string;
 			readonly type: EntityType;
 			readonly now: number;
-		}) => Effect.Effect<{ readonly id: string }, unknown>;
+		}) => Effect.Effect<{ readonly id: string; readonly mentionCount: number }, unknown>;
+		readonly setEntityDescription: (
+			id: string,
+			description: string,
+		) => Effect.Effect<void, unknown>;
 		readonly linkMemoryEntity: (
 			memoryId: string,
 			entityId: string,
@@ -202,5 +219,97 @@ export class MemoryRepo extends Context.Service<
 			readonly limit: number;
 		}) => Effect.Effect<ReadonlyArray<Chunk & { readonly sourceId: string }>, unknown>;
 		readonly listInactiveMemoryIds: () => Effect.Effect<ReadonlyArray<string>, unknown>;
+		readonly recordAccess: (ids: ReadonlyArray<string>, at: number) => Effect.Effect<void, unknown>;
+		readonly listByEntities: (
+			entityIds: ReadonlyArray<string>,
+			filters: SearchFilters,
+		) => Effect.Effect<ReadonlyArray<RankedId>, unknown>;
+		readonly listRecentEpisodic: (
+			sinceEventAt: number,
+			limit: number,
+		) => Effect.Effect<ReadonlyArray<Memory>, unknown>;
+		readonly listEdges: (
+			ids: ReadonlyArray<string>,
+		) => Effect.Effect<ReadonlyArray<MemoryEdgeRow>, unknown>;
+		readonly listHistory: (
+			memoryId: string,
+		) => Effect.Effect<ReadonlyArray<MemoryHistoryRow>, unknown>;
+		readonly insertFeedback: (row: {
+			readonly memoryId: string;
+			readonly clientId: string;
+			readonly signal: 1 | -1;
+			readonly note?: string;
+		}) => Effect.Effect<void, unknown>;
+		readonly getQueryPlan: (hash: string, now: number) => Effect.Effect<QueryPlan | null, unknown>;
+		readonly putQueryPlan: (
+			hash: string,
+			plan: QueryPlan,
+			expiresAt: number,
+		) => Effect.Effect<void, unknown>;
+		readonly findEntity: (
+			canonical: string,
+			type?: EntityType,
+		) => Effect.Effect<GraphEntity | null, unknown>;
+		readonly findEntityByAlias: (alias: string) => Effect.Effect<GraphEntity | null, unknown>;
+		readonly getEntity: (id: string) => Effect.Effect<GraphEntity | null, unknown>;
+		readonly listEntities: () => Effect.Effect<ReadonlyArray<GraphEntity>, unknown>;
+		readonly putAlias: (alias: string, entityId: string) => Effect.Effect<void, unknown>;
+		readonly upsertRelation: (input: {
+			readonly srcEntity: string;
+			readonly dstEntity: string;
+			readonly predicate: string;
+			readonly memoryId: string;
+			readonly validFrom: string | null;
+			readonly confidence: number;
+			readonly now: number;
+		}) => Effect.Effect<{ readonly id: string }, unknown>;
+		readonly listRelations: (
+			entityIds: ReadonlyArray<string>,
+			asOf?: number | null,
+		) => Effect.Effect<ReadonlyArray<GraphRelation>, unknown>;
+		readonly listTimeline: (input: {
+			readonly entityId: string;
+			readonly about: string;
+			readonly from: number | null;
+			readonly to: number | null;
+			readonly limit: number;
+		}) => Effect.Effect<ReadonlyArray<Memory>, unknown>;
+		readonly listChangesSince: (since: number) => Effect.Effect<
+			ReadonlyArray<{
+				readonly id: string;
+				readonly memoryId: string;
+				readonly reason: string;
+				readonly changedAt: number;
+			}>,
+			unknown
+		>;
+		readonly listProfileMemories: (limit: number) => Effect.Effect<ReadonlyArray<Memory>, unknown>;
+		readonly splitEntity: (
+			id: string,
+			newName: string,
+		) => Effect.Effect<{ readonly id: string }, unknown>;
+		readonly listEntityMemories: (
+			entityId: string,
+			limit: number,
+		) => Effect.Effect<ReadonlyArray<Memory>, unknown>;
 	}
 >()("@yumeoi/memory/MemoryRepo") {}
+
+export type GraphEntity = {
+	readonly id: string;
+	readonly name: string;
+	readonly canonical: string;
+	readonly type: EntityType;
+	readonly description: string | null;
+	readonly mentionCount: number;
+};
+
+export type GraphRelation = {
+	readonly id: string;
+	readonly srcEntity: string;
+	readonly dstEntity: string;
+	readonly predicate: string;
+	readonly memoryId: string;
+	readonly validFrom: string | null;
+	readonly validTo: string | null;
+};

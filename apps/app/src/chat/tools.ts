@@ -1,9 +1,9 @@
-import type { MemoryKind, RecallResult } from "@yumeoi/domain";
+import { MEMORY_KINDS, type MemoryKind, type RecallResult } from "@yumeoi/domain";
 import { citationsFromRecall } from "@yumeoi/memory";
 import { type ToolSet, tool } from "ai";
 import { z } from "zod";
 
-const kindSchema = z.enum(["fact", "preference", "decision", "task", "relationship", "event"]);
+const kindSchema = z.enum(MEMORY_KINDS);
 
 type ChatDocument = {
 	id: string;
@@ -18,6 +18,8 @@ export const createMemoryChatTools = (agent: {
 		sources?: ReadonlyArray<string>;
 		kinds?: ReadonlyArray<MemoryKind>;
 		rerank?: boolean;
+		format?: "markdown" | "json";
+		plan?: "fast" | "full";
 	}) => Promise<RecallResult>;
 	getDocument: (id: string) => Promise<ChatDocument>;
 }): ToolSet => ({
@@ -26,15 +28,15 @@ export const createMemoryChatTools = (agent: {
 			"Recall relevant memories and supporting chunks for a question. Call this before answering anything about the user's notes, preferences, documents, or past decisions.",
 		inputSchema: z.object({
 			query: z.string().describe("Question or topic to recall memories for"),
-			sources: z.array(z.string()).optional(),
 			kinds: z.array(kindSchema).optional(),
 		}),
-		execute: async ({ query, sources, kinds }) => {
+		execute: async ({ query, kinds }) => {
 			const result = await agent.recall({
 				query,
-				...(sources ? { sources } : {}),
 				...(kinds ? { kinds } : {}),
 				rerank: true,
+				format: "json",
+				plan: "fast",
 			});
 			return compactRecall(result);
 		},
