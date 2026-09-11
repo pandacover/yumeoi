@@ -1,4 +1,4 @@
-import { Show, UserButton } from "@clerk/react";
+import { Show, UserButton } from "@clerk/tanstack-react-start";
 import {
 	RiBrainLine,
 	RiChat2Line,

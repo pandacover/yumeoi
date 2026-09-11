@@ -1,4 +1,4 @@
-import { Show } from "@clerk/react";
+import { Show } from "@clerk/tanstack-react-start";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import {
 	Accordion,
