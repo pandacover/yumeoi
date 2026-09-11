@@ -4,6 +4,8 @@ import { createServerFn } from "@tanstack/react-start";
 import { useEffect, useState } from "react";
 import { appUserId } from "../api/sources.ts";
 import { ChatPane } from "../components/chat-pane.tsx";
+import { Page, PageHeader } from "../components/page.tsx";
+import { Skeleton } from "../components/ui/skeleton.tsx";
 
 const getChatContext = createServerFn({ method: "GET" }).handler(async () => ({
 	userId: appUserId(env),
@@ -22,19 +24,12 @@ function ChatPage() {
 	}, []);
 
 	return (
-		<main className="page page-wide">
-			<header className="mb-8">
-				<h1 className="hero-heading">Chat</h1>
-				<p className="hero-sub">
-					Ask about your memories. Answers call recall and cite sources inline. Streams resume if
-					you disconnect.
-				</p>
-			</header>
-			{mounted ? (
-				<ChatPane userId={userId} />
-			) : (
-				<p className="text-sm text-[var(--muted)]">Connecting to MemoryAgent…</p>
-			)}
-		</main>
+		<Page wide>
+			<PageHeader
+				title="Chat"
+				description="Ask about your memories. Answers call recall and cite sources inline. Streams resume if you disconnect."
+			/>
+			{mounted ? <ChatPane userId={userId} /> : <Skeleton className="h-96 w-full" />}
+		</Page>
 	);
 }

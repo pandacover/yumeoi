@@ -1,5 +1,6 @@
-import { createFileRoute, Link, notFound } from "@tanstack/react-router";
+import { createFileRoute, notFound } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
+import { toast } from "sonner";
 import {
 	formatTimestamp,
 	getAgentsContext,
@@ -7,6 +8,12 @@ import {
 	revokeGrant,
 	revokeKey,
 } from "../api/agent-rpc.ts";
+import { CatalogList, CatalogRow } from "../components/catalog-row.tsx";
+import { Page, PageCrumb, PageHeader } from "../components/page.tsx";
+import { Alert, AlertDescription, AlertTitle } from "../components/ui/alert.tsx";
+import { Button } from "../components/ui/button.tsx";
+import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "../components/ui/empty.tsx";
+import { Spinner } from "../components/ui/spinner.tsx";
 import { agentCatalog, grantMatchesAgent, isAgentId } from "../content/catalog.ts";
 
 export const Route = createFileRoute("/agents_/$id")({
@@ -28,18 +35,11 @@ function AgentManagePage() {
 	}
 
 	return (
-		<main className="page">
-			<p className="crumb">
-				<Link className="ui-link" to="/agents">
-					Agents
-				</Link>
-			</p>
-			<header>
-				<h1 className="hero-heading">{agent.name}</h1>
-				<p className="hero-sub">{agent.detail}</p>
-			</header>
+		<Page>
+			<PageCrumb current={agent.name} label="Agents" to="/agents" />
+			<PageHeader title={agent.name} description={agent.detail} />
 			{initial.id === "http" ? <HttpManage /> : <McpManage id={initial.id} />}
-		</main>
+		</Page>
 	);
 }
 
@@ -47,8 +47,6 @@ function McpManage({ id }: { id: "cursor" | "claude" }) {
 	const initial = Route.useLoaderData();
 	const [grants, setGrants] = useState(initial.grants);
 	const [busy, setBusy] = useState<string | null>(null);
-	const [message, setMessage] = useState("");
-	const [copied, setCopied] = useState("");
 	const origin = typeof window === "undefined" ? "" : window.location.origin;
 	const mcpUrl = `${origin}${initial.mcpPath}`;
 	const snippet = useMemo(() => {
@@ -86,107 +84,101 @@ function McpManage({ id }: { id: "cursor" | "claude" }) {
 	const copy = async (label: string, value: string) => {
 		try {
 			await navigator.clipboard.writeText(value);
-			setCopied(label);
+			toast.success(label === "url" ? "Copied URL" : "Copied config");
 		} catch {
-			setCopied("");
-			setMessage("Could not copy to the clipboard.");
+			toast.error("Could not copy to the clipboard.");
+		}
+	};
+
+	const revoke = async (grantId: string) => {
+		setBusy(grantId);
+		try {
+			await revokeGrant({ data: { id: grantId } });
+			setGrants((current) => current.filter((item) => item.id !== grantId));
+			toast.success("Revoked");
+		} catch (error) {
+			toast.error(error instanceof Error ? error.message : String(error));
+		} finally {
+			setBusy(null);
 		}
 	};
 
 	return (
-		<>
-			<p className="body-copy">
+		<div className="flex flex-col gap-8">
+			<p className="text-sm text-muted-foreground">
 				{id === "cursor"
 					? "Paste this into Cursor MCP settings. Cursor opens a browser for OAuth and returns to http://localhost:8787/callback on your machine — that is Cursor's loopback, not this Worker. Do not put an API key in this config."
 					: "Paste this into Claude Desktop MCP settings. Claude connects over OAuth. Do not put an API key in this config."}
 			</p>
-			<p className="mt-4 font-mono text-sm">{mcpUrl || initial.mcpPath}</p>
-			<div className="mt-4 flex flex-wrap gap-4">
-				<button
-					className="catalog-cta"
-					type="button"
-					onClick={() => copy("url", mcpUrl || initial.mcpPath)}
-				>
-					{copied === "url" ? "Copied URL" : "Copy URL"}
-				</button>
-				<button className="catalog-cta" type="button" onClick={() => copy("snippet", snippet)}>
-					{copied === "snippet" ? "Copied" : "Copy config"}
-				</button>
+			<p className="font-mono text-sm break-all">{mcpUrl || initial.mcpPath}</p>
+			<div className="flex flex-wrap gap-2">
+				<Button size="sm" variant="outline" onClick={() => copy("url", mcpUrl || initial.mcpPath)}>
+					Copy URL
+				</Button>
+				<Button size="sm" variant="outline" onClick={() => copy("snippet", snippet)}>
+					Copy config
+				</Button>
 			</div>
-			<pre className="ui-pre mt-6">{snippet}</pre>
-			<h2 className="section-heading mt-10">Connected</h2>
-			<ul className="manage-list">
+			<pre className="overflow-x-auto bg-muted p-3 font-mono text-xs text-muted-foreground">
+				{snippet}
+			</pre>
+			<section className="flex flex-col gap-4">
+				<h2 className="font-heading text-base font-medium">Connected</h2>
 				{mine.length === 0 ? (
-					<li className="body-copy">
-						No {agentLabel(id)} grant yet. Add the config, then approve OAuth.
-					</li>
+					<Empty className="border">
+						<EmptyHeader>
+							<EmptyTitle>No {agentLabel(id)} grant yet</EmptyTitle>
+							<EmptyDescription>Add the config, then approve OAuth.</EmptyDescription>
+						</EmptyHeader>
+					</Empty>
 				) : (
-					mine.map((grant) => (
-						<li key={grant.id} className="manage-item">
-							<div>
-								<p className="catalog-name">{grant.clientName}</p>
-								<p className="catalog-detail">
-									{grant.scopes.join(", ")} · {formatTimestamp(grant.createdAt)}
-								</p>
-							</div>
-							<button
-								className="catalog-cta"
-								disabled={busy !== null}
-								type="button"
-								onClick={async () => {
-									setBusy(grant.id);
-									setMessage("");
-									try {
-										await revokeGrant({ data: { id: grant.id } });
-										setGrants((current) => current.filter((item) => item.id !== grant.id));
-									} catch (error) {
-										setMessage(error instanceof Error ? error.message : String(error));
-									} finally {
-										setBusy(null);
-									}
-								}}
-							>
-								Revoke
-							</button>
-						</li>
-					))
-				)}
-			</ul>
-			{id === "cursor" && others.length > 0 ? (
-				<>
-					<h2 className="section-heading mt-10">Other MCP clients</h2>
-					<ul className="manage-list">
-						{others.map((grant) => (
-							<li key={grant.id} className="manage-item">
-								<div>
-									<p className="catalog-name">{grant.clientName}</p>
-									<p className="catalog-detail">{grant.clientId}</p>
-								</div>
-								<button
-									className="catalog-cta"
-									disabled={busy !== null}
-									type="button"
-									onClick={async () => {
-										setBusy(grant.id);
-										try {
-											await revokeGrant({ data: { id: grant.id } });
-											setGrants((current) => current.filter((item) => item.id !== grant.id));
-										} catch (error) {
-											setMessage(error instanceof Error ? error.message : String(error));
-										} finally {
-											setBusy(null);
-										}
-									}}
-								>
-									Revoke
-								</button>
-							</li>
+					<CatalogList>
+						{mine.map((grant) => (
+							<CatalogRow
+								key={grant.id}
+								title={grant.clientName}
+								detail={`${grant.scopes.join(", ")} · ${formatTimestamp(grant.createdAt)}`}
+								action={
+									<Button
+										disabled={busy !== null}
+										size="sm"
+										variant="ghost"
+										onClick={() => void revoke(grant.id)}
+									>
+										{busy === grant.id ? <Spinner data-icon="inline-start" /> : null}
+										Revoke
+									</Button>
+								}
+							/>
 						))}
-					</ul>
-				</>
+					</CatalogList>
+				)}
+			</section>
+			{id === "cursor" && others.length > 0 ? (
+				<section className="flex flex-col gap-4">
+					<h2 className="font-heading text-base font-medium">Other MCP clients</h2>
+					<CatalogList>
+						{others.map((grant) => (
+							<CatalogRow
+								key={grant.id}
+								title={grant.clientName}
+								detail={grant.clientId}
+								action={
+									<Button
+										disabled={busy !== null}
+										size="sm"
+										variant="ghost"
+										onClick={() => void revoke(grant.id)}
+									>
+										Revoke
+									</Button>
+								}
+							/>
+						))}
+					</CatalogList>
+				</section>
 			) : null}
-			{message ? <p className="mt-4 text-sm text-[var(--color-danger)]">{message}</p> : null}
-		</>
+		</div>
 	);
 }
 
@@ -195,7 +187,6 @@ function HttpManage() {
 	const [keys, setKeys] = useState(initial.keys);
 	const [mintedToken, setMintedToken] = useState("");
 	const [busy, setBusy] = useState<string | null>(null);
-	const [message, setMessage] = useState("");
 	const origin = typeof window === "undefined" ? "" : window.location.origin;
 	const mcpUrl = `${origin}${initial.mcpPath}`;
 	const headlessSnippet = useMemo(
@@ -218,74 +209,86 @@ function HttpManage() {
 	);
 
 	return (
-		<>
-			<p className="body-copy">
+		<div className="flex flex-col gap-8">
+			<p className="text-sm text-muted-foreground">
 				Mint a <code>ym_</code> key for curl, scripts, or other headless clients that send{" "}
 				<code>Authorization: Bearer</code>. Not for Cursor or Claude OAuth. The full token is shown
 				once.
 			</p>
-			<button
-				className="ui-btn mt-6"
+			<Button
 				disabled={busy !== null}
-				type="button"
 				onClick={async () => {
 					setBusy("mint");
-					setMessage("");
 					try {
 						const created = await mintKey();
 						setMintedToken(created.token);
 						setKeys((current) => [created, ...current.filter((key) => key.id !== created.id)]);
+						toast.success("API key minted");
 					} catch (error) {
-						setMessage(error instanceof Error ? error.message : String(error));
+						toast.error(error instanceof Error ? error.message : String(error));
 					} finally {
 						setBusy(null);
 					}
 				}}
 			>
+				{busy === "mint" ? <Spinner data-icon="inline-start" /> : null}
 				{busy === "mint" ? "Minting…" : "Mint API key"}
-			</button>
-			{mintedToken ? <p className="mt-4 break-all font-mono text-sm">{mintedToken}</p> : null}
-			<pre className="ui-pre mt-6">
+			</Button>
+			{mintedToken ? (
+				<Alert>
+					<AlertTitle>Copy this token now</AlertTitle>
+					<AlertDescription>
+						<code className="break-all">{mintedToken}</code>
+					</AlertDescription>
+				</Alert>
+			) : null}
+			<pre className="overflow-x-auto bg-muted p-3 font-mono text-xs text-muted-foreground">
 				{mintedToken ? headlessSnippet.replace("ym_…", mintedToken) : headlessSnippet}
 			</pre>
-			<ul className="manage-list">
-				{keys.length === 0 ? (
-					<li className="body-copy">No API keys yet.</li>
-				) : (
-					keys.map((key) => (
-						<li key={key.id} className="manage-item">
-							<div>
-								<p className="catalog-name font-mono">{key.prefix}…</p>
-								<p className="catalog-detail">created {formatTimestamp(key.createdAt)}</p>
-							</div>
-							<button
-								className="catalog-cta"
-								disabled={busy !== null}
-								type="button"
-								onClick={async () => {
-									setBusy(key.id);
-									setMessage("");
-									try {
-										await revokeKey({ data: { id: key.id } });
-										setKeys((current) => current.filter((item) => item.id !== key.id));
-										if (mintedToken.startsWith(key.prefix)) {
-											setMintedToken("");
+			{keys.length === 0 ? (
+				<Empty className="border">
+					<EmptyHeader>
+						<EmptyTitle>No API keys yet</EmptyTitle>
+						<EmptyDescription>Mint a key for headless clients.</EmptyDescription>
+					</EmptyHeader>
+				</Empty>
+			) : (
+				<CatalogList>
+					{keys.map((key) => (
+						<CatalogRow
+							key={key.id}
+							title={`${key.prefix}…`}
+							detail={`created ${formatTimestamp(key.createdAt)}`}
+							action={
+								<Button
+									disabled={busy !== null}
+									size="sm"
+									variant="ghost"
+									onClick={async () => {
+										setBusy(key.id);
+										try {
+											await revokeKey({ data: { id: key.id } });
+											setKeys((current) => current.filter((item) => item.id !== key.id));
+											if (mintedToken.startsWith(key.prefix)) {
+												setMintedToken("");
+											}
+											toast.success("Revoked");
+										} catch (error) {
+											toast.error(error instanceof Error ? error.message : String(error));
+										} finally {
+											setBusy(null);
 										}
-									} catch (error) {
-										setMessage(error instanceof Error ? error.message : String(error));
-									} finally {
-										setBusy(null);
-									}
-								}}
-							>
-								Revoke
-							</button>
-						</li>
-					))
-				)}
-			</ul>
-			{message ? <p className="mt-4 text-sm text-[var(--color-danger)]">{message}</p> : null}
-		</>
+									}}
+								>
+									{busy === key.id ? <Spinner data-icon="inline-start" /> : null}
+									Revoke
+								</Button>
+							}
+						/>
+					))}
+				</CatalogList>
+			)}
+		</div>
 	);
 }
 

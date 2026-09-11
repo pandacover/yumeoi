@@ -1,132 +1,138 @@
+import {
+	RiBrainLine,
+	RiChatSmileLine,
+	RiHomeLine,
+	RiPlugLine,
+	RiQuestionLine,
+	RiRobotLine,
+} from "@remixicon/react";
 import { Link, useRouterState } from "@tanstack/react-router";
-import { type ReactNode, useEffect, useState } from "react";
+import type { ComponentType, ReactNode } from "react";
+import { ThemeToggle } from "~/components/theme-toggle.tsx";
+import {
+	Sidebar,
+	SidebarContent,
+	SidebarFooter,
+	SidebarGroup,
+	SidebarGroupContent,
+	SidebarHeader,
+	SidebarInset,
+	SidebarMenu,
+	SidebarMenuButton,
+	SidebarMenuItem,
+	SidebarMenuSub,
+	SidebarMenuSubButton,
+	SidebarMenuSubItem,
+	SidebarProvider,
+	SidebarRail,
+	SidebarTrigger,
+} from "~/components/ui/sidebar.tsx";
 
 const appLinks = [
-	{ to: "/", label: "Overview" },
-	{ to: "/integrations", label: "Integrations" },
-	{ to: "/memories", label: "Memories" },
-	{ to: "/chat", label: "Chat" },
-	{ to: "/agents", label: "Agents" },
+	{ to: "/", label: "Overview", icon: RiHomeLine },
+	{ to: "/integrations", label: "Integrations", icon: RiPlugLine },
+	{ to: "/memories", label: "Memories", icon: RiBrainLine },
+	{ to: "/chat", label: "Chat", icon: RiChatSmileLine },
+	{ to: "/agents", label: "Agents", icon: RiRobotLine },
 ] as const;
 
-const landingToc = [
-	{ href: "#how-it-works", label: "How it works", sub: false },
-	{ href: "#connect", label: "Connect integrations", sub: true },
-	{ href: "#ingest", label: "Ingest", sub: true },
-	{ href: "#memory-model", label: "Memory model", sub: true },
-	{ href: "#recall", label: "Recall", sub: true },
-	{ href: "#agents", label: "Agents", sub: true },
-	{ href: "#decay", label: "Decay", sub: true },
-	{ href: "#faq", label: "FAQ", sub: false },
+const landingHow = [
+	{ href: "#connect", label: "Connect integrations" },
+	{ href: "#ingest", label: "Ingest" },
+	{ href: "#memory-model", label: "Memory model" },
+	{ href: "#recall", label: "Recall" },
+	{ href: "#agents", label: "Agents" },
+	{ href: "#decay", label: "Decay" },
 ] as const;
 
 const isAppLinkActive = (to: string, pathname: string) =>
 	to === "/" ? pathname === "/" : pathname === to || pathname.startsWith(`${to}/`);
 
-const themeFromDom = () =>
-	typeof document !== "undefined" && document.documentElement.getAttribute("data-theme") === "dark"
-		? "dark"
-		: "light";
-
 export function AppShell({ children }: { children: ReactNode }) {
 	const pathname = useRouterState({ select: (state) => state.location.pathname });
 	const onLanding = pathname === "/";
-	const [open, setOpen] = useState(false);
-	const [theme, setTheme] = useState<"light" | "dark">("light");
-
-	useEffect(() => {
-		setTheme(themeFromDom());
-	}, []);
-
-	const toggleTheme = () => {
-		const next = theme === "dark" ? "light" : "dark";
-		document.documentElement.setAttribute("data-theme", next);
-		localStorage.setItem("theme", next);
-		setTheme(next);
-	};
 
 	return (
-		<div className="layout">
-			<a href="#main-content" className="skip-link">
+		<SidebarProvider>
+			<a
+				href="#main-content"
+				className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:bg-primary focus:px-3 focus:py-2 focus:text-primary-foreground"
+			>
 				Skip to content
 			</a>
-			<aside className={open ? "sidebar open" : "sidebar"}>
-				<div className="sidebar-top">
-					<Link to="/" className="sidebar-logo" onClick={() => setOpen(false)}>
-						yumeoi
-					</Link>
-					<button
-						type="button"
-						className="hamburger"
-						aria-label="Toggle menu"
-						onClick={() => setOpen((value) => !value)}
-					>
-						<span className="hamburger-line" />
-						<span className="hamburger-line" />
-					</button>
-				</div>
-				<nav className="sidebar-nav">
-					{onLanding
-						? landingToc.map((item) => (
-								<a
-									key={item.href}
-									href={item.href}
-									className={item.sub ? "toc-link toc-sub" : "toc-link"}
-									onClick={() => setOpen(false)}
-								>
-									{item.label}
-								</a>
-							))
-						: appLinks.map((link) => (
-								<Link
-									key={link.to}
-									to={link.to}
-									className={isAppLinkActive(link.to, pathname) ? "toc-link active" : "toc-link"}
-									onClick={() => setOpen(false)}
-								>
-									{link.label}
-								</Link>
-							))}
-				</nav>
-				<div className="sidebar-foot">
-					<button
-						type="button"
-						className="icon-btn"
-						aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
-						onClick={toggleTheme}
-					>
-						{theme === "dark" ? (
-							<svg
-								width="16"
-								height="16"
-								viewBox="0 0 24 24"
-								fill="none"
-								stroke="currentColor"
-								strokeWidth="2"
-								aria-hidden="true"
-							>
-								<path d="M12 3v1.5M12 19.5V21M4.93 4.93l1.06 1.06M17.99 17.99l1.06 1.06M3 12h1.5M19.5 12H21M4.93 19.07l1.06-1.06M17.99 6.01l1.06-1.06M16.5 12a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0Z" />
-							</svg>
-						) : (
-							<svg
-								width="16"
-								height="16"
-								viewBox="0 0 24 24"
-								fill="none"
-								stroke="currentColor"
-								strokeWidth="2"
-								aria-hidden="true"
-							>
-								<path d="M21 14.5A8.5 8.5 0 1 1 9.5 3 7 7 0 0 0 21 14.5Z" />
-							</svg>
-						)}
-					</button>
-				</div>
-			</aside>
+			<Sidebar>
+				<SidebarHeader>
+					<SidebarMenu>
+						<SidebarMenuItem>
+							<SidebarMenuButton render={<Link to="/" />} size="lg" tooltip="yumeoi">
+								<span className="font-heading text-sm font-medium">yumeoi</span>
+							</SidebarMenuButton>
+						</SidebarMenuItem>
+					</SidebarMenu>
+				</SidebarHeader>
+				<SidebarContent>
+					<SidebarGroup>
+						<SidebarGroupContent>
+							<SidebarMenu>
+								{onLanding ? (
+									<>
+										<SidebarMenuItem>
+											{/* biome-ignore lint/a11y/useAnchorContent: link text is the SidebarMenuButton children */}
+											<SidebarMenuButton render={<a href="#how-it-works" />} tooltip="How it works">
+												<RiHomeLine />
+												<span>How it works</span>
+											</SidebarMenuButton>
+											<SidebarMenuSub>
+												{landingHow.map((item) => (
+													<SidebarMenuSubItem key={item.href}>
+														<SidebarMenuSubButton href={item.href}>
+															{item.label}
+														</SidebarMenuSubButton>
+													</SidebarMenuSubItem>
+												))}
+											</SidebarMenuSub>
+										</SidebarMenuItem>
+										<SidebarMenuItem>
+											{/* biome-ignore lint/a11y/useAnchorContent: link text is the SidebarMenuButton children */}
+											<SidebarMenuButton render={<a href="#faq" />} tooltip="FAQ">
+												<RiQuestionLine />
+												<span>FAQ</span>
+											</SidebarMenuButton>
+										</SidebarMenuItem>
+									</>
+								) : (
+									appLinks.map((link) => {
+										const Icon: ComponentType = link.icon;
+										return (
+											<SidebarMenuItem key={link.to}>
+												<SidebarMenuButton
+													isActive={isAppLinkActive(link.to, pathname)}
+													render={<Link to={link.to} />}
+													tooltip={link.label}
+												>
+													<Icon />
+													<span>{link.label}</span>
+												</SidebarMenuButton>
+											</SidebarMenuItem>
+										);
+									})
+								)}
+							</SidebarMenu>
+						</SidebarGroupContent>
+					</SidebarGroup>
+				</SidebarContent>
+				<SidebarFooter>
+					<ThemeToggle />
+				</SidebarFooter>
+				<SidebarRail />
+			</Sidebar>
 			{/* biome-ignore lint/correctness/useUniqueElementIds: skip-link fragment target is unique to the app shell */}
-			<div className="content" id="main-content">
+			<SidebarInset id="main-content">
+				<header className="flex h-12 items-center gap-2 px-3">
+					<SidebarTrigger />
+				</header>
 				{children}
-			</div>
-		</div>
+			</SidebarInset>
+		</SidebarProvider>
 	);
 }

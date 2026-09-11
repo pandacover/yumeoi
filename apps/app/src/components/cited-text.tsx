@@ -1,5 +1,6 @@
 import type { ChatCitation } from "@yumeoi/domain";
 import { splitCitedText } from "@yumeoi/memory";
+import { Button } from "~/components/ui/button.tsx";
 
 export function CitedText({
 	text,
@@ -19,15 +20,17 @@ export function CitedText({
 				}
 				const citation = citations.find((item) => item.index === part.index);
 				return (
-					<button
+					<Button
 						key={`${index}:cite:${part.index}`}
-						type="button"
-						className="mx-0.5 align-super text-xs text-[var(--accent)] hover:underline"
+						className="align-super"
+						size="xs"
 						title={citation?.title ?? `Source ${part.index}`}
+						type="button"
+						variant="link"
 						onClick={() => citation && onCite?.(citation)}
 					>
 						[{part.index}]
-					</button>
+					</Button>
 				);
 			})}
 		</span>

@@ -1,9 +1,12 @@
 import { env } from "cloudflare:workers";
+import { RiNotionLine } from "@remixicon/react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import type { SourceView } from "@yumeoi/domain";
 import { appUserId } from "../api/sources.ts";
 import { CatalogList, CatalogRow } from "../components/catalog-row.tsx";
+import { Page, PageHeader } from "../components/page.tsx";
+import { Button } from "../components/ui/button.tsx";
 import { isFixtureSourceId } from "../content/catalog.ts";
 
 const getIntegrations = createServerFn({ method: "GET" }).handler(async () => {
@@ -29,13 +32,14 @@ function IntegrationsPage() {
 	const notionConnected = notion.some(isNotionLive);
 
 	return (
-		<main className="page">
-			<header>
-				<h1 className="hero-heading">Integrations</h1>
-				<p className="hero-sub">External apps that write into your memory store.</p>
-			</header>
+		<Page>
+			<PageHeader
+				title="Integrations"
+				description="External apps that write into your memory store."
+			/>
 			<CatalogList>
 				<CatalogRow
+					icon={<RiNotionLine />}
 					title="Notion"
 					detail={
 						notionConnected
@@ -46,17 +50,29 @@ function IntegrationsPage() {
 					}
 					action={
 						notionConnected || !notionConfigured ? (
-							<Link className="catalog-cta" params={{ id: "notion" }} to="/integrations/$id">
+							<Button
+								nativeButton={false}
+								render={<Link params={{ id: "notion" }} to="/integrations/$id" />}
+								size="sm"
+								variant="outline"
+							>
 								Manage
-							</Link>
+							</Button>
 						) : (
-							<a className="catalog-cta" href="/api/sources/notion/authorize">
+							<Button
+								nativeButton={false}
+								render={
+									// biome-ignore lint/a11y/useAnchorContent: link text is the Button children
+									<a href="/api/sources/notion/authorize" />
+								}
+								size="sm"
+							>
 								Connect
-							</a>
+							</Button>
 						)
 					}
 				/>
 			</CatalogList>
-		</main>
+		</Page>
 	);
 }

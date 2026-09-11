@@ -10,6 +10,7 @@
 			"**",
 			"!**/routeTree.gen.ts",
 			"!**/worker-configuration.d.ts",
+			"!**/apps/app/src/components/ui",
 			"!**/.wrangler",
 			"!**/dist",
 			"!**/dist-types",
@@ -24,7 +25,10 @@
 	"linter": {
 		"enabled": true,
 		"rules": {
-			"recommended": true
+			"recommended": true,
+			"suspicious": {
+				"noUnknownAtRules": "off"
+			}
 		}
 	},
 	"javascript": {
