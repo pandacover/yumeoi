@@ -35,12 +35,7 @@ function RootDocument({ children }: { children: ReactNode }) {
 				<HeadContent />
 			</head>
 			<body>
-				<ClerkProvider>
-					<TooltipProvider>
-						<AppShell>{children}</AppShell>
-						<Toaster />
-					</TooltipProvider>
-				</ClerkProvider>
+				{children}
 				<Scripts />
 			</body>
 		</html>
@@ -50,7 +45,12 @@ function RootDocument({ children }: { children: ReactNode }) {
 function RootComponent() {
 	return (
 		<ClerkProvider>
-			<Outlet />
+			<TooltipProvider>
+				<AppShell>
+					<Outlet />
+				</AppShell>
+				<Toaster />
+			</TooltipProvider>
 		</ClerkProvider>
 	);
 }
