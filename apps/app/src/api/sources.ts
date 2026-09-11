@@ -30,7 +30,16 @@ export const notionOAuthConfig = (env: Env, request: Request): NotionOAuthConfig
 	};
 };
 
-export const appUserId = (env: Env): string => env.YUMEOI_USER_ID || "default";
+export const assertSourceOwner = async (
+	env: Env,
+	sourceId: string,
+	userId: string,
+): Promise<void> => {
+	const source = await env.SourceAgent.getByName(sourceId).status();
+	if (!source.userId || source.userId !== userId) {
+		throw new Error("Source not found");
+	}
+};
 
 export const startNotionAuthorize = async (
 	env: Env,

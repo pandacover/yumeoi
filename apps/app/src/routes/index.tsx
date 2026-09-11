@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { ClerkShow } from "../components/clerk-show.tsx";
 import {
 	Accordion,
 	AccordionContent,
@@ -26,15 +27,28 @@ function Home() {
 			>
 				<div className="flex max-w-2xl flex-col gap-2">
 					<h1 className="font-heading text-4xl font-medium tracking-tight">
-						yumeoi is a continual learning infrastructure for agents.
+						horizon is a continual learning infrastructure for agents.
 					</h1>
 					<p className="text-base text-foreground">
 						connect via MCP, external apps like Notion or API
 					</p>
 				</div>
-				<Button render={<Link to="/agents" />} nativeButton={false}>
-					Get started
-				</Button>
+				<ClerkShow when="signed-out">
+					<Button
+						nativeButton={false}
+						render={
+							// biome-ignore lint/a11y/useAnchorContent: Button children supply the label
+							<a href="/sign-up" />
+						}
+					>
+						Get started
+					</Button>
+				</ClerkShow>
+				<ClerkShow when="signed-in">
+					<Button nativeButton={false} render={<Link to="/agents" />}>
+						Get started
+					</Button>
+				</ClerkShow>
 				<Separator className="max-w-2xl" />
 				<div className="flex max-w-2xl flex-col gap-4">
 					{continualLearningCopy.map((paragraph) => (
@@ -50,8 +64,8 @@ function Home() {
 				<div className="flex flex-col gap-2">
 					<h2 className="font-heading text-xl font-medium">How it works</h2>
 					<p className="max-w-2xl text-base text-muted-foreground">
-						Yumeoi sits beside your agents. It ingests what you already write, turns it into a typed
-						memory store, and serves the same recall path to chat, HTTP, and MCP.
+						Horizon sits beside your agents. It ingests what you already write, turns it into a
+						typed memory store, and serves the same recall path to chat, HTTP, and MCP.
 					</p>
 				</div>
 				{howItWorks.map((item) => (
@@ -84,7 +98,7 @@ function Home() {
 
 			<footer className="flex flex-col gap-2 border-t py-12">
 				<p className="text-sm font-medium">Singularity</p>
-				<p className="text-xs text-muted-foreground">Yumeoi is a Singularity product.</p>
+				<p className="text-xs text-muted-foreground">Horizon is a Singularity product.</p>
 			</footer>
 		</div>
 	);

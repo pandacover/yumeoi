@@ -3,28 +3,40 @@ import tailwindcss from "@tailwindcss/vite";
 import { tanstackStart } from "@tanstack/react-start/plugin/vite";
 import viteReact from "@vitejs/plugin-react";
 import agents from "agents/vite";
-import { defineConfig } from "vite";
+import { defineConfig, loadEnv } from "vite";
 
-export default defineConfig({
-	server: {
-		port: 3000,
-	},
-	resolve: {
-		tsconfigPaths: true,
-	},
-	plugins: [
-		cloudflare({
-			viteEnvironment: { name: "ssr" },
-			// Use real Workers AI + Vectorize in local dev so retrieval matches
-			// production. Requires CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID and
-			// the provisioned "yumeoi-memories" index (bun run provision:vectorize).
-			remoteBindings: true,
-		}),
-		agents(),
-		tailwindcss(),
-		tanstackStart({
-			srcDirectory: "src",
-		}),
-		viteReact(),
-	],
+export default defineConfig(({ mode }) => {
+	const env = loadEnv(mode, import.meta.dirname, "");
+	const clerkPublishableKey =
+		process.env.VITE_CLERK_PUBLISHABLE_KEY || env.VITE_CLERK_PUBLISHABLE_KEY || "";
+
+	return {
+		server: {
+			port: 3000,
+		},
+		resolve: {
+			tsconfigPaths: true,
+			dedupe: ["react", "react-dom", "@clerk/react", "@clerk/shared"],
+		},
+		optimizeDeps: {
+			include: ["@clerk/react", "@clerk/shared", "@clerk/tanstack-react-start"],
+		},
+		define: {
+			"import.meta.env.VITE_CLERK_PUBLISHABLE_KEY": JSON.stringify(clerkPublishableKey),
+		},
+		plugins: [
+			cloudflare({
+				viteEnvironment: { name: "ssr" },
+				// Use real Workers AI + Vectorize when Cloudflare credentials exist.
+				// Without them, keep bindings local so `bun run dev` does not open OAuth.
+				remoteBindings: Boolean(process.env.CLOUDFLARE_API_TOKEN),
+			}),
+			agents(),
+			tailwindcss(),
+			tanstackStart({
+				srcDirectory: "src",
+			}),
+			viteReact(),
+		],
+	};
 });

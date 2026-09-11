@@ -1,11 +1,13 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { getAgentsContext } from "../api/agent-rpc.ts";
+import { requireAuth } from "../auth/page-user.ts";
 import { CatalogList, CatalogRow } from "../components/catalog-row.tsx";
 import { Page, PageHeader } from "../components/page.tsx";
 import { Button } from "../components/ui/button.tsx";
 import { agentCatalog, grantMatchesAgent } from "../content/catalog.ts";
 
 export const Route = createFileRoute("/agents")({
+	beforeLoad: () => requireAuth(),
 	loader: () => getAgentsContext(),
 	component: AgentsPage,
 });

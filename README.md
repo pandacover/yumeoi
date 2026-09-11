@@ -1,4 +1,4 @@
-# yumeoi
+# Horizon
 
 Memory infrastructure: connect apps, extract memories, chat with them, and serve them to agents over MCP.
 
@@ -8,7 +8,7 @@ Next up is the memory v1 plan, [`docs/v1-memory-plan.md`](docs/v1-memory-plan.md
 
 ## Stack
 
-Cloudflare Workers + Agents SDK, TypeScript, Effect `4.0.0-rc.112`, Bun, TanStack Start, OpenRouter via AI Gateway (OpenAI fallback).
+Cloudflare Workers + Agents SDK, TypeScript, Effect `4.0.0-rc.112`, Bun, TanStack Start, Clerk (app login), OpenRouter via AI Gateway (OpenAI fallback).
 
 ## Develop
 
@@ -18,22 +18,24 @@ cp apps/app/.dev.vars.example apps/app/.dev.vars
 bun run dev
 ```
 
+Set Clerk keys (`CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`, `VITE_CLERK_PUBLISHABLE_KEY`) in `.dev.vars`. The landing page is public. **Get started** sends unsigned-in users through Clerk sign-up; a new Clerk user gets an empty memory store.
+
 The Worker serves:
 
-- UI at `/`, `/sources`, `/memories`, `/chat`, `/agents`
-- MCP at `/mcp` (OAuth or API key; tools: `recall`, `search_memories`, `remember`, `update_memory`, `forget`, `feedback`, `get_memory`, `get_document`, `list_sources`; `recall_context` / `add_memory` remain as deprecated aliases)
-- MCP OAuth at `/authorize`, `/token`, `/register` (PKCE + dynamic client registration)
-- Agents at `/agents/memory-agent/:name` and `/agents/source-agent/:name`
+- UI at `/` (public), plus signed-in `/integrations`, `/memories`, `/chat`, `/agents`
+- MCP at `/mcp` (OAuth or API key; tools: `recall`, `search_memories`, `remember`, `update_memory`, `forget`, `feedback`, `get_memory`, `get_document`, `list_sources`, `get_entity`, `timeline`, `changes_since`; `recall_context` / `add_memory` remain as deprecated aliases)
+- MCP OAuth at `/authorize`, `/token`, `/register` (PKCE + dynamic client registration; consent requires a Clerk session)
+- Agents at `/agents/memory-agent/:name` and `/agents/source-agent/:name` (Clerk session or Bearer key; MemoryAgent name must match the user)
 - `POST /ingest`, `/api/search`, `/api/recall`, `/api/remember`, `/api/forget`, `/api/feedback`, `/api/sources`, `/api/keys`, `/api/grants` with `Authorization: Bearer ym_…`
-- `GET /api/health` includes per-user `memory` stats from the last decay sweep (active/dormant/archived counts, vectors deleted)
+- `GET /api/health` (per-user `memory` stats only when a Bearer key is present)
 
 Point Cursor or Claude Desktop at `/mcp`. Agent-facing guidance lives in [`docs/agents.md`](docs/agents.md) and is also the MCP server `instructions` string. The first connection opens the consent page; connected clients and API keys are managed on **Agents**. Headless agents that cannot do OAuth still send `Authorization: Bearer ym_…`.
 
 Chat uses `AIChatAgent` + `useAgentChat` with tools bound to `recall` and `get_document`. Streaming is resumable. Without an LLM key, chat answers from recalled memories with the same citation marks.
 
-Set `YUMEOI_API_KEY` (and optional `YUMEOI_USER_ID`) in `.dev.vars`. Set `OPENROUTER_API_KEY` (default LLM) and optionally `OPENAI_API_KEY` (fallback). Without either LLM key, ingest uses the heuristic extractor so the loop still runs.
+Set `YUMEOI_API_KEY` (and optional `YUMEOI_USER_ID`) in `.dev.vars` for the privileged local Bearer key. Set `OPENROUTER_API_KEY` (default LLM) and optionally `OPENAI_API_KEY` (fallback). Without either LLM key, ingest uses the heuristic extractor so the loop still runs.
 
-Notion OAuth uses a **public** connection plus `NOTION_CLIENT_ID` / `NOTION_CLIENT_SECRET`. The Redirect URI in that connection must match `NOTION_REDIRECT_URI` exactly (production: `https://yumeoi.luvmakin01.workers.dev/api/sources/notion/callback`). Internal connections cannot complete this flow. Without those secrets, the Sources screen can still **Connect demo workspace** (fixture connector) to exercise SourceAgent polling.
+Notion OAuth uses a **public** connection plus `NOTION_CLIENT_ID` / `NOTION_CLIENT_SECRET`. The Redirect URI in that connection must match `NOTION_REDIRECT_URI` exactly (production: `https://yumeoi.luvmakin01.workers.dev/api/sources/notion/callback`). Internal connections cannot complete this flow. Connecting Notion from the UI requires a signed-in Clerk session.
 
 `POST /ingest` starts `IngestWorkflow` (realtime lane) and waits for the durable steps to finish.
 
@@ -64,6 +66,8 @@ Required GitHub Actions secrets (`Settings → Secrets and variables → Actions
 |---|---|
 | `CLOUDFLARE_API_TOKEN` | Preview and production Wrangler (Workers Scripts Edit, plus D1 Edit, Vectorize Edit, R2 Edit, KV Edit, Workers AI Edit, Account Settings Read) |
 | `CLOUDFLARE_ACCOUNT_ID` | Wrangler account |
+| `CLERK_SECRET_KEY` | Production Worker secret for Clerk sessions |
+| `CLERK_PUBLISHABLE_KEY` | Production Worker secret, and `VITE_CLERK_PUBLISHABLE_KEY` at build |
 
 OpenRouter, OpenAI, Notion, `YUMEOI_API_KEY`, `YUMEOI_USER_ID`, and `TOKEN_ENCRYPTION_KEY` live as Cloudflare Worker secrets. GitHub may also hold copies; `deploy-prod.sh` only uploads keys that are present in the job env.
 

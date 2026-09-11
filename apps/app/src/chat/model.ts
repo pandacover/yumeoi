@@ -15,7 +15,7 @@ export const chatLanguageModel = (
 			? {
 					headers: {
 						"HTTP-Referer": "https://yumeoi.luvmakin01.workers.dev",
-						"X-Title": "yumeoi",
+						"X-Title": "horizon",
 					},
 				}
 			: {}),

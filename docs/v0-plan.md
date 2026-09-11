@@ -1,4 +1,4 @@
-# yumeoi — v0 plan
+# Horizon — v0 plan
 
 Memory infrastructure that connects to the apps you already use (Notion, Gmail, Obsidian, …), turns their contents into memories, lets you chat with those memories, and exposes the same memories to any agent over MCP.
 
@@ -235,10 +235,10 @@ Hybrid matters here: emails and notes are full of exact identifiers (names, invo
 
 ## 8. Auth model
 
-- **App login**: email magic link or Google OAuth via a Workers-compatible auth library (Better Auth on D1 is the current path of least resistance). Session cookie → `userId` → routes to `MemoryAgent(userId)`.
-- **Source OAuth** (Notion, Google): standard authorization-code flow handled in `/api/sources/:kind/callback`; tokens encrypted with a per-deployment key (Workers Secret) and stored in the `SourceAgent`.
-- **MCP OAuth**: `@cloudflare/workers-oauth-provider` acting as the authorization server; our web app renders the consent page; grants recorded in D1 so users can revoke from the Agents screen.
-- **API keys**: for `/ingest`, the Obsidian plugin, and headless MCP. Hashed in D1, prefix shown in UI.
+- **App login**: Clerk on TanStack Start. Session cookie → Clerk `user.id` → `MemoryAgent(userId)`. Landing `/` stays public; Get started goes through Clerk. New users start with an empty store.
+- **Source OAuth** (Notion, Google): standard authorization-code flow handled in `/api/sources/:kind/callback`; tokens encrypted with a per-deployment key (Workers Secret) and stored in the `SourceAgent`. Notion authorize requires a Clerk session (or Bearer key).
+- **MCP OAuth**: `@cloudflare/workers-oauth-provider` acting as the authorization server; our web app renders the consent page after Clerk sign-in; grants recorded in D1 so users can revoke from the Agents screen.
+- **API keys**: for `/ingest`, the Obsidian plugin, and headless MCP. Hashed in D1, prefix shown in UI. Bound to the Clerk user id that minted them.
 
 ---
 

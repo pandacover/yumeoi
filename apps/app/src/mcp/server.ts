@@ -36,8 +36,11 @@ const toolError = (error: string, hint: string) => ({
 const authProps = () => {
 	const auth = getMcpAuthContext();
 	const props = auth?.props ?? {};
+	if (typeof props.userId !== "string" || props.userId.length === 0) {
+		throw new Error("unauthorized");
+	}
 	return {
-		userId: typeof props.userId === "string" ? props.userId : "default",
+		userId: props.userId,
 		clientId: typeof props.clientId === "string" ? props.clientId : "unknown",
 	};
 };
@@ -60,7 +63,7 @@ const omitUndefined = <T extends Record<string, unknown>>(value: T) =>
 
 export function createYumeoiMcpServer(env: Env) {
 	const server = new McpServer({
-		name: "yumeoi",
+		name: "horizon",
 		version: "0.2.0",
 		instructions: AGENT_INSTRUCTIONS,
 	} as never);

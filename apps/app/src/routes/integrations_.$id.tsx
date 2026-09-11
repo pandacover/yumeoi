@@ -6,7 +6,8 @@ import { useAgent } from "agents/react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import type { MemoryAgentState } from "../agents/memory-agent.ts";
-import { appUserId, disconnectSource, syncSource } from "../api/sources.ts";
+import { assertSourceOwner, disconnectSource, syncSource } from "../api/sources.ts";
+import { requireAuth, requireUserId } from "../auth/page-user.ts";
 import { CatalogList, CatalogRow } from "../components/catalog-row.tsx";
 import { Page, PageCrumb, PageHeader } from "../components/page.tsx";
 import { Alert, AlertDescription, AlertTitle } from "../components/ui/alert.tsx";
@@ -21,7 +22,7 @@ const getIntegration = createServerFn({ method: "POST" })
 		if (!isIntegrationId(data.id)) {
 			throw new Error("Unknown integration");
 		}
-		const userId = appUserId(env);
+		const userId = await requireUserId();
 		const sources = await env.MemoryAgent.getByName(userId).listSources();
 		return {
 			id: data.id,
@@ -34,13 +35,20 @@ const getIntegration = createServerFn({ method: "POST" })
 
 const syncOne = createServerFn({ method: "POST" })
 	.validator((data: { sourceId: string }) => data)
-	.handler(async ({ data }) => syncSource(env, data.sourceId));
+	.handler(async ({ data }) => {
+		await assertSourceOwner(env, data.sourceId, await requireUserId());
+		return syncSource(env, data.sourceId);
+	});
 
 const disconnectOne = createServerFn({ method: "POST" })
 	.validator((data: { sourceId: string }) => data)
-	.handler(async ({ data }) => disconnectSource(env, data.sourceId));
+	.handler(async ({ data }) => {
+		await assertSourceOwner(env, data.sourceId, await requireUserId());
+		return disconnectSource(env, data.sourceId);
+	});
 
 export const Route = createFileRoute("/integrations_/$id")({
+	beforeLoad: () => requireAuth(),
 	loader: async ({ params }) => {
 		if (!isIntegrationId(params.id)) {
 			throw notFound();

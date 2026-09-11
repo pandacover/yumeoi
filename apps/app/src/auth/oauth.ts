@@ -26,7 +26,7 @@ export const oauthProviderOptions = (
 	resourceMetadata: {
 		scopes_supported: [...MCP_SCOPES],
 		bearer_methods_supported: ["header"],
-		resource_name: "yumeoi memories",
+		resource_name: "horizon memories",
 	},
 	resolveExternalToken: async ({ token, env }) => {
 		const auth = await authenticateToken(token, env);

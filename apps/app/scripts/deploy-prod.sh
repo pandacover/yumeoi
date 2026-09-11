@@ -29,6 +29,8 @@ const keys = [
 	"NOTION_CLIENT_ID",
 	"NOTION_CLIENT_SECRET",
 	"NOTION_REDIRECT_URI",
+	"CLERK_SECRET_KEY",
+	"CLERK_PUBLISHABLE_KEY",
 ];
 const secrets = Object.fromEntries(keys.filter((key) => process.env[key]).map((key) => [key, process.env[key]]));
 writeFileSync(process.env.SECRETS_FILE, JSON.stringify(secrets));

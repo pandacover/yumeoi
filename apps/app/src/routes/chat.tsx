@@ -1,20 +1,20 @@
-import { env } from "cloudflare:workers";
 import { createFileRoute } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import { useEffect, useState } from "react";
-import { appUserId } from "../api/sources.ts";
+import { requireAuth, requireUserId } from "../auth/page-user.ts";
 import { ChatPane } from "../components/chat-pane.tsx";
 import { Page, PageHeader } from "../components/page.tsx";
 import { Skeleton } from "../components/ui/skeleton.tsx";
 
 const getChatContext = createServerFn({ method: "GET" }).handler(async () => ({
-	userId: appUserId(env),
+	userId: await requireUserId(),
 }));
 
 export const Route = createFileRoute("/chat")({
 	validateSearch: (search: Record<string, unknown>) => ({
 		mock: search.mock === "1" || search.mock === true,
 	}),
+	beforeLoad: () => requireAuth(),
 	loader: () => getChatContext(),
 	component: ChatPage,
 });

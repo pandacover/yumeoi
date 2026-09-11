@@ -168,7 +168,7 @@ const structuredFromProvider = <A, I>(
 				? {
 						defaultHeaders: {
 							"HTTP-Referer": "https://yumeoi.luvmakin01.workers.dev",
-							"X-Title": "yumeoi",
+							"X-Title": "horizon",
 						},
 					}
 				: {}),

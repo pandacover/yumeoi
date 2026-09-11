@@ -17,7 +17,7 @@ import {
 	ToolError,
 } from "./schema.ts";
 
-export const AGENT_INSTRUCTIONS = `yumeoi is a personal memory store. Prefer tools over guessing.
+export const AGENT_INSTRUCTIONS = `horizon is a personal memory store. Prefer tools over guessing.
 
 When to call which tool:
 - recall: before answering anything about the user's notes, preferences, decisions, or past events. Default format is markdown with numbered citations. Use plan=fast unless the query needs synonym/entity expansion (then plan=full).
