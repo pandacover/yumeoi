@@ -1,5 +1,6 @@
 import { env, SELF } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
+import { continueInBackground } from "../src/api/sources.ts";
 
 const auth = { authorization: `Bearer ${env.YUMEOI_API_KEY}` };
 
@@ -60,6 +61,29 @@ describe("M2 HTTP sources and memories", () => {
 		const slash = await SELF.fetch("https://example.com/api/sources/notion/callback/");
 		expect(slash.status).toBe(400);
 		expect(slash.status).not.toBe(401);
+	});
+
+	it("keeps post-connect sync on the execution context instead of blocking", async () => {
+		const waited: Promise<unknown>[] = [];
+		const ctx = {
+			waitUntil(promise: Promise<unknown>) {
+				waited.push(promise);
+			},
+		} as ExecutionContext;
+		let finished = false;
+		continueInBackground(
+			ctx,
+			new Promise((resolve) => {
+				setTimeout(() => {
+					finished = true;
+					resolve(undefined);
+				}, 20);
+			}),
+		);
+		expect(waited).toHaveLength(1);
+		expect(finished).toBe(false);
+		await waited[0];
+		expect(finished).toBe(true);
 	});
 
 	it("connects a fixture source over HTTP and lists provenance", async () => {

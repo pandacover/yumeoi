@@ -39,7 +39,7 @@ const gateAgentRequest = async (request: Request, env: Env): Promise<Response | 
 export async function dispatch(
 	request: Request,
 	env: Env,
-	_ctx: ExecutionContext,
+	ctx: ExecutionContext,
 ): Promise<Response | null> {
 	const url = new URL(request.url);
 
@@ -58,7 +58,7 @@ export async function dispatch(
 	}
 
 	if (url.pathname.startsWith("/api/") || url.pathname === "/ingest") {
-		return handleApi(request, env);
+		return handleApi(request, env, ctx);
 	}
 
 	return null;

@@ -27,6 +27,7 @@ import { MCP_SCOPES } from "../auth/scopes.ts";
 import { resolveAppUserId } from "../auth/session.ts";
 import {
 	connectFixtureSource,
+	continueInBackground,
 	disconnectSource,
 	finishNotionCallback,
 	isFixtureConnect,
@@ -189,7 +190,11 @@ const asTypes = (value: unknown): MemoryType[] => {
 	});
 };
 
-export async function handleApi(request: Request, env: Env): Promise<Response | null> {
+export async function handleApi(
+	request: Request,
+	env: Env,
+	ctx?: ExecutionContext,
+): Promise<Response | null> {
 	const url = new URL(request.url);
 
 	if (url.pathname === "/api/health") {
@@ -258,7 +263,7 @@ export async function handleApi(request: Request, env: Env): Promise<Response | 
 		}
 		try {
 			const source = await finishNotionCallback(env, request, code, state);
-			await syncSource(env, source.id);
+			continueInBackground(ctx, syncSource(env, source.id));
 			return Response.redirect(new URL("/integrations/notion?connected=1", request.url), 302);
 		} catch (error) {
 			const message = error instanceof Error ? error.message : String(error);

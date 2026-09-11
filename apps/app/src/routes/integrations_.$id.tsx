@@ -66,6 +66,12 @@ function IntegrationManagePage() {
 	useEffect(() => {
 		setMounted(true);
 	}, []);
+	useEffect(() => {
+		if (new URLSearchParams(window.location.search).get("connected") !== "1") {
+			return;
+		}
+		toast.success("Notion connected. Syncing in the background.");
+	}, []);
 
 	return (
 		<Page>
