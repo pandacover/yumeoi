@@ -3,7 +3,7 @@ import { type ReactNode, useEffect, useState } from "react";
 
 const appLinks = [
 	{ to: "/", label: "Overview" },
-	{ to: "/sources", label: "Sources" },
+	{ to: "/integrations", label: "Integrations" },
 	{ to: "/memories", label: "Memories" },
 	{ to: "/chat", label: "Chat" },
 	{ to: "/agents", label: "Agents" },
@@ -11,7 +11,7 @@ const appLinks = [
 
 const landingToc = [
 	{ href: "#how-it-works", label: "How it works", sub: false },
-	{ href: "#connect", label: "Connect sources", sub: true },
+	{ href: "#connect", label: "Connect integrations", sub: true },
 	{ href: "#ingest", label: "Ingest", sub: true },
 	{ href: "#memory-model", label: "Memory model", sub: true },
 	{ href: "#recall", label: "Recall", sub: true },

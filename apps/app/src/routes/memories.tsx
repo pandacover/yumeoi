@@ -190,7 +190,7 @@ function MemoriesPage() {
 				<div className="flex flex-col gap-3">
 					{hits.length === 0 ? (
 						<p className="ui-card text-[var(--muted)]">
-							No memories yet. Ingest a document or connect a source.
+							No memories yet. Ingest a document or connect an integration.
 						</p>
 					) : (
 						hits.map((hit) => (

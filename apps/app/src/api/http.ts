@@ -253,7 +253,7 @@ export async function handleApi(request: Request, env: Env): Promise<Response | 
 		try {
 			const source = await finishNotionCallback(env, request, code, state);
 			await syncSource(env, source.id);
-			return Response.redirect(new URL("/sources?connected=1", request.url), 302);
+			return Response.redirect(new URL("/integrations/notion?connected=1", request.url), 302);
 		} catch (error) {
 			const message = error instanceof Error ? error.message : String(error);
 			const invalidClient = /invalid_client/i.test(message);
