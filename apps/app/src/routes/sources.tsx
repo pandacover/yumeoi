@@ -47,13 +47,11 @@ function SourcesPage() {
 	const live = useMemo(() => sources, [sources]);
 
 	return (
-		<main className="mx-auto flex max-w-5xl flex-col gap-8 px-6 py-12">
-			<header className="flex flex-col gap-3">
-				<p className="text-sm tracking-[0.2em] text-[var(--accent)] uppercase">M2 sources</p>
-				<h1 className="text-3xl font-semibold tracking-tight">Sources</h1>
-				<p className="max-w-2xl text-[var(--muted)]">
-					Connect Notion, poll with a cursor, and stream sync status through MemoryAgent via{" "}
-					<code>useAgent</code>.
+		<main className="page page-wide">
+			<header className="mb-8">
+				<h1 className="hero-heading">Sources</h1>
+				<p className="hero-sub">
+					Connect Notion, poll with a cursor, and stream sync status through MemoryAgent.
 				</p>
 				{mounted ? (
 					<SourcesLive userId={initial.userId} onSources={setSources} />
@@ -64,19 +62,16 @@ function SourcesPage() {
 
 			<section className="flex flex-wrap gap-3">
 				{initial.notionConfigured ? (
-					<a
-						className="rounded-lg bg-[var(--accent)] px-4 py-2 text-sm font-medium text-[var(--bg)]"
-						href="/api/sources/notion/authorize"
-					>
+					<a className="ui-btn" href="/api/sources/notion/authorize">
 						Connect Notion
 					</a>
 				) : (
-					<p className="rounded-lg border border-[var(--line)] px-4 py-2 text-sm text-[var(--muted)]">
+					<p className="ui-card text-sm text-[var(--muted)]">
 						Set <code>NOTION_CLIENT_ID</code> and <code>NOTION_CLIENT_SECRET</code> to enable OAuth.
 					</p>
 				)}
 				<button
-					className="rounded-lg border border-[var(--line)] px-4 py-2 text-sm disabled:opacity-50"
+					className="ui-btn-ghost"
 					disabled={busy !== null}
 					type="button"
 					onClick={async () => {
@@ -109,23 +104,18 @@ function SourcesPage() {
 
 			<section className="grid gap-4">
 				{live.length === 0 ? (
-					<p className="rounded-2xl border border-[var(--line)] bg-[var(--card)] p-6 text-[var(--muted)]">
+					<p className="ui-card text-[var(--muted)]">
 						No sources yet. Connect Notion or load the demo workspace.
 					</p>
 				) : (
 					live.map((source) => (
-						<article
-							key={source.id}
-							className="rounded-2xl border border-[var(--line)] bg-[var(--card)] p-6"
-						>
+						<article key={source.id} className="ui-card">
 							<div className="flex flex-wrap items-start justify-between gap-4">
 								<div>
 									<h2 className="text-lg font-medium">{source.label}</h2>
 									<p className="mt-1 font-mono text-sm text-[var(--muted)]">{source.id}</p>
 								</div>
-								<span className="rounded-full border border-[var(--line)] px-3 py-1 text-xs uppercase tracking-wide text-[var(--accent)]">
-									{source.status}
-								</span>
+								<span className="ui-chip">{source.status}</span>
 							</div>
 							<dl className="mt-4 grid gap-2 text-sm text-[var(--muted)] md:grid-cols-2">
 								<div>kind {source.kind}</div>
@@ -137,11 +127,13 @@ function SourcesPage() {
 								<div>ingested {source.documentsIngested}</div>
 							</dl>
 							{source.lastError ? (
-								<p className="mt-3 text-sm text-red-300">last error: {source.lastError}</p>
+								<p className="mt-3 text-sm text-[var(--color-danger)]">
+									last error: {source.lastError}
+								</p>
 							) : null}
 							<div className="mt-4 flex flex-wrap gap-3">
 								<button
-									className="rounded-lg border border-[var(--line)] px-3 py-1.5 text-sm disabled:opacity-50"
+									className="ui-btn-ghost disabled:opacity-50"
 									disabled={busy !== null || source.status === "disconnected"}
 									type="button"
 									onClick={async () => {
@@ -161,7 +153,7 @@ function SourcesPage() {
 									{busy === source.id ? "Syncing…" : "Sync now"}
 								</button>
 								<button
-									className="rounded-lg border border-[var(--line)] px-3 py-1.5 text-sm disabled:opacity-50"
+									className="ui-btn-ghost disabled:opacity-50"
 									disabled={busy !== null}
 									type="button"
 									onClick={async () => {

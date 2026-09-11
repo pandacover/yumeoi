@@ -59,43 +59,38 @@ function Home() {
 	const [recallBusy, setRecallBusy] = useState(false);
 
 	return (
-		<main className="mx-auto flex min-h-screen max-w-3xl flex-col gap-8 px-6 py-16">
-			<header className="flex flex-col gap-3">
-				<p className="text-sm tracking-[0.2em] text-[var(--accent)] uppercase">M4 agents</p>
-				<h1 className="text-4xl font-semibold tracking-tight">yumeoi</h1>
-				<p className="max-w-xl text-[var(--muted)]">
-					Connect Notion, extract memories, chat with them, and share the same store with Cursor or
-					Claude over MCP OAuth.
+		<main className="page">
+			<section>
+				<h1 className="hero-heading">Memory that stays with your agents.</h1>
+				<p className="hero-sub">
+					Connect sources, extract memories, chat with them, and share the same store with Cursor or
+					Claude over MCP.
 				</p>
-				<p className="flex gap-4 text-sm">
-					<Link className="text-[var(--accent)]" to="/sources">
-						Sources
+				<div className="flex flex-wrap gap-3">
+					<Link to="/chat" className="ui-btn">
+						Open chat
 					</Link>
-					<Link className="text-[var(--accent)]" to="/memories">
-						Memories
+					<Link to="/sources" className="ui-btn-ghost">
+						Connect a source
 					</Link>
-					<Link className="text-[var(--accent)]" to="/chat">
-						Chat
-					</Link>
-					<Link className="text-[var(--accent)]" to="/agents">
-						Agents
-					</Link>
-				</p>
-			</header>
-
-			<section className="rounded-2xl border border-[var(--line)] bg-[var(--card)] p-6">
-				<h2 className="text-lg font-medium">MemoryAgent</h2>
-				<p className="mt-2 text-sm text-[var(--muted)]">
-					Ingest runs <code>IngestWorkflow</code> (fetch → normalize → chunk → embed → extract →
-					consolidate → commit). Hybrid search fuses Vectorize with DO SQLite FTS5.
-				</p>
-				<p className="mt-4 font-mono text-[var(--accent)]">{hello.message}</p>
-				<p className="mt-1 text-sm text-[var(--muted)]">ready: {String(hello.ready)}</p>
+				</div>
 			</section>
 
-			<section className="grid gap-4 md:grid-cols-2">
+			<section className="ui-card mt-16">
+				<h2 className="section-heading">MemoryAgent</h2>
+				<p className="mt-2 text-sm text-[var(--muted)]">
+					Ingest runs fetch → normalize → chunk → embed → extract → consolidate → commit. Hybrid
+					search fuses Vectorize with DO SQLite FTS5.
+				</p>
+				<p className="mt-4 font-mono text-sm">{hello.message}</p>
+				<p className="mt-1 text-sm text-[var(--muted)]">
+					{hello.ready ? "Ready" : "Starting"} · {hello.userId}
+				</p>
+			</section>
+
+			<section className="mt-8 grid gap-4 md:grid-cols-2">
 				<form
-					className="rounded-2xl border border-[var(--line)] bg-[var(--card)] p-6"
+					className="ui-card"
 					onSubmit={async (event) => {
 						event.preventDefault();
 						setIngestBusy(true);
@@ -112,14 +107,14 @@ function Home() {
 						}
 					}}
 				>
-					<h2 className="text-lg font-medium">Ingest</h2>
+					<h2 className="section-heading">Ingest</h2>
 					<p className="mt-2 text-sm text-[var(--muted)]">
-						Writes to the demo MemoryAgent on this Worker.
+						Write a note into this Worker’s memory.
 					</p>
 					<label className="mt-4 flex flex-col gap-2 text-sm">
 						<span className="text-[var(--muted)]">Title</span>
 						<input
-							className="rounded-lg border border-[var(--line)] bg-[var(--bg)] px-3 py-2"
+							className="ui-field"
 							value={ingestTitle}
 							onChange={(event) => setIngestTitle(event.target.value)}
 							name="title"
@@ -128,26 +123,24 @@ function Home() {
 					<label className="mt-3 flex flex-col gap-2 text-sm">
 						<span className="text-[var(--muted)]">Markdown</span>
 						<textarea
-							className="min-h-32 rounded-lg border border-[var(--line)] bg-[var(--bg)] px-3 py-2"
+							className="ui-field min-h-32"
 							value={ingestMarkdown}
 							onChange={(event) => setIngestMarkdown(event.target.value)}
 							name="markdown"
 						/>
 					</label>
 					<button
-						className="mt-4 rounded-lg bg-[var(--accent)] px-4 py-2 text-sm font-medium text-[var(--bg)] disabled:opacity-50"
+						className="ui-btn mt-4"
 						disabled={ingestBusy || ingestMarkdown.trim().length === 0}
 						type="submit"
 					>
 						{ingestBusy ? "Ingesting…" : "Ingest"}
 					</button>
-					{ingestResult ? (
-						<pre className="mt-4 overflow-x-auto text-xs text-[var(--muted)]">{ingestResult}</pre>
-					) : null}
+					{ingestResult ? <pre className="ui-pre mt-4">{ingestResult}</pre> : null}
 				</form>
 
 				<form
-					className="rounded-2xl border border-[var(--line)] bg-[var(--card)] p-6"
+					className="ui-card"
 					onSubmit={async (event) => {
 						event.preventDefault();
 						setRecallBusy(true);
@@ -162,84 +155,51 @@ function Home() {
 						}
 					}}
 				>
-					<h2 className="text-lg font-medium">Recall</h2>
+					<h2 className="section-heading">Recall</h2>
 					<p className="mt-2 text-sm text-[var(--muted)]">
-						Hybrid recall with rerank on, same path as MCP <code>recall_context</code>.
+						Hybrid recall with rerank, same path as MCP.
 					</p>
 					<label className="mt-4 flex flex-col gap-2 text-sm">
 						<span className="text-[var(--muted)]">Query</span>
 						<input
-							className="rounded-lg border border-[var(--line)] bg-[var(--bg)] px-3 py-2"
+							className="ui-field"
 							value={recallQuery}
 							onChange={(event) => setRecallQuery(event.target.value)}
 							name="query"
 						/>
 					</label>
 					<button
-						className="mt-4 rounded-lg bg-[var(--accent)] px-4 py-2 text-sm font-medium text-[var(--bg)] disabled:opacity-50"
+						className="ui-btn mt-4"
 						disabled={recallBusy || recallQuery.trim().length === 0}
 						type="submit"
 					>
 						{recallBusy ? "Recalling…" : "Recall"}
 					</button>
-					{recallResult ? (
-						<pre className="mt-4 overflow-x-auto text-xs text-[var(--muted)]">{recallResult}</pre>
-					) : null}
+					{recallResult ? <pre className="ui-pre mt-4">{recallResult}</pre> : null}
 				</form>
 			</section>
 
-			<section className="grid gap-4 md:grid-cols-2">
-				<div className="rounded-2xl border border-[var(--line)] bg-[var(--card)] p-6">
-					<h2 className="text-lg font-medium">MCP</h2>
+			<section className="mt-8 grid gap-4 md:grid-cols-2">
+				<div className="ui-card">
+					<h2 className="section-heading">MCP</h2>
 					<p className="mt-2 text-sm text-[var(--muted)]">
-						OAuth at <code>/authorize</code>, <code>/token</code>, <code>/register</code>, plus API
-						keys for headless clients. Manage grants on{" "}
-						<Link className="text-[var(--accent)]" to="/agents">
+						OAuth at <code>/authorize</code>. Manage grants on{" "}
+						<Link className="ui-link" to="/agents">
 							Agents
 						</Link>
 						.
 					</p>
 					<p className="mt-3 font-mono text-sm">/mcp</p>
-					<p className="mt-2 text-sm text-[var(--muted)]">
-						tools: search_memories, recall_context, get_memory, get_document, add_memory,
-						list_sources
-					</p>
-					<p className="mt-2 text-sm text-[var(--muted)]">
-						resources: <code>memory://sources</code>, <code>memory://recent</code>
-					</p>
 				</div>
-				<div className="rounded-2xl border border-[var(--line)] bg-[var(--card)] p-6">
-					<h2 className="text-lg font-medium">LLM</h2>
+				<div className="ui-card">
+					<h2 className="section-heading">LLM</h2>
 					<p className="mt-2 text-sm text-[var(--muted)]">
-						Chat is Luna high via OpenRouter with OpenAI as fallback, streamed from{" "}
-						<code>AIChatAgent</code>. Extract is Luna high; consolidate and rerank are Luna none.
-						See <code>docs/eval/m1.md</code>.
+						Chat is Luna high via {DEFAULT_LLM_PROVIDER}, with {FALLBACK_LLM_PROVIDER} as fallback.
 					</p>
 					<p className="mt-3 font-mono text-sm">
-						chat {defaultLlmConfig.chat.model}/{defaultLlmConfig.chat.effort}
-					</p>
-					<p className="mt-1 font-mono text-sm text-[var(--muted)]">
-						{DEFAULT_LLM_PROVIDER} → {FALLBACK_LLM_PROVIDER}
+						{defaultLlmConfig.chat.model}/{defaultLlmConfig.chat.effort}
 					</p>
 				</div>
-			</section>
-
-			<section className="rounded-2xl border border-[var(--line)] bg-[var(--card)] p-6">
-				<h2 className="text-lg font-medium">HTTP</h2>
-				<ul className="mt-3 flex flex-col gap-2 font-mono text-sm text-[var(--muted)]">
-					<li>POST /ingest</li>
-					<li>POST /api/search</li>
-					<li>POST /api/recall</li>
-					<li>GET /api/memories/:id</li>
-					<li>GET /api/documents/:id</li>
-					<li>POST /api/memories</li>
-					<li>GET|POST /api/sources · POST /api/sources/:id/sync</li>
-					<li>GET /api/sources/notion/authorize</li>
-					<li>GET|POST /api/keys · DELETE /api/keys/:id</li>
-					<li>GET /api/grants · DELETE /api/grants/:id</li>
-					<li>GET /authorize · POST /token · POST /register</li>
-					<li>GET /api/health</li>
-				</ul>
 			</section>
 		</main>
 	);

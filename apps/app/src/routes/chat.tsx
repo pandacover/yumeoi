@@ -22,13 +22,12 @@ function ChatPage() {
 	}, []);
 
 	return (
-		<main className="mx-auto flex max-w-5xl flex-col gap-8 px-6 py-12">
-			<header className="flex flex-col gap-3">
-				<p className="text-sm tracking-[0.2em] text-[var(--accent)] uppercase">M3 chat</p>
-				<h1 className="text-3xl font-semibold tracking-tight">Chat</h1>
-				<p className="max-w-2xl text-[var(--muted)]">
-					Streaming <code>AIChatAgent</code> on MemoryAgent. Tools call <code>recall</code> and{" "}
-					<code>get_document</code>; citations render inline. Streams resume if you disconnect.
+		<main className="page page-wide">
+			<header className="mb-8">
+				<h1 className="hero-heading">Chat</h1>
+				<p className="hero-sub">
+					Ask about your memories. Answers call recall and cite sources inline. Streams resume if
+					you disconnect.
 				</p>
 			</header>
 			{mounted ? (
