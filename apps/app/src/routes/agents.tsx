@@ -132,19 +132,18 @@ function AgentsPage() {
 	};
 
 	return (
-		<main className="mx-auto flex max-w-5xl flex-col gap-8 px-6 py-12">
-			<header className="flex flex-col gap-3">
-				<p className="text-sm tracking-[0.2em] text-[var(--accent)] uppercase">M4 agents</p>
-				<h1 className="text-3xl font-semibold tracking-tight">Agents</h1>
-				<p className="max-w-2xl text-[var(--muted)]">
+		<main className="page page-wide">
+			<header>
+				<h1 className="hero-heading">Agents</h1>
+				<p className="hero-sub">
 					Cursor and Claude connect over MCP OAuth — copy the URL below, no API key. Mint a{" "}
 					<code>ym_</code> key only for curl, scripts, or other headless clients that send{" "}
 					<code>Authorization: Bearer</code>.
 				</p>
 			</header>
 
-			<section className="rounded-2xl border border-[var(--line)] bg-[var(--card)] p-6">
-				<h2 className="text-lg font-medium">MCP connection</h2>
+			<section className="ui-card">
+				<h2 className="section-heading">MCP connection</h2>
 				<p className="mt-2 text-sm text-[var(--muted)]">
 					Paste this into Cursor MCP settings. Cursor opens a browser for OAuth and returns to{" "}
 					<code>http://localhost:8787/callback</code> on your machine — that is Cursor's loopback,
@@ -153,7 +152,7 @@ function AgentsPage() {
 				<p className="mt-4 font-mono text-sm">{mcpUrl || initial.mcpPath}</p>
 				<div className="mt-4 flex flex-wrap gap-3">
 					<button
-						className="rounded-lg border border-[var(--line)] px-4 py-2 text-sm"
+						className="ui-btn-ghost"
 						type="button"
 						onClick={() => copy("url", mcpUrl || initial.mcpPath)}
 					>
@@ -163,11 +162,9 @@ function AgentsPage() {
 				<div className="mt-6 grid gap-4 md:grid-cols-2">
 					<div>
 						<p className="text-sm text-[var(--muted)]">Cursor</p>
-						<pre className="mt-2 overflow-x-auto rounded-lg border border-[var(--line)] bg-[var(--bg)] p-3 text-xs">
-							{cursorSnippet}
-						</pre>
+						<pre className="ui-pre mt-2">{cursorSnippet}</pre>
 						<button
-							className="mt-2 rounded-lg border border-[var(--line)] px-3 py-1.5 text-xs"
+							className="ui-btn-ghost mt-3"
 							type="button"
 							onClick={() => copy("cursor", cursorSnippet)}
 						>
@@ -176,11 +173,9 @@ function AgentsPage() {
 					</div>
 					<div>
 						<p className="text-sm text-[var(--muted)]">Claude Desktop</p>
-						<pre className="mt-2 overflow-x-auto rounded-lg border border-[var(--line)] bg-[var(--bg)] p-3 text-xs">
-							{claudeSnippet}
-						</pre>
+						<pre className="ui-pre mt-2">{claudeSnippet}</pre>
 						<button
-							className="mt-2 rounded-lg border border-[var(--line)] px-3 py-1.5 text-xs"
+							className="ui-btn-ghost mt-3"
 							type="button"
 							onClick={() => copy("claude", claudeSnippet)}
 						>
@@ -190,11 +185,11 @@ function AgentsPage() {
 				</div>
 			</section>
 
-			<section className="rounded-2xl border border-[var(--line)] bg-[var(--card)] p-6">
+			<section className="ui-card mt-8">
 				<div className="flex flex-wrap items-center justify-between gap-3">
-					<h2 className="text-lg font-medium">API keys</h2>
+					<h2 className="section-heading">API keys</h2>
 					<button
-						className="rounded-lg bg-[var(--accent)] px-4 py-2 text-sm font-medium text-[var(--bg)] disabled:opacity-50"
+						className="ui-btn"
 						disabled={busy !== null}
 						type="button"
 						onClick={async () => {
@@ -222,15 +217,11 @@ function AgentsPage() {
 				</p>
 				{mintedToken ? (
 					<>
-						<p className="mt-3 break-all font-mono text-sm text-[var(--accent)]">{mintedToken}</p>
-						<pre className="mt-3 overflow-x-auto rounded-lg border border-[var(--line)] bg-[var(--bg)] p-3 text-xs">
-							{headlessSnippet.replace("ym_…", mintedToken)}
-						</pre>
+						<p className="mt-3 break-all font-mono text-sm">{mintedToken}</p>
+						<pre className="ui-pre mt-3">{headlessSnippet.replace("ym_…", mintedToken)}</pre>
 					</>
 				) : (
-					<pre className="mt-3 overflow-x-auto rounded-lg border border-[var(--line)] bg-[var(--bg)] p-3 text-xs">
-						{headlessSnippet}
-					</pre>
+					<pre className="ui-pre mt-3">{headlessSnippet}</pre>
 				)}
 				<ul className="mt-4 flex flex-col gap-3">
 					{keys.length === 0 ? (
@@ -239,7 +230,7 @@ function AgentsPage() {
 						keys.map((key) => (
 							<li
 								key={key.id}
-								className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-[var(--line)] px-4 py-3"
+								className="flex flex-wrap items-center justify-between gap-3 rounded-[var(--radius-sm)] border border-[var(--line)] px-4 py-3"
 							>
 								<div>
 									<p className="font-mono text-sm">{key.prefix}…</p>
@@ -248,7 +239,7 @@ function AgentsPage() {
 									</p>
 								</div>
 								<button
-									className="rounded-lg border border-[var(--line)] px-3 py-1.5 text-sm disabled:opacity-50"
+									className="ui-btn-ghost"
 									disabled={busy !== null}
 									type="button"
 									onClick={async () => {
@@ -275,8 +266,8 @@ function AgentsPage() {
 				</ul>
 			</section>
 
-			<section className="rounded-2xl border border-[var(--line)] bg-[var(--card)] p-6">
-				<h2 className="text-lg font-medium">Connected MCP clients</h2>
+			<section className="ui-card mt-8">
+				<h2 className="section-heading">Connected MCP clients</h2>
 				<p className="mt-2 text-sm text-[var(--muted)]">
 					OAuth grants for user <code>{initial.userId}</code>. Revoking drops the client&apos;s
 					refresh and access tokens.
@@ -288,7 +279,7 @@ function AgentsPage() {
 						grants.map((grant) => (
 							<li
 								key={grant.id}
-								className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-[var(--line)] px-4 py-3"
+								className="flex flex-wrap items-center justify-between gap-3 rounded-[var(--radius-sm)] border border-[var(--line)] px-4 py-3"
 							>
 								<div>
 									<p className="text-sm">{grant.clientName}</p>
@@ -298,7 +289,7 @@ function AgentsPage() {
 									</p>
 								</div>
 								<button
-									className="rounded-lg border border-[var(--line)] px-3 py-1.5 text-sm disabled:opacity-50"
+									className="ui-btn-ghost"
 									disabled={busy !== null}
 									type="button"
 									onClick={async () => {
@@ -322,7 +313,7 @@ function AgentsPage() {
 				</ul>
 			</section>
 
-			{message ? <p className="text-sm text-red-300">{message}</p> : null}
+			{message ? <p className="mt-4 text-sm text-[var(--color-danger)]">{message}</p> : null}
 		</main>
 	);
 }

@@ -83,34 +83,33 @@ function MemoriesPage() {
 	const kindsLabel = useMemo(() => kinds.join(", ") || "all kinds", [kinds]);
 
 	return (
-		<main className="mx-auto flex max-w-5xl flex-col gap-8 px-6 py-12">
-			<header className="flex flex-col gap-3">
-				<p className="text-sm tracking-[0.2em] text-[var(--accent)] uppercase">M2 memories</p>
-				<h1 className="text-3xl font-semibold tracking-tight">Memories</h1>
-				<p className="max-w-2xl text-[var(--muted)]">
+		<main className="page page-wide">
+			<header>
+				<h1 className="hero-heading">Memories</h1>
+				<p className="hero-sub">
 					Search extracted memories and open provenance back to the source document.
 				</p>
 			</header>
 
-			<section className="grid gap-3 rounded-2xl border border-[var(--line)] bg-[var(--card)] p-6 sm:grid-cols-2 lg:grid-cols-4">
+			<section className="ui-card grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
 				<div>
-					<p className="text-xs uppercase tracking-wide text-[var(--muted)]">Active</p>
-					<p className="mt-1 text-2xl font-semibold">{stats.active}</p>
+					<p className="stat-label">Active</p>
+					<p className="stat-value">{stats.active}</p>
 				</div>
 				<div>
-					<p className="text-xs uppercase tracking-wide text-[var(--muted)]">Dormant / archived</p>
-					<p className="mt-1 text-2xl font-semibold">
+					<p className="stat-label">Dormant / archived</p>
+					<p className="stat-value">
 						{stats.dormant} / {stats.archived}
 					</p>
 				</div>
 				<div>
-					<p className="text-xs uppercase tracking-wide text-[var(--muted)]">Types</p>
+					<p className="stat-label">Types</p>
 					<p className="mt-1 text-sm text-[var(--muted)]">
 						semantic {stats.semantic} · episodic {stats.episodic} · procedural {stats.procedural}
 					</p>
 				</div>
 				<div>
-					<p className="text-xs uppercase tracking-wide text-[var(--muted)]">Last sweep</p>
+					<p className="stat-label">Last sweep</p>
 					<p className="mt-1 text-sm text-[var(--muted)]">
 						{stats.lastSweepAt
 							? new Date(stats.lastSweepAt).toISOString().slice(0, 16).replace("T", " ")
@@ -121,7 +120,7 @@ function MemoriesPage() {
 			</section>
 
 			<form
-				className="grid gap-4 rounded-2xl border border-[var(--line)] bg-[var(--card)] p-6"
+				className="ui-card mt-8 grid gap-4"
 				onSubmit={async (event) => {
 					event.preventDefault();
 					await load();
@@ -130,7 +129,7 @@ function MemoriesPage() {
 				<label className="flex flex-col gap-2 text-sm">
 					<span className="text-[var(--muted)]">Query</span>
 					<input
-						className="rounded-lg border border-[var(--line)] bg-[var(--bg)] px-3 py-2"
+						className="ui-field"
 						value={query}
 						onChange={(event) => setQuery(event.target.value)}
 						placeholder="Effect 4, Workflows, …"
@@ -144,11 +143,7 @@ function MemoriesPage() {
 							<button
 								key={kind}
 								type="button"
-								className={`rounded-full border px-3 py-1 text-xs ${
-									on
-										? "border-[var(--accent)] text-[var(--accent)]"
-										: "border-[var(--line)] text-[var(--muted)]"
-								}`}
+								className={on ? "ui-chip ui-chip-on" : "ui-chip"}
 								onClick={() =>
 									setKinds((current) =>
 										current.includes(kind)
@@ -170,11 +165,7 @@ function MemoriesPage() {
 								<button
 									key={source.id}
 									type="button"
-									className={`rounded-full border px-3 py-1 text-xs ${
-										on
-											? "border-[var(--accent)] text-[var(--accent)]"
-											: "border-[var(--line)] text-[var(--muted)]"
-									}`}
+									className={on ? "ui-chip ui-chip-on" : "ui-chip"}
 									onClick={() =>
 										setSources((current) =>
 											current.includes(source.id)
@@ -189,20 +180,16 @@ function MemoriesPage() {
 						})}
 					</div>
 				) : null}
-				<button
-					className="w-fit rounded-lg bg-[var(--accent)] px-4 py-2 text-sm font-medium text-[var(--bg)] disabled:opacity-50"
-					disabled={busy}
-					type="submit"
-				>
+				<button className="ui-btn w-fit" disabled={busy} type="submit">
 					{busy ? "Searching…" : "Search"}
 				</button>
 				<p className="text-sm text-[var(--muted)]">filter {kindsLabel}</p>
 			</form>
 
-			<section className="grid gap-4 lg:grid-cols-2">
+			<section className="mt-8 grid gap-4 lg:grid-cols-2">
 				<div className="flex flex-col gap-3">
 					{hits.length === 0 ? (
-						<p className="rounded-2xl border border-[var(--line)] bg-[var(--card)] p-6 text-[var(--muted)]">
+						<p className="ui-card text-[var(--muted)]">
 							No memories yet. Ingest a document or connect a source.
 						</p>
 					) : (
@@ -210,20 +197,15 @@ function MemoriesPage() {
 							<button
 								key={hit.memory.id}
 								type="button"
-								className="rounded-2xl border border-[var(--line)] bg-[var(--card)] p-5 text-left"
+								className="ui-card text-left"
 								onClick={() => void openProvenance(hit)}
 							>
-								<p className="text-xs uppercase tracking-wide text-[var(--accent)]">
-									{hit.memory.kind}
-								</p>
+								<p className="stat-label">{hit.memory.kind}</p>
 								<p className="mt-2">{hit.memory.text}</p>
 								{hit.memory.entities.length > 0 ? (
 									<div className="mt-3 flex flex-wrap gap-1">
 										{hit.memory.entities.map((entity) => (
-											<span
-												key={`${hit.memory.id}:${entity.id}`}
-												className="rounded-full border border-[var(--line)] px-2 py-0.5 text-[11px] text-[var(--muted)]"
-											>
+											<span key={`${hit.memory.id}:${entity.id}`} className="ui-chip">
 												{entity.name}
 											</span>
 										))}
@@ -238,15 +220,15 @@ function MemoriesPage() {
 					)}
 				</div>
 				{selected ? (
-					<aside className="rounded-2xl border border-[var(--line)] bg-[var(--card)] p-6">
-						<h2 className="text-lg font-medium">Provenance</h2>
+					<aside className="ui-card">
+						<h2 className="section-heading">Provenance</h2>
 						<p className="mt-2 text-sm text-[var(--muted)]">{selected.memory.text}</p>
 						<ul className="mt-4 flex flex-col gap-2 text-sm">
 							{selected.provenance.map((item) => (
 								<li key={`${item.documentId}:${item.chunkId}`}>
 									<p>{item.title}</p>
 									{item.url ? (
-										<a className="text-[var(--accent)]" href={item.url}>
+										<a className="ui-link break-all" href={item.url}>
 											{item.url}
 										</a>
 									) : (
@@ -256,34 +238,29 @@ function MemoriesPage() {
 							))}
 						</ul>
 						{documentText ? (
-							<pre className="mt-4 overflow-x-auto whitespace-pre-wrap text-xs text-[var(--muted)]">
-								{documentText}
-							</pre>
+							<pre className="ui-pre mt-4 whitespace-pre-wrap">{documentText}</pre>
 						) : null}
 					</aside>
 				) : null}
 			</section>
 
 			{archived.length > 0 ? (
-				<section className="flex flex-col gap-3">
-					<h2 className="text-lg font-medium">Archived</h2>
+				<section className="mt-8 flex flex-col gap-3">
+					<h2 className="section-heading">Archived</h2>
 					<p className="text-sm text-[var(--muted)]">
 						Archived memories are out of recall. Restore puts them back in the active set.
 					</p>
 					{archived.map((memory) => (
-						<div
-							key={memory.id}
-							className="flex items-start justify-between gap-4 rounded-2xl border border-[var(--line)] bg-[var(--card)] p-5"
-						>
+						<div key={memory.id} className="ui-card flex items-start justify-between gap-4">
 							<div>
-								<p className="text-xs uppercase tracking-wide text-[var(--muted)]">
+								<p className="stat-label">
 									{memory.type} · {memory.kind}
 								</p>
 								<p className="mt-2">{memory.text}</p>
 							</div>
 							<button
 								type="button"
-								className="shrink-0 rounded-lg border border-[var(--line)] px-3 py-1 text-xs"
+								className="ui-btn-ghost shrink-0"
 								disabled={busy}
 								onClick={async () => {
 									setBusy(true);

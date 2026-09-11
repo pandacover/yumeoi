@@ -22,7 +22,7 @@ export function ChatPane({ userId }: { userId: string }) {
 
 	return (
 		<div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_18rem]">
-			<section className="flex min-h-[28rem] flex-col rounded-2xl border border-[var(--line)] bg-[var(--card)]">
+			<section className="ui-card ui-card-flush flex min-h-[28rem] flex-col">
 				<div className="flex items-center justify-between border-b border-[var(--line)] px-5 py-3">
 					<p className="text-sm text-[var(--muted)]">
 						{agent.state?.ready ? "MemoryAgent · live" : "Connecting…"}
@@ -67,33 +67,29 @@ export function ChatPane({ userId }: { userId: string }) {
 					}}
 				>
 					<input
-						className="min-w-0 flex-1 rounded-lg border border-[var(--line)] bg-[var(--bg)] px-3 py-2"
+						className="ui-field min-w-0 flex-1"
 						value={input}
 						onChange={(event) => setInput(event.target.value)}
 						placeholder="What does Luv prefer?"
 						name="message"
 						disabled={busy}
 					/>
-					<button
-						className="rounded-lg bg-[var(--accent)] px-4 py-2 text-sm font-medium text-[var(--bg)] disabled:opacity-50"
-						disabled={busy || input.trim().length === 0}
-						type="submit"
-					>
+					<button className="ui-btn" disabled={busy || input.trim().length === 0} type="submit">
 						{busy ? "Thinking…" : "Send"}
 					</button>
 				</form>
 			</section>
-			<aside className="rounded-2xl border border-[var(--line)] bg-[var(--card)] p-5">
-				<h2 className="text-lg font-medium">Citation</h2>
+			<aside className="ui-card">
+				<h2 className="section-heading">Citation</h2>
 				{selected ? (
 					<div className="mt-3 flex flex-col gap-2 text-sm">
-						<p className="text-xs uppercase tracking-wide text-[var(--accent)]">
+						<p className="stat-label">
 							[{selected.index}] {selected.kind ?? "source"}
 						</p>
 						<p>{selected.text}</p>
 						<p className="text-[var(--muted)]">{selected.title}</p>
 						{selected.url ? (
-							<a className="text-[var(--accent)]" href={selected.url}>
+							<a className="ui-link break-all" href={selected.url}>
 								{selected.url}
 							</a>
 						) : null}
@@ -126,13 +122,13 @@ function ChatBubble({
 
 	return (
 		<article
-			className={`max-w-[42rem] rounded-2xl px-4 py-3 ${
+			className={`max-w-[42rem] rounded-[var(--radius-md)] px-4 py-3 ${
 				message.role === "user"
-					? "self-end bg-[var(--bg)]"
+					? "self-end bg-[var(--color-bg-input)]"
 					: "self-start border border-[var(--line)]"
 			}`}
 		>
-			<p className="text-xs uppercase tracking-wide text-[var(--muted)]">{message.role}</p>
+			<p className="stat-label">{message.role}</p>
 			{text ? (
 				<p className="mt-2">
 					<CitedText text={text} citations={citations} onCite={onCite} />
@@ -144,11 +140,7 @@ function ChatBubble({
 				<ul className="mt-3 flex flex-wrap gap-2">
 					{citations.map((citation) => (
 						<li key={`${citation.index}:${citation.memoryId ?? citation.documentId}`}>
-							<button
-								type="button"
-								className="rounded-full border border-[var(--line)] px-2 py-0.5 text-xs text-[var(--muted)] hover:text-[var(--accent)]"
-								onClick={() => onCite(citation)}
-							>
+							<button type="button" className="ui-chip" onClick={() => onCite(citation)}>
 								[{citation.index}] {citation.title}
 							</button>
 						</li>
