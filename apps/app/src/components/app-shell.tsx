@@ -20,6 +20,9 @@ const landingToc = [
 	{ href: "#faq", label: "FAQ", sub: false },
 ] as const;
 
+const isAppLinkActive = (to: string, pathname: string) =>
+	to === "/" ? pathname === "/" : pathname === to || pathname.startsWith(`${to}/`);
+
 const themeFromDom = () =>
 	typeof document !== "undefined" && document.documentElement.getAttribute("data-theme") === "dark"
 		? "dark"
@@ -78,8 +81,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 								<Link
 									key={link.to}
 									to={link.to}
-									className="toc-link"
-									activeProps={{ className: "toc-link active" }}
+									className={isAppLinkActive(link.to, pathname) ? "toc-link active" : "toc-link"}
 									onClick={() => setOpen(false)}
 								>
 									{link.label}

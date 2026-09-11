@@ -45,16 +45,14 @@ function IntegrationsPage() {
 								: "OAuth is not configured"
 					}
 					action={
-						notionConnected ? (
+						notionConnected || !notionConfigured ? (
 							<Link className="catalog-cta" params={{ id: "notion" }} to="/integrations/$id">
 								Manage
 							</Link>
-						) : notionConfigured ? (
+						) : (
 							<a className="catalog-cta" href="/api/sources/notion/authorize">
 								Connect
 							</a>
-						) : (
-							<span className="catalog-detail">Unavailable</span>
 						)
 					}
 				/>
