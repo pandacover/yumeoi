@@ -1,4 +1,12 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import {
+	Accordion,
+	AccordionContent,
+	AccordionItem,
+	AccordionTrigger,
+} from "../components/ui/accordion.tsx";
+import { Button } from "../components/ui/button.tsx";
+import { Separator } from "../components/ui/separator.tsx";
 import { faqGroups, howItWorks } from "../content/landing.ts";
 
 export const Route = createFileRoute("/")({
@@ -7,50 +15,60 @@ export const Route = createFileRoute("/")({
 
 function Home() {
 	return (
-		<main className="landing">
-			<section className="landing-hero">
-				<p className="hero-kicker">Yumeoi is a continual learning infrastructure for agents</p>
-				<h1 className="hero-heading">Give your agents memories they never forget</h1>
-				<Link to="/agents" className="ui-btn">
+		<div className="mx-auto flex w-full max-w-3xl flex-col px-6 md:px-10">
+			<section className="flex min-h-[calc(100svh-3rem)] flex-col items-start justify-center gap-6 py-16">
+				<p className="max-w-xl text-sm text-muted-foreground">
+					Yumeoi is a continual learning infrastructure for agents
+				</p>
+				<h1 className="font-heading max-w-2xl text-4xl font-medium tracking-tight">
+					Give your agents memories they never forget
+				</h1>
+				<Button render={<Link to="/agents" />} nativeButton={false}>
 					Get started
-				</Link>
+				</Button>
 			</section>
 
 			{/* biome-ignore lint/correctness/useUniqueElementIds: landing hash target */}
-			<section id="how-it-works" className="landing-block">
-				<h2 className="section-heading">How it works</h2>
-				<p className="section-lead">
-					Yumeoi sits beside your agents. It ingests what you already write, turns it into a typed
-					memory store, and serves the same recall path to chat, HTTP, and MCP.
-				</p>
+			<section className="flex flex-col gap-8 scroll-mt-16 py-16" id="how-it-works">
+				<div className="flex flex-col gap-2">
+					<h2 className="font-heading text-xl font-medium">How it works</h2>
+					<p className="max-w-2xl text-sm text-muted-foreground">
+						Yumeoi sits beside your agents. It ingests what you already write, turns it into a typed
+						memory store, and serves the same recall path to chat, HTTP, and MCP.
+					</p>
+				</div>
 				{howItWorks.map((item) => (
-					<article key={item.id} id={item.id} className="landing-sub">
-						<h3 className="sub-heading">{item.title}</h3>
-						<p className="body-copy">{item.body}</p>
+					<article className="flex flex-col gap-2 scroll-mt-16" id={item.id} key={item.id}>
+						<h3 className="font-heading text-base font-medium">{item.title}</h3>
+						<p className="max-w-2xl text-sm text-muted-foreground">{item.body}</p>
 					</article>
 				))}
 			</section>
 
+			<Separator />
+
 			{/* biome-ignore lint/correctness/useUniqueElementIds: landing hash target */}
-			<section id="faq" className="landing-block">
-				<h2 className="section-heading">FAQ</h2>
+			<section className="flex flex-col gap-8 scroll-mt-16 py-16" id="faq">
+				<h2 className="font-heading text-xl font-medium">FAQ</h2>
 				{faqGroups.map((group) => (
-					<div key={group.id} id={group.id} className="faq-group">
-						<p className="faq-group-title">{group.title}</p>
-						{group.items.map((item) => (
-							<article key={item.q} className="faq-item">
-								<h3 className="sub-heading">{item.q}</h3>
-								<p className="body-copy">{item.a}</p>
-							</article>
-						))}
+					<div className="flex flex-col gap-3" id={group.id} key={group.id}>
+						<p className="text-xs text-muted-foreground">{group.title}</p>
+						<Accordion multiple>
+							{group.items.map((item) => (
+								<AccordionItem key={item.q} value={item.q}>
+									<AccordionTrigger>{item.q}</AccordionTrigger>
+									<AccordionContent>{item.a}</AccordionContent>
+								</AccordionItem>
+							))}
+						</Accordion>
 					</div>
 				))}
 			</section>
 
-			<footer className="site-footer">
-				<p className="footer-brand">Singularity</p>
-				<p className="footer-meta">Yumeoi is a Singularity product.</p>
+			<footer className="flex flex-col gap-2 border-t py-12">
+				<p className="text-sm font-medium">Singularity</p>
+				<p className="text-xs text-muted-foreground">Yumeoi is a Singularity product.</p>
 			</footer>
-		</main>
+		</div>
 	);
 }

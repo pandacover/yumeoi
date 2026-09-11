@@ -1,25 +1,37 @@
 import type { ReactNode } from "react";
+import {
+	Item,
+	ItemActions,
+	ItemContent,
+	ItemDescription,
+	ItemGroup,
+	ItemMedia,
+	ItemTitle,
+} from "~/components/ui/item.tsx";
 
 export function CatalogList({ children }: { children: ReactNode }) {
-	return <ul className="catalog-list">{children}</ul>;
+	return <ItemGroup>{children}</ItemGroup>;
 }
 
 export function CatalogRow({
 	title,
 	detail,
 	action,
+	icon,
 }: {
 	title: string;
 	detail?: string;
 	action: ReactNode;
+	icon?: ReactNode;
 }) {
 	return (
-		<li className="catalog-row">
-			<div>
-				<p className="catalog-name">{title}</p>
-				{detail ? <p className="catalog-detail">{detail}</p> : null}
-			</div>
-			<div className="catalog-action">{action}</div>
-		</li>
+		<Item variant="outline">
+			{icon ? <ItemMedia variant="icon">{icon}</ItemMedia> : null}
+			<ItemContent>
+				<ItemTitle>{title}</ItemTitle>
+				{detail ? <ItemDescription>{detail}</ItemDescription> : null}
+			</ItemContent>
+			<ItemActions>{action}</ItemActions>
+		</Item>
 	);
 }

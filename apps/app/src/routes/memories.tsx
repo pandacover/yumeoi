@@ -9,8 +9,24 @@ import {
 	type MemoryStats,
 	type SourceView,
 } from "@yumeoi/domain";
-import { useMemo, useState } from "react";
+import { useId, useMemo, useState } from "react";
+import { toast } from "sonner";
 import { appUserId } from "../api/sources.ts";
+import { Page, PageHeader } from "../components/page.tsx";
+import { Badge } from "../components/ui/badge.tsx";
+import { Button } from "../components/ui/button.tsx";
+import {
+	Card,
+	CardContent,
+	CardDescription,
+	CardHeader,
+	CardTitle,
+} from "../components/ui/card.tsx";
+import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "../components/ui/empty.tsx";
+import { Field, FieldGroup, FieldLabel } from "../components/ui/field.tsx";
+import { Input } from "../components/ui/input.tsx";
+import { Spinner } from "../components/ui/spinner.tsx";
+import { ToggleGroup, ToggleGroupItem } from "../components/ui/toggle-group.tsx";
 
 const getMemories = createServerFn({ method: "POST" })
 	.validator((data: { query: string; kinds: MemoryKind[]; sources: string[] }) => data)
@@ -45,6 +61,7 @@ export const Route = createFileRoute("/memories")({
 
 function MemoriesPage() {
 	const initial = Route.useLoaderData();
+	const queryId = useId();
 	const [query, setQuery] = useState("");
 	const [kinds, setKinds] = useState<MemoryKind[]>([]);
 	const [sources, setSources] = useState<string[]>([]);
@@ -83,202 +100,206 @@ function MemoriesPage() {
 	const kindsLabel = useMemo(() => kinds.join(", ") || "all kinds", [kinds]);
 
 	return (
-		<main className="page page-wide">
-			<header>
-				<h1 className="hero-heading">Memories</h1>
-				<p className="hero-sub">
-					Search extracted memories and open provenance back to the source document.
-				</p>
-			</header>
+		<Page wide>
+			<PageHeader
+				title="Memories"
+				description="Search extracted memories and open provenance back to the source document."
+			/>
 
-			<section className="ui-card grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-				<div>
-					<p className="stat-label">Active</p>
-					<p className="stat-value">{stats.active}</p>
-				</div>
-				<div>
-					<p className="stat-label">Dormant / archived</p>
-					<p className="stat-value">
-						{stats.dormant} / {stats.archived}
-					</p>
-				</div>
-				<div>
-					<p className="stat-label">Types</p>
-					<p className="mt-1 text-sm text-[var(--muted)]">
-						semantic {stats.semantic} · episodic {stats.episodic} · procedural {stats.procedural}
-					</p>
-				</div>
-				<div>
-					<p className="stat-label">Last sweep</p>
-					<p className="mt-1 text-sm text-[var(--muted)]">
-						{stats.lastSweepAt
-							? new Date(stats.lastSweepAt).toISOString().slice(0, 16).replace("T", " ")
-							: "not yet"}
-					</p>
-					<p className="text-xs text-[var(--muted)]">vectors deleted {stats.vectorsDeleted}</p>
-				</div>
-			</section>
+			<div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+				<Card size="sm">
+					<CardHeader>
+						<CardDescription>Active</CardDescription>
+						<CardTitle>{stats.active}</CardTitle>
+					</CardHeader>
+				</Card>
+				<Card size="sm">
+					<CardHeader>
+						<CardDescription>Dormant / archived</CardDescription>
+						<CardTitle>
+							{stats.dormant} / {stats.archived}
+						</CardTitle>
+					</CardHeader>
+				</Card>
+				<Card size="sm">
+					<CardHeader>
+						<CardDescription>Types</CardDescription>
+						<CardTitle>
+							semantic {stats.semantic} · episodic {stats.episodic} · procedural {stats.procedural}
+						</CardTitle>
+					</CardHeader>
+				</Card>
+				<Card size="sm">
+					<CardHeader>
+						<CardDescription>Last sweep</CardDescription>
+						<CardTitle>
+							{stats.lastSweepAt
+								? new Date(stats.lastSweepAt).toISOString().slice(0, 16).replace("T", " ")
+								: "not yet"}
+						</CardTitle>
+						<CardDescription>vectors deleted {stats.vectorsDeleted}</CardDescription>
+					</CardHeader>
+				</Card>
+			</div>
 
 			<form
-				className="ui-card mt-8 grid gap-4"
+				className="flex flex-col gap-4"
 				onSubmit={async (event) => {
 					event.preventDefault();
 					await load();
 				}}
 			>
-				<label className="flex flex-col gap-2 text-sm">
-					<span className="text-[var(--muted)]">Query</span>
-					<input
-						className="ui-field"
-						value={query}
-						onChange={(event) => setQuery(event.target.value)}
-						placeholder="Effect 4, Workflows, …"
-						name="query"
-					/>
-				</label>
-				<div className="flex flex-wrap gap-2">
-					{MEMORY_KINDS.map((kind) => {
-						const on = kinds.includes(kind);
-						return (
-							<button
-								key={kind}
-								type="button"
-								className={on ? "ui-chip ui-chip-on" : "ui-chip"}
-								onClick={() =>
-									setKinds((current) =>
-										current.includes(kind)
-											? current.filter((item) => item !== kind)
-											: [...current, kind],
-									)
-								}
-							>
-								{kind}
-							</button>
-						);
-					})}
-				</div>
+				<FieldGroup>
+					<Field>
+						<FieldLabel htmlFor={queryId}>Query</FieldLabel>
+						<Input
+							id={queryId}
+							name="query"
+							placeholder="Effect 4, Workflows, …"
+							value={query}
+							onChange={(event) => setQuery(event.target.value)}
+						/>
+					</Field>
+				</FieldGroup>
+				<ToggleGroup
+					multiple
+					value={kinds}
+					variant="outline"
+					onValueChange={(next) => setKinds(next as MemoryKind[])}
+				>
+					{MEMORY_KINDS.map((kind) => (
+						<ToggleGroupItem key={kind} value={kind}>
+							{kind}
+						</ToggleGroupItem>
+					))}
+				</ToggleGroup>
 				{sourceList.length > 0 ? (
-					<div className="flex flex-wrap gap-2">
-						{sourceList.map((source) => {
-							const on = sources.includes(source.id);
-							return (
-								<button
-									key={source.id}
-									type="button"
-									className={on ? "ui-chip ui-chip-on" : "ui-chip"}
-									onClick={() =>
-										setSources((current) =>
-											current.includes(source.id)
-												? current.filter((item) => item !== source.id)
-												: [...current, source.id],
-										)
-									}
-								>
-									{source.label}
-								</button>
-							);
-						})}
-					</div>
+					<ToggleGroup
+						multiple
+						value={sources}
+						variant="outline"
+						onValueChange={(next) => setSources(next)}
+					>
+						{sourceList.map((source) => (
+							<ToggleGroupItem key={source.id} value={source.id}>
+								{source.label}
+							</ToggleGroupItem>
+						))}
+					</ToggleGroup>
 				) : null}
-				<button className="ui-btn w-fit" disabled={busy} type="submit">
+				<Button className="w-fit" disabled={busy} type="submit">
+					{busy ? <Spinner data-icon="inline-start" /> : null}
 					{busy ? "Searching…" : "Search"}
-				</button>
-				<p className="text-sm text-[var(--muted)]">filter {kindsLabel}</p>
+				</Button>
+				<p className="text-sm text-muted-foreground">filter {kindsLabel}</p>
 			</form>
 
-			<section className="mt-8 grid gap-4 lg:grid-cols-2">
+			<section className="grid gap-4 lg:grid-cols-2">
 				<div className="flex flex-col gap-3">
 					{hits.length === 0 ? (
-						<p className="ui-card text-[var(--muted)]">
-							No memories yet. Ingest a document or connect an integration.
-						</p>
+						<Empty className="border">
+							<EmptyHeader>
+								<EmptyTitle>No memories yet</EmptyTitle>
+								<EmptyDescription>Ingest a document or connect an integration.</EmptyDescription>
+							</EmptyHeader>
+						</Empty>
 					) : (
 						hits.map((hit) => (
-							<button
+							<Button
 								key={hit.memory.id}
-								type="button"
-								className="ui-card text-left"
+								className="h-auto w-full flex-col items-start gap-2 whitespace-normal py-3"
+								variant="outline"
 								onClick={() => void openProvenance(hit)}
 							>
-								<p className="stat-label">{hit.memory.kind}</p>
-								<p className="mt-2">{hit.memory.text}</p>
+								<Badge variant="secondary">{hit.memory.kind}</Badge>
+								<p className="text-left text-sm">{hit.memory.text}</p>
 								{hit.memory.entities.length > 0 ? (
-									<div className="mt-3 flex flex-wrap gap-1">
+									<div className="flex flex-wrap gap-1">
 										{hit.memory.entities.map((entity) => (
-											<span key={`${hit.memory.id}:${entity.id}`} className="ui-chip">
+											<Badge key={`${hit.memory.id}:${entity.id}`} variant="outline">
 												{entity.name}
-											</span>
+											</Badge>
 										))}
 									</div>
 								) : null}
-								<p className="mt-3 text-sm text-[var(--muted)]">
+								<p className="text-left text-xs text-muted-foreground">
 									{hit.provenance[0]?.title ?? "no provenance"}
 									{hit.provenance[0]?.url ? ` · ${hit.provenance[0].url}` : ""}
 								</p>
-							</button>
+							</Button>
 						))
 					)}
 				</div>
 				{selected ? (
-					<aside className="ui-card">
-						<h2 className="section-heading">Provenance</h2>
-						<p className="mt-2 text-sm text-[var(--muted)]">{selected.memory.text}</p>
-						<ul className="mt-4 flex flex-col gap-2 text-sm">
+					<Card>
+						<CardHeader>
+							<CardTitle>Provenance</CardTitle>
+							<CardDescription>{selected.memory.text}</CardDescription>
+						</CardHeader>
+						<CardContent className="flex flex-col gap-3">
 							{selected.provenance.map((item) => (
-								<li key={`${item.documentId}:${item.chunkId}`}>
-									<p>{item.title}</p>
+								<div className="flex flex-col gap-1" key={`${item.documentId}:${item.chunkId}`}>
+									<p className="text-sm">{item.title}</p>
 									{item.url ? (
-										<a className="ui-link break-all" href={item.url}>
+										<a
+											className="break-all text-xs text-primary underline-offset-4 hover:underline"
+											href={item.url}
+										>
 											{item.url}
 										</a>
 									) : (
-										<p className="text-[var(--muted)]">{item.documentId}</p>
+										<p className="text-xs text-muted-foreground">{item.documentId}</p>
 									)}
-								</li>
+								</div>
 							))}
-						</ul>
-						{documentText ? (
-							<pre className="ui-pre mt-4 whitespace-pre-wrap">{documentText}</pre>
-						) : null}
-					</aside>
+							{documentText ? (
+								<pre className="overflow-x-auto whitespace-pre-wrap bg-muted p-3 font-mono text-xs text-muted-foreground">
+									{documentText}
+								</pre>
+							) : null}
+						</CardContent>
+					</Card>
 				) : null}
 			</section>
 
 			{archived.length > 0 ? (
-				<section className="mt-8 flex flex-col gap-3">
-					<h2 className="section-heading">Archived</h2>
-					<p className="text-sm text-[var(--muted)]">
+				<section className="flex flex-col gap-3">
+					<h2 className="font-heading text-base font-medium">Archived</h2>
+					<p className="text-sm text-muted-foreground">
 						Archived memories are out of recall. Restore puts them back in the active set.
 					</p>
 					{archived.map((memory) => (
-						<div key={memory.id} className="ui-card flex items-start justify-between gap-4">
-							<div>
-								<p className="stat-label">
+						<Card key={memory.id}>
+							<CardHeader>
+								<CardDescription>
 									{memory.type} · {memory.kind}
-								</p>
-								<p className="mt-2">{memory.text}</p>
-							</div>
-							<button
-								type="button"
-								className="ui-btn-ghost shrink-0"
-								disabled={busy}
-								onClick={async () => {
-									setBusy(true);
-									try {
-										await restoreMemoryFn({ data: { id: memory.id } });
-										await load();
-									} finally {
-										setBusy(false);
-									}
-								}}
-							>
-								Restore
-							</button>
-						</div>
+								</CardDescription>
+								<CardTitle>{memory.text}</CardTitle>
+							</CardHeader>
+							<CardContent>
+								<Button
+									disabled={busy}
+									size="sm"
+									variant="outline"
+									onClick={async () => {
+										setBusy(true);
+										try {
+											await restoreMemoryFn({ data: { id: memory.id } });
+											await load();
+											toast.success("Restored");
+										} finally {
+											setBusy(false);
+										}
+									}}
+								>
+									Restore
+								</Button>
+							</CardContent>
+						</Card>
 					))}
 				</section>
 			) : null}
-		</main>
+		</Page>
 	);
 }
 

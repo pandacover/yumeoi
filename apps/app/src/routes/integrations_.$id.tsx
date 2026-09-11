@@ -1,11 +1,18 @@
 import { env } from "cloudflare:workers";
-import { createFileRoute, Link, notFound } from "@tanstack/react-router";
+import { createFileRoute, notFound } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import type { SourceView } from "@yumeoi/domain";
 import { useAgent } from "agents/react";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import type { MemoryAgentState } from "../agents/memory-agent.ts";
 import { appUserId, disconnectSource, syncSource } from "../api/sources.ts";
+import { CatalogList, CatalogRow } from "../components/catalog-row.tsx";
+import { Page, PageCrumb, PageHeader } from "../components/page.tsx";
+import { Alert, AlertDescription, AlertTitle } from "../components/ui/alert.tsx";
+import { Button } from "../components/ui/button.tsx";
+import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "../components/ui/empty.tsx";
+import { Spinner } from "../components/ui/spinner.tsx";
 import { isFixtureSourceId, isIntegrationId } from "../content/catalog.ts";
 
 const getIntegration = createServerFn({ method: "POST" })
@@ -47,108 +54,113 @@ function IntegrationManagePage() {
 	const initial = Route.useLoaderData();
 	const [sources, setSources] = useState<SourceView[]>(initial.sources);
 	const [busy, setBusy] = useState<string | null>(null);
-	const [message, setMessage] = useState("");
 	const [mounted, setMounted] = useState(false);
 	useEffect(() => {
 		setMounted(true);
 	}, []);
 
 	return (
-		<main className="page">
-			<p className="crumb">
-				<Link className="ui-link" to="/integrations">
-					Integrations
-				</Link>
-			</p>
-			<header>
-				<h1 className="hero-heading">Notion</h1>
-				<p className="hero-sub">Sync a Notion workspace into memories. Disconnect stops polling.</p>
-			</header>
-			{mounted ? <IntegrationLive userId={initial.userId} onSources={setSources} /> : null}
+		<Page>
+			<PageCrumb current="Notion" label="Integrations" to="/integrations" />
+			<PageHeader
+				title="Notion"
+				description="Sync a Notion workspace into memories. Disconnect stops polling."
+			/>
+			{mounted ? <IntegrationLive onSources={setSources} userId={initial.userId} /> : null}
 			{initial.notionConfigured ? (
-				<a className="ui-btn" href="/api/sources/notion/authorize">
+				<Button
+					nativeButton={false}
+					render={
+						// biome-ignore lint/a11y/useAnchorContent: link text is the Button children
+						<a href="/api/sources/notion/authorize" />
+					}
+				>
 					{sources.some((source) => source.status !== "disconnected")
 						? "Connect another workspace"
 						: "Connect Notion"}
-				</a>
+				</Button>
 			) : (
-				<p className="body-copy">
-					Set <code>NOTION_CLIENT_ID</code> and <code>NOTION_CLIENT_SECRET</code> to enable OAuth.
-				</p>
+				<Alert>
+					<AlertTitle>OAuth is not configured</AlertTitle>
+					<AlertDescription>
+						Set <code>NOTION_CLIENT_ID</code> and <code>NOTION_CLIENT_SECRET</code> to enable OAuth.
+					</AlertDescription>
+				</Alert>
 			)}
 			{initial.notionRedirectUri ? (
-				<p className="body-copy">
-					Redirect URI:{" "}
-					<code className="break-all text-[var(--fg)]">{initial.notionRedirectUri}</code>
+				<p className="text-sm text-muted-foreground">
+					Redirect URI: <code className="break-all">{initial.notionRedirectUri}</code>
 				</p>
 			) : null}
-			{message ? <p className="mt-4 text-sm text-[var(--accent)]">{message}</p> : null}
-			<ul className="manage-list">
-				{sources.length === 0 ? (
-					<li className="body-copy">No Notion workspace connected.</li>
-				) : (
-					sources.map((source) => (
-						<li key={source.id} className="manage-item">
-							<div>
-								<p className="catalog-name">{source.label}</p>
-								<p className="catalog-detail">
-									{source.status}
-									{source.lastSyncedAt
-										? ` · last sync ${new Date(source.lastSyncedAt).toLocaleString()}`
-										: " · never synced"}
-									{` · ${source.documentsIngested} ingested`}
-								</p>
-								{source.lastError ? (
-									<p className="mt-2 text-sm text-[var(--color-danger)]">{source.lastError}</p>
-								) : null}
-							</div>
-							<div className="catalog-action">
-								<button
-									className="catalog-cta"
-									disabled={busy !== null || source.status === "disconnected"}
-									type="button"
-									onClick={async () => {
-										setBusy(source.id);
-										try {
-											const result = await syncOne({ data: { sourceId: source.id } });
-											setMessage(
-												`Poll ${result.sourceId}: ${result.ingested} ingested, ${result.unchanged} unchanged`,
-											);
-										} catch (error) {
-											setMessage(error instanceof Error ? error.message : String(error));
-										} finally {
-											setBusy(null);
-										}
-									}}
-								>
-									{busy === source.id ? "Syncing…" : "Sync"}
-								</button>
-								<button
-									className="catalog-cta"
-									disabled={busy !== null}
-									type="button"
-									onClick={async () => {
-										setBusy(`off-${source.id}`);
-										try {
-											const next = await disconnectOne({ data: { sourceId: source.id } });
-											setSources((current) =>
-												current.map((item) => (item.id === next.id ? next : item)),
-											);
-										} catch (error) {
-											setMessage(error instanceof Error ? error.message : String(error));
-										} finally {
-											setBusy(null);
-										}
-									}}
-								>
-									Disconnect
-								</button>
-							</div>
-						</li>
-					))
-				)}
-			</ul>
-		</main>
+			{sources.length === 0 ? (
+				<Empty className="border">
+					<EmptyHeader>
+						<EmptyTitle>No Notion workspace connected</EmptyTitle>
+						<EmptyDescription>Connect a workspace to start ingesting pages.</EmptyDescription>
+					</EmptyHeader>
+				</Empty>
+			) : (
+				<CatalogList>
+					{sources.map((source) => (
+						<CatalogRow
+							key={source.id}
+							title={source.label}
+							detail={`${source.status}${
+								source.lastSyncedAt
+									? ` · last sync ${new Date(source.lastSyncedAt).toLocaleString()}`
+									: " · never synced"
+							} · ${source.documentsIngested} ingested${source.lastError ? ` · ${source.lastError}` : ""}`}
+							action={
+								<>
+									<Button
+										disabled={busy !== null || source.status === "disconnected"}
+										size="sm"
+										variant="outline"
+										onClick={async () => {
+											setBusy(source.id);
+											try {
+												const result = await syncOne({ data: { sourceId: source.id } });
+												toast.success(
+													`Poll ${result.sourceId}: ${result.ingested} ingested, ${result.unchanged} unchanged`,
+												);
+											} catch (error) {
+												toast.error(error instanceof Error ? error.message : String(error));
+											} finally {
+												setBusy(null);
+											}
+										}}
+									>
+										{busy === source.id ? <Spinner data-icon="inline-start" /> : null}
+										{busy === source.id ? "Syncing…" : "Sync"}
+									</Button>
+									<Button
+										disabled={busy !== null}
+										size="sm"
+										variant="ghost"
+										onClick={async () => {
+											setBusy(`off-${source.id}`);
+											try {
+												const next = await disconnectOne({ data: { sourceId: source.id } });
+												setSources((current) =>
+													current.map((item) => (item.id === next.id ? next : item)),
+												);
+												toast.success("Disconnected");
+											} catch (error) {
+												toast.error(error instanceof Error ? error.message : String(error));
+											} finally {
+												setBusy(null);
+											}
+										}}
+									>
+										Disconnect
+									</Button>
+								</>
+							}
+						/>
+					))}
+				</CatalogList>
+			)}
+		</Page>
 	);
 }
 

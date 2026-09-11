@@ -156,7 +156,7 @@ const htmlResponse = (body: string, status = 200, headers?: HeadersInit) =>
 			"x-frame-options": "DENY",
 			"x-content-type-options": "nosniff",
 			"content-security-policy":
-				"default-src 'none'; style-src 'unsafe-inline' https://rsms.me; font-src https://rsms.me; img-src 'self' https:; form-action 'self'; frame-ancestors 'none'; base-uri 'self'",
+				"default-src 'none'; style-src 'unsafe-inline'; img-src 'self' https:; form-action 'self'; frame-ancestors 'none'; base-uri 'self'",
 			...headers,
 		},
 	});
@@ -167,27 +167,26 @@ const pageShell = (title: string, inner: string, extraHead = "") => `<!doctype h
 	<meta charset="utf-8" />
 	<meta name="viewport" content="width=device-width, initial-scale=1" />
 	<title>${sanitizeText(title)}</title>
-	<link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
 	${extraHead}
 	<style>
-		:root { color-scheme: light; --bg:#fafaf9; --fg:#1c1917; --muted:#78716c; --card:#fff; --line:#e7e5e4; --cta:#1c1917; --cta-text:#fff; --danger:#b91c1c; }
+		:root { color-scheme: light; --background: oklch(1 0 0); --foreground: oklch(0.145 0 0); --muted-foreground: oklch(0.556 0 0); --border: oklch(0.922 0 0); --primary: oklch(0.553 0.195 38.402); --primary-foreground: oklch(0.98 0.016 73.684); --destructive: oklch(0.577 0.245 27.325); }
 		@media (prefers-color-scheme: dark) {
-			:root { color-scheme: dark; --bg:#0c0a09; --fg:#e7e5e4; --muted:#a8a29e; --card:#1c1917; --line:#44403c; --cta:#e7e5e4; --cta-text:#1c1917; --danger:#f87171; }
+			:root { color-scheme: dark; --background: oklch(0.145 0 0); --foreground: oklch(0.985 0 0); --muted-foreground: oklch(0.708 0 0); --border: oklch(1 0 0 / 10%); --primary: oklch(0.47 0.157 37.304); --primary-foreground: oklch(0.98 0.016 73.684); --destructive: oklch(0.704 0.191 22.216); }
 		}
-		html, body { background: var(--bg); color: var(--fg); margin: 0; font-family: Inter, ui-sans-serif, system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+		html, body { background: var(--background); color: var(--foreground); margin: 0; font-family: ui-sans-serif, system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
 		main { max-width: 32rem; margin: 0 auto; padding: 4.5rem 1.5rem; }
-		.kicker { color: var(--muted); font-size: 12px; margin: 0 0 8px; }
+		.kicker { color: var(--muted-foreground); font-size: 12px; margin: 0 0 8px; }
 		h1 { font-size: 32px; font-weight: 500; letter-spacing: -0.45px; line-height: 40px; margin: 0; }
-		p, li { color: var(--muted); font-size: 14px; line-height: 22px; }
-		.client { font-size: 14px; color: var(--fg); margin-top: 1.5rem; }
+		p, li { color: var(--muted-foreground); font-size: 14px; line-height: 22px; }
+		.client { font-size: 14px; color: var(--foreground); margin-top: 1.5rem; }
 		.scopes { margin: 1rem 0 0; padding-left: 1.2rem; }
 		.actions { display: flex; gap: 0.75rem; margin-top: 1.5rem; flex-wrap: wrap; }
 		button, .ghost { font-family: inherit; font-size: 13px; cursor: pointer; }
-		button[name="decision"][value="approve"] { background: var(--cta); color: var(--cta-text); border: 0; border-radius: 61px; padding: 11px 22px; min-width: 8rem; }
-		button[name="decision"][value="deny"] { background: transparent; color: var(--fg); border: 1px solid var(--line); border-radius: 61px; padding: 10px 18px; min-width: 8rem; }
-		.ghost { color: var(--fg); text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: 3px; display: inline-block; margin-top: 1.5rem; }
-		.error { color: var(--danger); }
-		code { color: var(--fg); font-size: 0.92em; }
+		button[name="decision"][value="approve"] { background: var(--primary); color: var(--primary-foreground); border: 0; border-radius: 0; padding: 11px 22px; min-width: 8rem; }
+		button[name="decision"][value="deny"] { background: transparent; color: var(--foreground); border: 1px solid var(--border); border-radius: 0; padding: 10px 18px; min-width: 8rem; }
+		.ghost { color: var(--foreground); text-decoration: underline; text-decoration-color: var(--border); text-underline-offset: 3px; display: inline-block; margin-top: 1.5rem; }
+		.error { color: var(--destructive); }
+		code { color: var(--foreground); font-size: 0.92em; }
 	</style>
 </head>
 <body>
