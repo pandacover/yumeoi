@@ -281,7 +281,7 @@ export const sweepStore = (input: SweepInput) =>
 		};
 		if (input.log !== false) {
 			yield* Effect.sync(() =>
-				console.info("yumeoi sweep", {
+				console.info("horizon sweep", {
 					userId: input.userId,
 					scanned: result.scanned,
 					dormanted: result.dormanted.length,

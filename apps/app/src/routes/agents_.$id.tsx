@@ -8,6 +8,7 @@ import {
 	revokeGrant,
 	revokeKey,
 } from "../api/agent-rpc.ts";
+import { requireAuth } from "../auth/page-user.ts";
 import { CatalogList, CatalogRow } from "../components/catalog-row.tsx";
 import { Page, PageCrumb, PageHeader } from "../components/page.tsx";
 import { Alert, AlertDescription, AlertTitle } from "../components/ui/alert.tsx";
@@ -17,6 +18,7 @@ import { Spinner } from "../components/ui/spinner.tsx";
 import { agentCatalog, grantMatchesAgent, isAgentId } from "../content/catalog.ts";
 
 export const Route = createFileRoute("/agents_/$id")({
+	beforeLoad: () => requireAuth(),
 	loader: async ({ params }) => {
 		if (!isAgentId(params.id)) {
 			throw notFound();
@@ -54,7 +56,7 @@ function McpManage({ id }: { id: "cursor" | "claude" }) {
 			return JSON.stringify(
 				{
 					mcpServers: {
-						yumeoi: {
+						horizon: {
 							command: "npx",
 							args: ["mcp-remote", mcpUrl || "https://<your-worker>/mcp"],
 						},
@@ -67,7 +69,7 @@ function McpManage({ id }: { id: "cursor" | "claude" }) {
 		return JSON.stringify(
 			{
 				mcpServers: {
-					yumeoi: {
+					horizon: {
 						url: mcpUrl || "https://<your-worker>/mcp",
 					},
 				},
@@ -194,7 +196,7 @@ function HttpManage() {
 			JSON.stringify(
 				{
 					mcpServers: {
-						yumeoi: {
+						horizon: {
 							url: mcpUrl || "https://<your-worker>/mcp",
 							headers: {
 								Authorization: "Bearer ym_…",

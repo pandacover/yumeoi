@@ -243,7 +243,7 @@ export class MemoryAgent extends AIChatAgent<Env, MemoryAgentState> {
 	}
 
 	@callable()
-	hello(name = "yumeoi"): { message: string; ready: boolean } {
+	hello(name = "horizon"): { message: string; ready: boolean } {
 		return {
 			message: `hello ${name}`,
 			ready: this.state.ready,
@@ -260,7 +260,7 @@ export class MemoryAgent extends AIChatAgent<Env, MemoryAgentState> {
 					request: {
 						externalId: "fts-ping",
 						title: "FTS ping",
-						markdown: "yumeoi stores memories in Durable Object SQLite with FTS5.",
+						markdown: "horizon stores memories in Durable Object SQLite with FTS5.",
 						sourceId: "generic",
 						sourceLabel: "Ping",
 						url: null,

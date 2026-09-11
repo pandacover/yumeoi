@@ -1,3 +1,4 @@
+import { Show, UserButton } from "@clerk/react";
 import {
 	RiBrainLine,
 	RiChat2Line,
@@ -9,9 +10,11 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import type { ComponentType, ReactNode } from "react";
 import { LandingSidebarNav } from "~/components/landing-sidebar-nav.tsx";
 import { pageTopPaddingClass } from "~/components/page.tsx";
+import { Button } from "~/components/ui/button.tsx";
 import {
 	Sidebar,
 	SidebarContent,
+	SidebarFooter,
 	SidebarGroup,
 	SidebarGroupContent,
 	SidebarInset,
@@ -38,6 +41,7 @@ const sidebarNavColumn = "ml-auto w-1/2 min-w-[22.5rem] max-w-full";
 export function AppShell({ children }: { children: ReactNode }) {
 	const pathname = useRouterState({ select: (state) => state.location.pathname });
 	const onLanding = pathname === "/";
+	const onAuthPage = pathname.startsWith("/sign-in") || pathname.startsWith("/sign-up");
 
 	return (
 		<SidebarProvider>
@@ -59,6 +63,19 @@ export function AppShell({ children }: { children: ReactNode }) {
 						<SidebarGroupContent className="flex flex-col items-end">
 							{onLanding ? (
 								<LandingSidebarNav className={sidebarNavColumn} />
+							) : onAuthPage ? (
+								<SidebarMenu className="w-max">
+									<SidebarMenuItem>
+										<SidebarMenuButton
+											className="h-8 min-h-8 w-auto"
+											render={<Link to="/" />}
+											tooltip="Overview"
+										>
+											<RiHomeLine />
+											<span>Overview</span>
+										</SidebarMenuButton>
+									</SidebarMenuItem>
+								</SidebarMenu>
 							) : (
 								<SidebarMenu className="w-max">
 									{appLinks.map((link) => {
@@ -82,6 +99,27 @@ export function AppShell({ children }: { children: ReactNode }) {
 						</SidebarGroupContent>
 					</SidebarGroup>
 				</SidebarContent>
+				<SidebarFooter className="items-end px-2 pb-4">
+					<Show when="signed-out">
+						{onAuthPage ? null : (
+							<Button
+								className="h-8"
+								nativeButton={false}
+								render={
+									// biome-ignore lint/a11y/useAnchorContent: Button children supply the label
+									<a href="/sign-in" />
+								}
+								size="sm"
+								variant="ghost"
+							>
+								Sign in
+							</Button>
+						)}
+					</Show>
+					<Show when="signed-in">
+						<UserButton />
+					</Show>
+				</SidebarFooter>
 			</Sidebar>
 			{/* biome-ignore lint/correctness/useUniqueElementIds: skip-link fragment target is unique to the app shell */}
 			<SidebarInset className="scroll-smooth scroll-pt-0.5" id="main-content">

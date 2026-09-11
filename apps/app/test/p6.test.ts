@@ -33,7 +33,7 @@ describe("P6 decay and lifecycle", () => {
 		expect(later.stats.lastSweepAt).toBeTruthy();
 		expect(later.stats.active).toBeGreaterThan(0);
 
-		const health = await SELF.fetch("https://example.com/api/health");
+		const health = await SELF.fetch("https://example.com/api/health", { headers: auth });
 		expect(health.status).toBe(200);
 		const body = (await health.json()) as { phase?: string; memory?: { active: number } };
 		expect(body.phase).toBe("p6");

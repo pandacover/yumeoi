@@ -18,7 +18,7 @@ export const howItWorks = [
 	{
 		id: "connect",
 		title: "Connect integrations",
-		body: "Yumeoi pulls from the tools you already write in. Notion is live over OAuth. A generic ingest endpoint takes markdown from scripts, webhooks, or curl. Each integration keeps a cursor, so sync is incremental instead of a full re-read every time.",
+		body: "Horizon pulls from the tools you already write in. Notion is live over OAuth. A generic ingest endpoint takes markdown from scripts, webhooks, or curl. Each integration keeps a cursor, so sync is incremental instead of a full re-read every time.",
 	},
 	{
 		id: "ingest",
@@ -53,8 +53,8 @@ export const faqGroups = [
 		title: "Product",
 		items: [
 			{
-				q: "What is Yumeoi?",
-				a: "Yumeoi is a continual learning infrastructure for agents. It turns your sources into a living memory store that chat, HTTP, and MCP clients all read and write.",
+				q: "What is Horizon?",
+				a: "Horizon is a continual learning infrastructure for agents. It turns your sources into a living memory store that chat, HTTP, and MCP clients all read and write.",
 			},
 			{
 				q: "What does continual learning mean here?",
@@ -62,7 +62,7 @@ export const faqGroups = [
 			},
 			{
 				q: "How is this different from a bigger context window?",
-				a: "A context window is a bag of recent tokens. Yumeoi extracts atomic memories, types them, links them, cites them, and lets unused ones decay. The agent gets a small, ranked, sourced packet instead of whatever still fit.",
+				a: "A context window is a bag of recent tokens. Horizon extracts atomic memories, types them, links them, cites them, and lets unused ones decay. The agent gets a small, ranked, sourced packet instead of whatever still fit.",
 			},
 			{
 				q: "Who is it for?",
@@ -132,7 +132,7 @@ export const faqGroups = [
 			},
 			{
 				q: "Who is Singularity?",
-				a: "Singularity is the company building Yumeoi. The product is the memory infrastructure. The company is the team behind it.",
+				a: "Singularity is the company building Horizon. The product is the memory infrastructure. The company is the team behind it.",
 			},
 		],
 	},

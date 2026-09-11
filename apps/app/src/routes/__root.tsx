@@ -1,3 +1,4 @@
+import { ClerkProvider } from "@clerk/tanstack-react-start";
 import { createRootRoute, HeadContent, Scripts } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { AppShell } from "../components/app-shell.tsx";
@@ -10,10 +11,10 @@ export const Route = createRootRoute({
 		meta: [
 			{ charSet: "utf-8" },
 			{ name: "viewport", content: "width=device-width, initial-scale=1" },
-			{ title: "yumeoi" },
+			{ title: "horizon" },
 			{
 				name: "description",
-				content: "Yumeoi is a continual learning infrastructure for agents.",
+				content: "Horizon is a continual learning infrastructure for agents.",
 			},
 		],
 		links: [
@@ -33,10 +34,12 @@ function RootDocument({ children }: { children: ReactNode }) {
 				<HeadContent />
 			</head>
 			<body>
-				<TooltipProvider>
-					<AppShell>{children}</AppShell>
-					<Toaster />
-				</TooltipProvider>
+				<ClerkProvider>
+					<TooltipProvider>
+						<AppShell>{children}</AppShell>
+						<Toaster />
+					</TooltipProvider>
+				</ClerkProvider>
 				<Scripts />
 			</body>
 		</html>

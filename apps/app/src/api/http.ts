@@ -24,8 +24,8 @@ import { authenticateRequest, unauthorized } from "../auth/api-key.ts";
 import { listApiKeys, mintApiKey, revokeApiKey } from "../auth/api-keys.ts";
 import { listConnectedMcpClients, revokeConnectedMcpClient } from "../auth/mcp-clients.ts";
 import { MCP_SCOPES } from "../auth/scopes.ts";
+import { resolveAppUserId } from "../auth/session.ts";
 import {
-	appUserId,
 	connectFixtureSource,
 	disconnectSource,
 	finishNotionCallback,
@@ -193,10 +193,12 @@ export async function handleApi(request: Request, env: Env): Promise<Response | 
 	const url = new URL(request.url);
 
 	if (url.pathname === "/api/health") {
-		const userId = appUserId(env);
-		const stats = await env.MemoryAgent.getByName(userId)
-			.memoryStats()
-			.catch(() => null);
+		const auth = await authenticateRequest(request, env);
+		const stats = auth
+			? await env.MemoryAgent.getByName(auth.userId)
+					.memoryStats()
+					.catch(() => null)
+			: null;
 		return json({
 			ok: true,
 			milestone: "m4",
@@ -236,8 +238,12 @@ export async function handleApi(request: Request, env: Env): Promise<Response | 
 		pathname === "/api/sources/notion/authorize" || pathname === "/api/sources/notion/callback";
 
 	if (pathname === "/api/sources/notion/authorize" && request.method === "GET") {
+		const userId = await resolveAppUserId(request, env);
+		if (!userId) {
+			return unauthorized();
+		}
 		try {
-			const location = await startNotionAuthorize(env, request, appUserId(env));
+			const location = await startNotionAuthorize(env, request, userId);
 			return Response.redirect(location, 302);
 		} catch (error) {
 			return json({ error: error instanceof Error ? error.message : String(error) }, 503);

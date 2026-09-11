@@ -99,6 +99,8 @@ const approve = async (clientId: string, challenge: string) => {
 	const html = await page.text();
 	expect(html).toContain("Connect an agent");
 	expect(html).toContain("loopback");
+	expect(html).toContain("horizon");
+	expect(html).toContain("test-user");
 	const body = hiddenFields(html);
 	body.set("decision", "approve");
 	return SELF.fetch("https://example.com/authorize", {
@@ -146,9 +148,11 @@ describe("M4 MCP OAuth", () => {
 		expect(response.status).toBe(200);
 		const body = (await response.json()) as {
 			milestone: string;
+			memory: unknown;
 			mcp: { oauth: boolean; authorize: string; token: string; register: string; scopes: string[] };
 		};
 		expect(body.milestone).toBe("m4");
+		expect(body.memory).toBeNull();
 		expect(body.mcp.oauth).toBe(true);
 		expect(body.mcp.authorize).toBe("/authorize");
 		expect(body.mcp.token).toBe("/token");
@@ -309,5 +313,10 @@ describe("M4 MCP OAuth", () => {
 		const text = await listed.text();
 		expect(text).toContain("remember");
 		expect(text).toContain("forget");
+	});
+
+	it("rejects MemoryAgent requests for a different user", async () => {
+		const response = await SELF.fetch("https://example.com/agents/memory-agent/other-user");
+		expect(response.status).toBe(403);
 	});
 });

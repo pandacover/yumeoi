@@ -3,12 +3,12 @@ import {
 	type AuthRequest,
 	type ClientInfo,
 } from "@cloudflare/workers-oauth-provider";
-import { appUserId } from "../api/sources.ts";
 import { upsertMcpGrant } from "./grants.ts";
 import { oauthHelpers } from "./oauth.ts";
 import { grantedScopes } from "./scopes.ts";
+import { resolveClerkUserId, signInUrl } from "./session.ts";
 
-const csrfCookieName = (secure: boolean) => (secure ? "__Host-YUMEOI_CSRF" : "yumeoi_csrf");
+const csrfCookieName = (secure: boolean) => (secure ? "__Host-HORIZON_CSRF" : "horizon_csrf");
 
 export const sanitizeText = (text: string): string =>
 	text
@@ -234,7 +234,7 @@ const renderConsent = (
 	const inner = `
 		<p class="kicker">MCP consent</p>
 		<h1>Connect an agent</h1>
-		<p class="client">${name} wants access to your yumeoi memories.</p>
+		<p class="client">${name} wants access to your horizon memories.</p>
 		${clientUri ? `<p><a class="ghost" href="${sanitizeText(clientUri)}">${sanitizeText(clientUri)}</a></p>` : ""}
 		<p>Signed in as <code>${sanitizeText(userId)}</code>.</p>
 		${redirectHint(oauthRequest.redirectUri)}
@@ -251,7 +251,7 @@ const renderConsent = (
 		</form>
 		<a class="ghost" href="/agents">Manage connected agents</a>
 	`;
-	return htmlResponse(pageShell("Approve MCP client — yumeoi", inner), 200, {
+	return htmlResponse(pageShell("Approve MCP client — horizon", inner), 200, {
 		"set-cookie": setCsrfCookie(csrfToken, secure),
 	});
 };
@@ -267,7 +267,7 @@ const loopbackHandoff = (redirectTo: string, secure: boolean) => {
 		<p>Access approved. Finish in your MCP client on this computer.</p>
 		${href ? `<p><a id="oauth-redirect" class="ghost" href="${sanitizeText(href)}">Open the local callback</a></p>` : `<p class="error">Missing loopback redirect.</p>`}
 	`;
-	return htmlResponse(pageShell("Return to Cursor — yumeoi", inner, extraHead), 200, {
+	return htmlResponse(pageShell("Return to Cursor — horizon", inner, extraHead), 200, {
 		"set-cookie": clearCsrfCookie(secure),
 		...(href ? { location: href, refresh: `0;url=${href}` } : {}),
 	});
@@ -281,7 +281,7 @@ const parseOrError = async (request: Request, env: Env): Promise<AuthRequest | R
 			if (!error.redirectUri) {
 				return htmlResponse(
 					pageShell(
-						"Invalid authorize request — yumeoi",
+						"Invalid authorize request — horizon",
 						`<p class="kicker">MCP consent</p><h1>Invalid request</h1><p class="error">${sanitizeText(error.description)}</p><a class="ghost" href="/agents">Agents</a>`,
 					),
 					400,
@@ -345,19 +345,23 @@ export async function handleAuthorize(request: Request, env: Env): Promise<Respo
 		if (!client) {
 			return htmlResponse(
 				pageShell(
-					"Unknown client — yumeoi",
+					"Unknown client — horizon",
 					`<p class="kicker">MCP consent</p><h1>Unknown client</h1><p class="error">This MCP client is not registered.</p>`,
 				),
 				400,
 			);
 		}
-		return renderConsent(parsed, client, appUserId(env), crypto.randomUUID(), secure);
+		const userId = await resolveClerkUserId(request, env);
+		if (!userId) {
+			return Response.redirect(signInUrl(request, request.url), 302);
+		}
+		return renderConsent(parsed, client, userId, crypto.randomUUID(), secure);
 	}
 
 	if (request.method !== "POST") {
 		return htmlResponse(
 			pageShell(
-				"Method not allowed — yumeoi",
+				"Method not allowed — horizon",
 				`<p class="kicker">MCP consent</p><h1>Method not allowed</h1>`,
 			),
 			405,
@@ -375,20 +379,23 @@ export async function handleAuthorize(request: Request, env: Env): Promise<Respo
 	if (!client) {
 		return htmlResponse(
 			pageShell(
-				"Unknown client — yumeoi",
+				"Unknown client — horizon",
 				`<p class="kicker">MCP consent</p><h1>Unknown client</h1><p class="error">This MCP client is not registered.</p>`,
 			),
 			400,
 		);
 	}
 
-	const userId = appUserId(env);
+	const userId = await resolveClerkUserId(request, env);
+	if (!userId) {
+		return Response.redirect(signInUrl(request, request.url), 302);
+	}
 	const csrfForm = String(form.get("csrf_token") ?? "");
 	const csrfCookie = cookieValue(request.headers.get("cookie"), csrfCookieName(secure));
 	if (!csrfForm || !csrfCookie || csrfForm !== csrfCookie) {
 		return htmlResponse(
 			pageShell(
-				"Consent failed — yumeoi",
+				"Consent failed — horizon",
 				`<p class="kicker">MCP consent</p><h1>Consent expired</h1><p class="error">Reload the authorize page and try again.</p>`,
 			),
 			403,

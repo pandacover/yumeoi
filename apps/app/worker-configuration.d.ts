@@ -23,6 +23,10 @@ declare namespace Cloudflare {
 		NOTION_CLIENT_ID?: string;
 		NOTION_CLIENT_SECRET?: string;
 		NOTION_REDIRECT_URI?: string;
+		CLERK_PUBLISHABLE_KEY?: string;
+		VITE_CLERK_PUBLISHABLE_KEY?: string;
+		CLERK_SECRET_KEY?: string;
+		CLERK_TEST_USER_ID?: string;
 	}
 }
 

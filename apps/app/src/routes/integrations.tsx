@@ -2,14 +2,14 @@ import { env } from "cloudflare:workers";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import type { SourceView } from "@yumeoi/domain";
-import { appUserId } from "../api/sources.ts";
+import { requireAuth, requireUserId } from "../auth/page-user.ts";
 import { CatalogList, CatalogRow } from "../components/catalog-row.tsx";
 import { Page, PageHeader } from "../components/page.tsx";
 import { Button } from "../components/ui/button.tsx";
 import { isFixtureSourceId } from "../content/catalog.ts";
 
 const getIntegrations = createServerFn({ method: "GET" }).handler(async () => {
-	const userId = appUserId(env);
+	const userId = await requireUserId();
 	const sources = await env.MemoryAgent.getByName(userId).listSources();
 	return {
 		notionConfigured: Boolean(env.NOTION_CLIENT_ID && env.NOTION_CLIENT_SECRET),
@@ -18,6 +18,7 @@ const getIntegrations = createServerFn({ method: "GET" }).handler(async () => {
 });
 
 export const Route = createFileRoute("/integrations")({
+	beforeLoad: () => requireAuth(),
 	loader: () => getIntegrations(),
 	component: IntegrationsPage,
 });

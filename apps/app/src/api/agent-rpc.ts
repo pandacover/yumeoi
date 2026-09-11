@@ -2,11 +2,11 @@ import { env } from "cloudflare:workers";
 import { createServerFn } from "@tanstack/react-start";
 import { listApiKeys, mintApiKey, revokeApiKey } from "../auth/api-keys.ts";
 import { listConnectedMcpClients, revokeConnectedMcpClient } from "../auth/mcp-clients.ts";
+import { requireUserId } from "../auth/page-user.ts";
 import { MCP_SCOPES } from "../auth/scopes.ts";
-import { appUserId } from "./sources.ts";
 
 export const getAgentsContext = createServerFn({ method: "GET" }).handler(async () => {
-	const userId = appUserId(env);
+	const userId = await requireUserId();
 	const [keys, grants] = await Promise.all([
 		listApiKeys(env, userId).catch(() => []),
 		listConnectedMcpClients(env, userId).catch(() => []),
@@ -20,14 +20,16 @@ export const getAgentsContext = createServerFn({ method: "GET" }).handler(async 
 	};
 });
 
-export const mintKey = createServerFn({ method: "POST" }).handler(async () =>
-	mintApiKey(env, appUserId(env)),
-);
+export const mintKey = createServerFn({ method: "POST" }).handler(async () => {
+	const userId = await requireUserId();
+	return mintApiKey(env, userId);
+});
 
 export const revokeKey = createServerFn({ method: "POST" })
 	.validator((data: { id: string }) => data)
 	.handler(async ({ data }) => {
-		const ok = await revokeApiKey(env, appUserId(env), data.id);
+		const userId = await requireUserId();
+		const ok = await revokeApiKey(env, userId, data.id);
 		if (!ok) {
 			throw new Error("Key not found");
 		}
@@ -37,7 +39,8 @@ export const revokeKey = createServerFn({ method: "POST" })
 export const revokeGrant = createServerFn({ method: "POST" })
 	.validator((data: { id: string }) => data)
 	.handler(async ({ data }) => {
-		const ok = await revokeConnectedMcpClient(env, appUserId(env), data.id);
+		const userId = await requireUserId();
+		const ok = await revokeConnectedMcpClient(env, userId, data.id);
 		if (!ok) {
 			throw new Error("Grant not found");
 		}

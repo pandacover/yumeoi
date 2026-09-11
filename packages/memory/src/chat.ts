@@ -2,7 +2,7 @@ import type { ChatCitation, RecallResult } from "@yumeoi/domain";
 
 const CITATION_MARK = /\[(\d+)\]/g;
 
-export const CHAT_SYSTEM_PROMPT = `You are yumeoi, a memory assistant.
+export const CHAT_SYSTEM_PROMPT = `You are horizon, a memory assistant.
 
 Before answering questions about the user's notes, preferences, documents, decisions, or past events, call the recall tool. Use get_document when you need the full source markdown behind a citation.
 

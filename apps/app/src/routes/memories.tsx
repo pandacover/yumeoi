@@ -11,7 +11,7 @@ import {
 } from "@yumeoi/domain";
 import { useId, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { appUserId } from "../api/sources.ts";
+import { requireAuth, requireUserId } from "../auth/page-user.ts";
 import { Page, PageHeader } from "../components/page.tsx";
 import { Badge } from "../components/ui/badge.tsx";
 import { Button } from "../components/ui/button.tsx";
@@ -31,7 +31,7 @@ import { ToggleGroup, ToggleGroupItem } from "../components/ui/toggle-group.tsx"
 const getMemories = createServerFn({ method: "POST" })
 	.validator((data: { query: string; kinds: MemoryKind[]; sources: string[] }) => data)
 	.handler(async ({ data }) => {
-		const userId = appUserId(env);
+		const userId = await requireUserId();
 		const agent = env.MemoryAgent.getByName(userId);
 		const [memories, sources, stats, archived] = await Promise.all([
 			agent.browseMemories({
@@ -50,11 +50,12 @@ const getMemories = createServerFn({ method: "POST" })
 const restoreMemoryFn = createServerFn({ method: "POST" })
 	.validator((data: { id: string }) => data)
 	.handler(async ({ data }) => {
-		const userId = appUserId(env);
+		const userId = await requireUserId();
 		return env.MemoryAgent.getByName(userId).restoreMemory(data.id);
 	});
 
 export const Route = createFileRoute("/memories")({
+	beforeLoad: () => requireAuth(),
 	loader: () => getMemories({ data: { query: "", kinds: [], sources: [] } }),
 	component: MemoriesPage,
 });
@@ -298,6 +299,6 @@ function MemoriesPage() {
 const getDocument = createServerFn({ method: "POST" })
 	.validator((data: { id: string }) => data)
 	.handler(async ({ data }) => {
-		const document = await env.MemoryAgent.getByName(appUserId(env)).getDocument(data.id);
+		const document = await env.MemoryAgent.getByName(await requireUserId()).getDocument(data.id);
 		return document.markdown;
 	});

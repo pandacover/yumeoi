@@ -1,4 +1,4 @@
-# yumeoi — memory v1 plan
+# Horizon — memory v1 plan
 
 Agent experience, retrieval quality, memory types, graph, time, and decay.
 
