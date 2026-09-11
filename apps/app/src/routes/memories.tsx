@@ -106,7 +106,7 @@ function MemoriesPage() {
 				description="Search extracted memories and open provenance back to the source document."
 			/>
 
-			<div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+			<div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
 				<Card size="sm">
 					<CardHeader>
 						<CardDescription>Active</CardDescription>
@@ -118,14 +118,6 @@ function MemoriesPage() {
 						<CardDescription>Dormant / archived</CardDescription>
 						<CardTitle>
 							{stats.dormant} / {stats.archived}
-						</CardTitle>
-					</CardHeader>
-				</Card>
-				<Card size="sm">
-					<CardHeader>
-						<CardDescription>Types</CardDescription>
-						<CardTitle>
-							semantic {stats.semantic} · episodic {stats.episodic} · procedural {stats.procedural}
 						</CardTitle>
 					</CardHeader>
 				</Card>
@@ -155,7 +147,7 @@ function MemoriesPage() {
 						<Input
 							id={queryId}
 							name="query"
-							placeholder="Effect 4, Workflows, …"
+							placeholder="Macbook, Notion, Topic A, …"
 							value={query}
 							onChange={(event) => setQuery(event.target.value)}
 						/>

@@ -1,3 +1,19 @@
+/** Top offset for the landing hero (padding % is relative to section width). */
+export const landingHeroTopPaddingClass = "pt-[20%]";
+
+export const continualLearningCopy = [
+	"Memory is a durable store beside the model, and it holds what an agent would otherwise have to keep in the prompt: facts, events, preferences, decisions, and ways of doing things. Each item is short, typed, and cited back to a source, so the agent can show where a claim came from.",
+	"That store is what lets an AI keep a life across sessions. Without it every chat starts empty and the model only knows the tokens in the current window, but with memory a new session can ask what was decided last month, what a person prefers, or how a procedure actually runs, without you re-explaining the world.",
+	"Memory also keeps the working set small. Keyword and vector recall pull a ranked packet into the context instead of the whole archive, so stale rows can sleep and forgotten rows leave. The model gets enough to act, and you keep the original documents when you want the evidence.",
+	"Continual learning is what happens after something is stored. The memory does not sit still. It recombines with what arrives next and grows into observations, hunches, and imaginings the agent could not have had from a single note.",
+	"An observation is a shift in what the store notices, so two unrelated events become a pattern, a preference that looked local starts to look like a rule, and a decision from last month meets a new constraint until the picture of what is true now changes.",
+	"Imagination is the same process pushed further. The store does not only recall, it proposes: what if this procedure applied there, what if this person and that project belong together, or what if the next step is something nobody wrote down. Continual learning is that ongoing evolution, memory becoming other memories instead of a filing cabinet that never changes its mind.",
+] as const;
+
+/** Matches hero `pt-[20%]` (20% of the max-w-3xl content width, minus page horizontal padding). */
+export const landingSidebarTopPaddingClass =
+	"pt-[calc((min(48rem,100vw-var(--sidebar-width))-3rem)*0.2)] md:pt-[calc((min(48rem,100vw-var(--sidebar-width))-5rem)*0.2)]";
+
 export const howItWorks = [
 	{
 		id: "connect",

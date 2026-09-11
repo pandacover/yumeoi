@@ -1,6 +1,4 @@
-import { RiCursorLine, RiKeyLine, RiRobotLine } from "@remixicon/react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import type { ReactNode } from "react";
 import { getAgentsContext } from "../api/agent-rpc.ts";
 import { CatalogList, CatalogRow } from "../components/catalog-row.tsx";
 import { Page, PageHeader } from "../components/page.tsx";
@@ -11,12 +9,6 @@ export const Route = createFileRoute("/agents")({
 	loader: () => getAgentsContext(),
 	component: AgentsPage,
 });
-
-const agentIcons: Record<(typeof agentCatalog)[number]["id"], ReactNode> = {
-	cursor: <RiCursorLine />,
-	claude: <RiRobotLine />,
-	http: <RiKeyLine />,
-};
 
 function AgentsPage() {
 	const { grants, keys } = Route.useLoaderData();
@@ -33,7 +25,6 @@ function AgentsPage() {
 				{agentCatalog.map((agent) => (
 					<CatalogRow
 						key={agent.id}
-						icon={agentIcons[agent.id]}
 						title={agent.name}
 						detail={agent.detail}
 						action={

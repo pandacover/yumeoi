@@ -7,7 +7,12 @@ import {
 } from "../components/ui/accordion.tsx";
 import { Button } from "../components/ui/button.tsx";
 import { Separator } from "../components/ui/separator.tsx";
-import { faqGroups, howItWorks } from "../content/landing.ts";
+import {
+	continualLearningCopy,
+	faqGroups,
+	howItWorks,
+	landingHeroTopPaddingClass,
+} from "../content/landing.ts";
 
 export const Route = createFileRoute("/")({
 	component: Home,
@@ -15,32 +20,44 @@ export const Route = createFileRoute("/")({
 
 function Home() {
 	return (
-		<div className="mx-auto flex w-full max-w-3xl flex-col px-6 md:px-10">
-			<section className="flex min-h-[calc(100svh-3rem)] flex-col items-start justify-center gap-6 py-16">
-				<p className="max-w-xl text-sm text-muted-foreground">
-					Yumeoi is a continual learning infrastructure for agents
-				</p>
-				<h1 className="font-heading max-w-2xl text-4xl font-medium tracking-tight">
-					Give your agents memories they never forget
-				</h1>
+		<div className="flex w-full max-w-3xl flex-col px-6 md:px-10">
+			<section
+				className={`flex min-h-[calc(100svh-3rem)] flex-col items-start gap-6 pb-16 ${landingHeroTopPaddingClass}`}
+			>
+				<div className="flex max-w-2xl flex-col gap-2">
+					<h1 className="font-heading text-4xl font-medium tracking-tight">
+						yumeoi is a continual learning infrastructure for agents.
+					</h1>
+					<p className="text-base text-foreground">
+						connect via MCP, external apps like Notion or API
+					</p>
+				</div>
 				<Button render={<Link to="/agents" />} nativeButton={false}>
 					Get started
 				</Button>
+				<Separator className="max-w-2xl" />
+				<div className="flex max-w-2xl flex-col gap-4">
+					{continualLearningCopy.map((paragraph) => (
+						<p className="text-base text-muted-foreground" key={paragraph}>
+							{paragraph}
+						</p>
+					))}
+				</div>
 			</section>
 
 			{/* biome-ignore lint/correctness/useUniqueElementIds: landing hash target */}
-			<section className="flex flex-col gap-8 scroll-mt-16 py-16" id="how-it-works">
+			<section className="flex flex-col gap-8 scroll-mt-0.5 py-16" id="how-it-works">
 				<div className="flex flex-col gap-2">
 					<h2 className="font-heading text-xl font-medium">How it works</h2>
-					<p className="max-w-2xl text-sm text-muted-foreground">
+					<p className="max-w-2xl text-base text-muted-foreground">
 						Yumeoi sits beside your agents. It ingests what you already write, turns it into a typed
 						memory store, and serves the same recall path to chat, HTTP, and MCP.
 					</p>
 				</div>
 				{howItWorks.map((item) => (
-					<article className="flex flex-col gap-2 scroll-mt-16" id={item.id} key={item.id}>
+					<article className="flex flex-col gap-2 scroll-mt-0.5" id={item.id} key={item.id}>
 						<h3 className="font-heading text-base font-medium">{item.title}</h3>
-						<p className="max-w-2xl text-sm text-muted-foreground">{item.body}</p>
+						<p className="max-w-2xl text-base text-muted-foreground">{item.body}</p>
 					</article>
 				))}
 			</section>
@@ -48,11 +65,11 @@ function Home() {
 			<Separator />
 
 			{/* biome-ignore lint/correctness/useUniqueElementIds: landing hash target */}
-			<section className="flex flex-col gap-8 scroll-mt-16 py-16" id="faq">
+			<section className="flex flex-col gap-8 scroll-mt-0.5 py-16" id="faq">
 				<h2 className="font-heading text-xl font-medium">FAQ</h2>
 				{faqGroups.map((group) => (
 					<div className="flex flex-col gap-3" id={group.id} key={group.id}>
-						<p className="text-xs text-muted-foreground">{group.title}</p>
+						<p className="text-sm text-muted-foreground">{group.title}</p>
 						<Accordion multiple>
 							{group.items.map((item) => (
 								<AccordionItem key={item.q} value={item.q}>

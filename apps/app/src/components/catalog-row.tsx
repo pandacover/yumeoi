@@ -5,7 +5,6 @@ import {
 	ItemContent,
 	ItemDescription,
 	ItemGroup,
-	ItemMedia,
 	ItemTitle,
 } from "~/components/ui/item.tsx";
 
@@ -17,16 +16,13 @@ export function CatalogRow({
 	title,
 	detail,
 	action,
-	icon,
 }: {
 	title: string;
 	detail?: string;
 	action: ReactNode;
-	icon?: ReactNode;
 }) {
 	return (
 		<Item variant="outline">
-			{icon ? <ItemMedia variant="icon">{icon}</ItemMedia> : null}
 			<ItemContent>
 				<ItemTitle>{title}</ItemTitle>
 				{detail ? <ItemDescription>{detail}</ItemDescription> : null}
