@@ -15,8 +15,7 @@ export const Route = createRootRoute({
 			{ title: "yumeoi" },
 			{
 				name: "description",
-				content:
-					"Connect sources, extract memories, chat with them, and share them with agents over MCP OAuth.",
+				content: "Yumeoi is a continual learning infrastructure for agents.",
 			},
 		],
 		links: [

@@ -1,12 +1,23 @@
-import { Link } from "@tanstack/react-router";
+import { Link, useRouterState } from "@tanstack/react-router";
 import { type ReactNode, useEffect, useState } from "react";
 
-const links = [
+const appLinks = [
 	{ to: "/", label: "Overview" },
 	{ to: "/sources", label: "Sources" },
 	{ to: "/memories", label: "Memories" },
 	{ to: "/chat", label: "Chat" },
 	{ to: "/agents", label: "Agents" },
+] as const;
+
+const landingToc = [
+	{ href: "#how-it-works", label: "How it works", sub: false },
+	{ href: "#connect", label: "Connect sources", sub: true },
+	{ href: "#ingest", label: "Ingest", sub: true },
+	{ href: "#memory-model", label: "Memory model", sub: true },
+	{ href: "#recall", label: "Recall", sub: true },
+	{ href: "#agents", label: "Agents", sub: true },
+	{ href: "#decay", label: "Decay", sub: true },
+	{ href: "#faq", label: "FAQ", sub: false },
 ] as const;
 
 const themeFromDom = () =>
@@ -15,6 +26,8 @@ const themeFromDom = () =>
 		: "light";
 
 export function AppShell({ children }: { children: ReactNode }) {
+	const pathname = useRouterState({ select: (state) => state.location.pathname });
+	const onLanding = pathname === "/";
 	const [open, setOpen] = useState(false);
 	const [theme, setTheme] = useState<"light" | "dark">("light");
 
@@ -50,17 +63,28 @@ export function AppShell({ children }: { children: ReactNode }) {
 					</button>
 				</div>
 				<nav className="sidebar-nav">
-					{links.map((link) => (
-						<Link
-							key={link.to}
-							to={link.to}
-							className="toc-link"
-							activeProps={{ className: "toc-link active" }}
-							onClick={() => setOpen(false)}
-						>
-							{link.label}
-						</Link>
-					))}
+					{onLanding
+						? landingToc.map((item) => (
+								<a
+									key={item.href}
+									href={item.href}
+									className={item.sub ? "toc-link toc-sub" : "toc-link"}
+									onClick={() => setOpen(false)}
+								>
+									{item.label}
+								</a>
+							))
+						: appLinks.map((link) => (
+								<Link
+									key={link.to}
+									to={link.to}
+									className="toc-link"
+									activeProps={{ className: "toc-link active" }}
+									onClick={() => setOpen(false)}
+								>
+									{link.label}
+								</Link>
+							))}
 				</nav>
 				<div className="sidebar-foot">
 					<button
