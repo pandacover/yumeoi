@@ -201,11 +201,19 @@ body {
 }
 
 .hero-heading {
-	margin: 0 0 12px;
+	margin: 0 0 28px;
 	font-size: 32px;
 	font-weight: 500;
 	letter-spacing: -0.45px;
 	line-height: 40px;
+}
+
+.hero-kicker {
+	margin: 0 0 16px;
+	max-width: 36rem;
+	color: var(--color-text-secondary);
+	font-size: 14px;
+	line-height: 22px;
 }
 
 .hero-sub {
@@ -214,6 +222,97 @@ body {
 	color: var(--color-text-secondary);
 	font-size: 14px;
 	line-height: 22px;
+}
+
+.landing {
+	margin: 0 auto;
+	max-width: 720px;
+	padding: 0 48px;
+}
+
+.landing-hero {
+	display: flex;
+	min-height: calc(100vh - 16px);
+	flex-direction: column;
+	justify-content: center;
+	padding: 72px 0 96px;
+}
+
+.landing-block {
+	padding: 80px 0;
+	border-top: 1px solid var(--color-border-subtle);
+}
+
+.landing-sub,
+.faq-item {
+	scroll-margin-top: 88px;
+}
+
+.landing-sub {
+	margin-top: 40px;
+}
+
+.section-lead,
+.body-copy {
+	margin: 12px 0 0;
+	max-width: 40rem;
+	color: var(--color-text-secondary);
+	font-size: 14px;
+	line-height: 22px;
+}
+
+.sub-heading {
+	margin: 0;
+	font-size: 16px;
+	font-weight: 500;
+	line-height: 24px;
+}
+
+.faq-group {
+	margin-top: 48px;
+}
+
+.faq-group-title {
+	margin: 0 0 16px;
+	color: var(--color-text-tertiary);
+	font-size: 12px;
+}
+
+.faq-item + .faq-item {
+	margin-top: 28px;
+}
+
+.site-footer {
+	padding: 48px 0 72px;
+	border-top: 1px solid var(--color-border-subtle);
+}
+
+.footer-brand {
+	margin: 0;
+	font-size: 14px;
+	font-weight: 500;
+}
+
+.footer-meta {
+	margin: 8px 0 0;
+	color: var(--color-text-secondary);
+	font-size: 12px;
+	line-height: 18px;
+}
+
+.toc-sub {
+	padding-left: 24px;
+}
+
+#how-it-works,
+#faq,
+#connect,
+#ingest,
+#memory-model,
+#recall,
+#agents,
+#decay {
+	scroll-margin-top: 88px;
 }
 
 .section-heading {
@@ -403,5 +502,18 @@ code {
 
 	.page {
 		padding: 40px 20px 48px;
+	}
+
+	.landing {
+		padding: 0 20px;
+	}
+
+	.landing-hero {
+		min-height: calc(100vh - 80px);
+		padding: 48px 0 72px;
+	}
+
+	.landing-block {
+		padding: 56px 0;
 	}
 }
