@@ -16,6 +16,10 @@ export default defineConfig(({ mode }) => {
 		},
 		resolve: {
 			tsconfigPaths: true,
+			dedupe: ["react", "react-dom", "@clerk/react", "@clerk/shared"],
+		},
+		optimizeDeps: {
+			include: ["@clerk/react", "@clerk/shared", "@clerk/tanstack-react-start"],
 		},
 		define: {
 			"import.meta.env.VITE_CLERK_PUBLISHABLE_KEY": JSON.stringify(clerkPublishableKey),

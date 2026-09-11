@@ -1,5 +1,5 @@
-import { Show } from "@clerk/tanstack-react-start";
 import { Component, type ReactNode } from "react";
+import { Show } from "~/components/clerk-ui.ts";
 
 type When = "signed-in" | "signed-out";
 

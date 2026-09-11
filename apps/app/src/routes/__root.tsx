@@ -1,7 +1,7 @@
-import { ClerkProvider } from "@clerk/tanstack-react-start";
 import { createRootRoute, HeadContent, Outlet, Scripts } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { AppShell } from "../components/app-shell.tsx";
+import { ClerkProvider, clerkPublishableKey } from "../components/clerk-ui.ts";
 import { Toaster } from "../components/ui/sonner.tsx";
 import { TooltipProvider } from "../components/ui/tooltip.tsx";
 import appCss from "../styles/app.css?url";
@@ -44,7 +44,7 @@ function RootDocument({ children }: { children: ReactNode }) {
 
 function RootComponent() {
 	return (
-		<ClerkProvider publishableKey={import.meta.env.VITE_CLERK_PUBLISHABLE_KEY}>
+		<ClerkProvider publishableKey={clerkPublishableKey}>
 			<TooltipProvider>
 				<AppShell>
 					<Outlet />

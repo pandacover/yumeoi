@@ -1,4 +1,3 @@
-import { UserButton } from "@clerk/tanstack-react-start";
 import {
 	RiBrainLine,
 	RiChat2Line,
@@ -9,6 +8,7 @@ import {
 import { Link, useRouterState } from "@tanstack/react-router";
 import type { ComponentType, ReactNode } from "react";
 import { ClerkShow } from "~/components/clerk-show.tsx";
+import { UserButton } from "~/components/clerk-ui.ts";
 import { LandingSidebarNav } from "~/components/landing-sidebar-nav.tsx";
 import { pageTopPaddingClass } from "~/components/page.tsx";
 import { Button } from "~/components/ui/button.tsx";
