@@ -16,7 +16,7 @@ export const Route = createFileRoute("/")({
 function Home() {
 	return (
 		<div className="mx-auto flex w-full max-w-3xl flex-col px-6 md:px-10">
-			<section className="flex min-h-[calc(100svh-3rem)] flex-col justify-center gap-6 py-16">
+			<section className="flex min-h-[calc(100svh-3rem)] flex-col items-start justify-center gap-6 py-16">
 				<p className="max-w-xl text-sm text-muted-foreground">
 					Yumeoi is a continual learning infrastructure for agents
 				</p>
