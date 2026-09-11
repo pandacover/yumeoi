@@ -10,12 +10,26 @@ import {
 } from "~/components/ui/breadcrumb.tsx";
 import { cn } from "~/lib/utils.ts";
 
-export function Page({ children, wide }: { children: ReactNode; wide?: boolean }) {
+/** Keep in sync with app shell sidebar top padding. */
+export const pageTopPaddingClass = "pt-8";
+
+export function Page({
+	children,
+	wide,
+	className,
+}: {
+	children: ReactNode;
+	wide?: boolean;
+	className?: string;
+}) {
 	return (
 		<div
 			className={cn(
-				"mx-auto flex w-full flex-col gap-8 px-6 py-8 md:px-10",
+				"flex w-full flex-col gap-8 px-6 md:px-10",
+				pageTopPaddingClass,
+				"pb-8",
 				wide ? "max-w-5xl" : "max-w-3xl",
+				className,
 			)}
 		>
 			{children}

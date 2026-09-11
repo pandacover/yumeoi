@@ -12,24 +12,30 @@ const getChatContext = createServerFn({ method: "GET" }).handler(async () => ({
 }));
 
 export const Route = createFileRoute("/chat")({
+	validateSearch: (search: Record<string, unknown>) => ({
+		mock: search.mock === "1" || search.mock === true,
+	}),
 	loader: () => getChatContext(),
 	component: ChatPage,
 });
 
 function ChatPage() {
 	const { userId } = Route.useLoaderData();
+	const { mock: mockFromUrl } = Route.useSearch();
+	const mock = mockFromUrl;
 	const [mounted, setMounted] = useState(false);
 	useEffect(() => {
 		setMounted(true);
 	}, []);
 
 	return (
-		<Page wide>
-			<PageHeader
-				title="Chat"
-				description="Ask about your memories. Answers call recall and cite sources inline. Streams resume if you disconnect."
-			/>
-			{mounted ? <ChatPane userId={userId} /> : <Skeleton className="h-96 w-full" />}
+		<Page wide className="mx-auto flex min-h-svh w-[70%] max-w-[70%] flex-col">
+			<PageHeader title="Chat" description="Talk to your memories." />
+			{mounted ? (
+				<ChatPane className="min-h-0 flex-1" mock={mock} userId={userId} />
+			) : (
+				<Skeleton className="min-h-0 flex-1 w-full" />
+			)}
 		</Page>
 	);
 }

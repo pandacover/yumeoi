@@ -1,5 +1,4 @@
 import { env } from "cloudflare:workers";
-import { RiNotionLine } from "@remixicon/react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import type { SourceView } from "@yumeoi/domain";
@@ -39,7 +38,6 @@ function IntegrationsPage() {
 			/>
 			<CatalogList>
 				<CatalogRow
-					icon={<RiNotionLine />}
 					title="Notion"
 					detail={
 						notionConnected
