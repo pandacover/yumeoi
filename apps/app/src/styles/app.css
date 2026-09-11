@@ -235,6 +235,7 @@ body {
 	min-height: calc(100vh - 16px);
 	flex-direction: column;
 	justify-content: center;
+	align-items: flex-start;
 	padding: 72px 0 96px;
 }
 
