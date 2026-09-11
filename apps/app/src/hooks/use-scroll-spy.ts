@@ -31,7 +31,10 @@ function getActiveSectionId(metrics: SectionMetric[], scrollY: number): string |
 
 	for (let i = 0; i < metrics.length; i++) {
 		const current = metrics[i];
-		const switchPoint = i === 0 ? current.top / 2 : (metrics[i - 1].bottom + current.top) / 2;
+		if (!current) continue;
+		const previous = i > 0 ? metrics[i - 1] : undefined;
+		const switchPoint =
+			i === 0 || !previous ? current.top / 2 : (previous.bottom + current.top) / 2;
 		if (scrollY >= switchPoint) active = current.id;
 	}
 

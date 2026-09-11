@@ -16,7 +16,7 @@ import { useScrollSpy } from "~/hooks/use-scroll-spy.ts";
 
 const scrollSpySections = ["how-it-works", ...howItWorks.map((item) => item.id), "faq"] as const;
 
-const subsectionIds = new Set(howItWorks.map((item) => item.id));
+const subsectionIds = new Set<string>(howItWorks.map((item) => item.id));
 
 type IndicatorState = {
 	top: number;
