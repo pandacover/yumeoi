@@ -31,8 +31,7 @@ function getActiveSectionId(metrics: SectionMetric[], scrollY: number): string |
 
 	for (let i = 0; i < metrics.length; i++) {
 		const current = metrics[i];
-		const switchPoint =
-			i === 0 ? current.top / 2 : (metrics[i - 1].bottom + current.top) / 2;
+		const switchPoint = i === 0 ? current.top / 2 : (metrics[i - 1].bottom + current.top) / 2;
 		if (scrollY >= switchPoint) active = current.id;
 	}
 
@@ -51,8 +50,7 @@ export function useScrollSpy(
 
 		const update = () => {
 			const metrics = getSectionMetrics(container, sectionIds);
-			const scrollPaddingTop =
-				Number.parseFloat(getComputedStyle(container).scrollPaddingTop) || 0;
+			const scrollPaddingTop = Number.parseFloat(getComputedStyle(container).scrollPaddingTop) || 0;
 			const scrollY = container.scrollTop + scrollPaddingTop;
 			setActiveId(getActiveSectionId(metrics, scrollY));
 		};

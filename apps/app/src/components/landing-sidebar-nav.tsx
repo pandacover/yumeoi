@@ -2,9 +2,7 @@
 
 import { RiHomeLine, RiQuestionLine } from "@remixicon/react";
 import { cn } from "cn";
-import { useLayoutEffect, useRef, useState } from "react";
-import { howItWorks } from "~/content/landing.ts";
-import { useScrollSpy } from "~/hooks/use-scroll-spy.ts";
+import { useCallback, useLayoutEffect, useRef, useState } from "react";
 import {
 	SidebarMenu,
 	SidebarMenuButton,
@@ -13,6 +11,8 @@ import {
 	SidebarMenuSubButton,
 	SidebarMenuSubItem,
 } from "~/components/ui/sidebar.tsx";
+import { howItWorks } from "~/content/landing.ts";
+import { useScrollSpy } from "~/hooks/use-scroll-spy.ts";
 
 const scrollSpySections = ["how-it-works", ...howItWorks.map((item) => item.id), "faq"] as const;
 
@@ -48,7 +48,7 @@ export function LandingSidebarNav({ className }: { className?: string }) {
 				? howItWorks[0]?.id
 				: null;
 
-	const measureIndicator = () => {
+	const measureIndicator = useCallback(() => {
 		const wrap = subWrapRef.current;
 		if (!wrap || !indicatorTargetId) {
 			setIndicator((prev) => ({ ...prev, visible: false }));
@@ -81,11 +81,11 @@ export function LandingSidebarNav({ className }: { className?: string }) {
 			width: borderWidth,
 			visible: true,
 		});
-	};
+	}, [indicatorTargetId]);
 
 	useLayoutEffect(() => {
 		measureIndicator();
-	}, [indicatorTargetId]);
+	}, [measureIndicator]);
 
 	useLayoutEffect(() => {
 		const wrap = subWrapRef.current;
@@ -94,15 +94,17 @@ export function LandingSidebarNav({ className }: { className?: string }) {
 		const observer = new ResizeObserver(measureIndicator);
 		observer.observe(wrap);
 		return () => observer.disconnect();
-	}, [indicatorTargetId]);
+	}, [measureIndicator]);
 
 	return (
 		<SidebarMenu className={className}>
 			<SidebarMenuItem>
-				{/* biome-ignore lint/a11y/useAnchorContent: link text is the SidebarMenuButton children */}
 				<SidebarMenuButton
 					isActive={howItWorksActive}
-					render={<a href="#how-it-works" />}
+					render={
+						// biome-ignore lint/a11y/useAnchorContent: SidebarMenuButton children supply the visible label
+						<a href="#how-it-works" />
+					}
 					tooltip="How it works"
 				>
 					<RiHomeLine />
@@ -134,8 +136,14 @@ export function LandingSidebarNav({ className }: { className?: string }) {
 				</div>
 			</SidebarMenuItem>
 			<SidebarMenuItem>
-				{/* biome-ignore lint/a11y/useAnchorContent: link text is the SidebarMenuButton children */}
-				<SidebarMenuButton isActive={faqActive} render={<a href="#faq" />} tooltip="FAQ">
+				<SidebarMenuButton
+					isActive={faqActive}
+					render={
+						// biome-ignore lint/a11y/useAnchorContent: SidebarMenuButton children supply the visible label
+						<a href="#faq" />
+					}
+					tooltip="FAQ"
+				>
 					<RiQuestionLine />
 					<span>FAQ</span>
 				</SidebarMenuButton>

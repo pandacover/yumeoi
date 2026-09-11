@@ -1,15 +1,14 @@
 import {
 	RiBrainLine,
 	RiChat2Line,
+	RiGitBranchLine,
 	RiHomeLine,
 	RiPlugLine,
-	RiGitBranchLine,
 } from "@remixicon/react";
 import { Link, useRouterState } from "@tanstack/react-router";
 import type { ComponentType, ReactNode } from "react";
-import { pageTopPaddingClass } from "~/components/page.tsx";
 import { LandingSidebarNav } from "~/components/landing-sidebar-nav.tsx";
-import { landingSidebarTopPaddingClass } from "~/content/landing.ts";
+import { pageTopPaddingClass } from "~/components/page.tsx";
 import {
 	Sidebar,
 	SidebarContent,
@@ -21,6 +20,7 @@ import {
 	SidebarMenuItem,
 	SidebarProvider,
 } from "~/components/ui/sidebar.tsx";
+import { landingSidebarTopPaddingClass } from "~/content/landing.ts";
 
 const appLinks = [
 	{ to: "/", label: "Overview", icon: RiHomeLine },
@@ -84,10 +84,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 				</SidebarContent>
 			</Sidebar>
 			{/* biome-ignore lint/correctness/useUniqueElementIds: skip-link fragment target is unique to the app shell */}
-			<SidebarInset
-				className="scroll-smooth scroll-pt-0.5 flex-none w-[calc((100%-var(--sidebar-width))*0.7)] max-w-[calc((100%-var(--sidebar-width))*0.7)]"
-				id="main-content"
-			>
+			<SidebarInset className="scroll-smooth scroll-pt-0.5" id="main-content">
 				{children}
 			</SidebarInset>
 		</SidebarProvider>
