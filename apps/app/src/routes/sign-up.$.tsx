@@ -7,7 +7,7 @@ export const Route = createFileRoute("/sign-up/$")({
 
 function Page() {
 	return (
-		<div className="flex min-h-svh items-center justify-center px-6">
+		<div className="flex min-h-svh w-full items-center justify-center px-6">
 			<SignUp fallbackRedirectUrl="/agents" path="/sign-up" routing="path" signInUrl="/sign-in" />
 		</div>
 	);

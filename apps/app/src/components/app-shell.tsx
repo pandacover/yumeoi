@@ -44,6 +44,10 @@ export function AppShell({ children }: { children: ReactNode }) {
 	const onLanding = pathname === "/";
 	const onAuthPage = pathname.startsWith("/sign-in") || pathname.startsWith("/sign-up");
 
+	if (onAuthPage) {
+		return <main className="min-h-svh w-full">{children}</main>;
+	}
+
 	return (
 		<SidebarProvider>
 			<a
@@ -64,19 +68,6 @@ export function AppShell({ children }: { children: ReactNode }) {
 						<SidebarGroupContent className="flex flex-col items-end">
 							{onLanding ? (
 								<LandingSidebarNav className={sidebarNavColumn} />
-							) : onAuthPage ? (
-								<SidebarMenu className="w-max">
-									<SidebarMenuItem>
-										<SidebarMenuButton
-											className="h-8 min-h-8 w-auto"
-											render={<Link to="/" />}
-											tooltip="Overview"
-										>
-											<RiHomeLine />
-											<span>Overview</span>
-										</SidebarMenuButton>
-									</SidebarMenuItem>
-								</SidebarMenu>
 							) : (
 								<SidebarMenu className="w-max">
 									{appLinks.map((link) => {
@@ -102,20 +93,18 @@ export function AppShell({ children }: { children: ReactNode }) {
 				</SidebarContent>
 				<SidebarFooter className="items-end px-2 pb-4">
 					<ClerkShow when="signed-out">
-						{onAuthPage ? null : (
-							<Button
-								className="h-8"
-								nativeButton={false}
-								render={
-									// biome-ignore lint/a11y/useAnchorContent: Button children supply the label
-									<a href="/sign-in" />
-								}
-								size="sm"
-								variant="ghost"
-							>
-								Sign in
-							</Button>
-						)}
+						<Button
+							className="h-8"
+							nativeButton={false}
+							render={
+								// biome-ignore lint/a11y/useAnchorContent: Button children supply the label
+								<a href="/sign-in" />
+							}
+							size="sm"
+							variant="ghost"
+						>
+							Sign in
+						</Button>
 					</ClerkShow>
 					<ClerkShow when="signed-in">
 						<UserButton />
