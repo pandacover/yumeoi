@@ -1,8 +1,8 @@
 export const howItWorks = [
 	{
 		id: "connect",
-		title: "Connect sources",
-		body: "Yumeoi pulls from the tools you already write in. Notion is live over OAuth. A generic ingest endpoint takes markdown from scripts, webhooks, or curl. Each source keeps a cursor, so sync is incremental instead of a full re-read every time.",
+		title: "Connect integrations",
+		body: "Yumeoi pulls from the tools you already write in. Notion is live over OAuth. A generic ingest endpoint takes markdown from scripts, webhooks, or curl. Each integration keeps a cursor, so sync is incremental instead of a full re-read every time.",
 	},
 	{
 		id: "ingest",
@@ -111,8 +111,8 @@ export const faqGroups = [
 				a: "Only clients you authorize for that user. OAuth grants and API keys can be revoked. This build is single-tenant per user — no team sharing yet.",
 			},
 			{
-				q: "What sources are supported today?",
-				a: "Notion over OAuth, a demo workspace, and generic markdown ingest. Gmail and Obsidian are planned on the same pipeline.",
+				q: "What integrations are supported today?",
+				a: "Notion over OAuth, and generic markdown ingest. Gmail and Obsidian are planned on the same pipeline.",
 			},
 			{
 				q: "Who is Singularity?",

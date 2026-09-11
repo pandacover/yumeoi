@@ -12,8 +12,11 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AgentsRouteImport } from './routes/agents'
 import { Route as ChatRouteImport } from './routes/chat'
+import { Route as IntegrationsRouteImport } from './routes/integrations'
 import { Route as MemoriesRouteImport } from './routes/memories'
 import { Route as SourcesRouteImport } from './routes/sources'
+import { Route as AgentsIdRouteImport } from './routes/agents_.$id'
+import { Route as IntegrationsIdRouteImport } from './routes/integrations_.$id'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -30,6 +33,11 @@ const ChatRoute = ChatRouteImport.update({
   path: '/chat',
   getParentRoute: () => rootRouteImport,
 } as any)
+const IntegrationsRoute = IntegrationsRouteImport.update({
+  id: '/integrations',
+  path: '/integrations',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const MemoriesRoute = MemoriesRouteImport.update({
   id: '/memories',
   path: '/memories',
@@ -40,43 +48,90 @@ const SourcesRoute = SourcesRouteImport.update({
   path: '/sources',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AgentsIdRoute = AgentsIdRouteImport.update({
+  id: '/agents_/$id',
+  path: '/agents/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const IntegrationsIdRoute = IntegrationsIdRouteImport.update({
+  id: '/integrations_/$id',
+  path: '/integrations/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/agents': typeof AgentsRoute
   '/chat': typeof ChatRoute
+  '/integrations': typeof IntegrationsRoute
   '/memories': typeof MemoriesRoute
   '/sources': typeof SourcesRoute
+  '/agents/$id': typeof AgentsIdRoute
+  '/integrations/$id': typeof IntegrationsIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/agents': typeof AgentsRoute
   '/chat': typeof ChatRoute
+  '/integrations': typeof IntegrationsRoute
   '/memories': typeof MemoriesRoute
   '/sources': typeof SourcesRoute
+  '/agents/$id': typeof AgentsIdRoute
+  '/integrations/$id': typeof IntegrationsIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/agents': typeof AgentsRoute
   '/chat': typeof ChatRoute
+  '/integrations': typeof IntegrationsRoute
   '/memories': typeof MemoriesRoute
   '/sources': typeof SourcesRoute
+  '/agents_/$id': typeof AgentsIdRoute
+  '/integrations_/$id': typeof IntegrationsIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/agents' | '/chat' | '/memories' | '/sources'
+  fullPaths:
+    | '/'
+    | '/agents'
+    | '/chat'
+    | '/integrations'
+    | '/memories'
+    | '/sources'
+    | '/agents/$id'
+    | '/integrations/$id'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/agents' | '/chat' | '/memories' | '/sources'
-  id: '__root__' | '/' | '/agents' | '/chat' | '/memories' | '/sources'
+  to:
+    | '/'
+    | '/agents'
+    | '/chat'
+    | '/integrations'
+    | '/memories'
+    | '/sources'
+    | '/agents/$id'
+    | '/integrations/$id'
+  id:
+    | '__root__'
+    | '/'
+    | '/agents'
+    | '/chat'
+    | '/integrations'
+    | '/memories'
+    | '/sources'
+    | '/agents_/$id'
+    | '/integrations_/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AgentsRoute: typeof AgentsRoute
   ChatRoute: typeof ChatRoute
+  IntegrationsRoute: typeof IntegrationsRoute
   MemoriesRoute: typeof MemoriesRoute
   SourcesRoute: typeof SourcesRoute
+  AgentsIdRoute: typeof AgentsIdRoute
+  IntegrationsIdRoute: typeof IntegrationsIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -102,6 +157,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ChatRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/integrations': {
+      id: '/integrations'
+      path: '/integrations'
+      fullPath: '/integrations'
+      preLoaderRoute: typeof IntegrationsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/memories': {
       id: '/memories'
       path: '/memories'
@@ -116,6 +178,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SourcesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/agents_/$id': {
+      id: '/agents_/$id'
+      path: '/agents/$id'
+      fullPath: '/agents/$id'
+      preLoaderRoute: typeof AgentsIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/integrations_/$id': {
+      id: '/integrations_/$id'
+      path: '/integrations/$id'
+      fullPath: '/integrations/$id'
+      preLoaderRoute: typeof IntegrationsIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -123,8 +199,11 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AgentsRoute: AgentsRoute,
   ChatRoute: ChatRoute,
+  IntegrationsRoute: IntegrationsRoute,
   MemoriesRoute: MemoriesRoute,
   SourcesRoute: SourcesRoute,
+  AgentsIdRoute: AgentsIdRoute,
+  IntegrationsIdRoute: IntegrationsIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
