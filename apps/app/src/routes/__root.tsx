@@ -1,5 +1,5 @@
 import { ClerkProvider } from "@clerk/tanstack-react-start";
-import { createRootRoute, HeadContent, Outlet, Scripts } from "@tanstack/react-router";
+import { createRootRoute, HeadContent, Scripts } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { AppShell } from "../components/app-shell.tsx";
 import { Toaster } from "../components/ui/sonner.tsx";
@@ -24,7 +24,6 @@ export const Route = createRootRoute({
 			{ rel: "apple-touch-icon", href: "/apple-touch-icon.png?v=2", sizes: "180x180" },
 		],
 	}),
-	component: RootComponent,
 	shellComponent: RootDocument,
 });
 
@@ -35,22 +34,14 @@ function RootDocument({ children }: { children: ReactNode }) {
 				<HeadContent />
 			</head>
 			<body>
-				{children}
+				<ClerkProvider>
+					<TooltipProvider>
+						<AppShell>{children}</AppShell>
+						<Toaster />
+					</TooltipProvider>
+				</ClerkProvider>
 				<Scripts />
 			</body>
 		</html>
-	);
-}
-
-function RootComponent() {
-	return (
-		<ClerkProvider>
-			<TooltipProvider>
-				<AppShell>
-					<Outlet />
-				</AppShell>
-				<Toaster />
-			</TooltipProvider>
-		</ClerkProvider>
 	);
 }

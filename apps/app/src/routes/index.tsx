@@ -1,5 +1,5 @@
-import { Show } from "@clerk/tanstack-react-start";
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { ClerkShow } from "../components/clerk-show.tsx";
 import {
 	Accordion,
 	AccordionContent,
@@ -33,7 +33,7 @@ function Home() {
 						connect via MCP, external apps like Notion or API
 					</p>
 				</div>
-				<Show when="signed-out">
+				<ClerkShow when="signed-out">
 					<Button
 						nativeButton={false}
 						render={
@@ -43,12 +43,12 @@ function Home() {
 					>
 						Get started
 					</Button>
-				</Show>
-				<Show when="signed-in">
+				</ClerkShow>
+				<ClerkShow when="signed-in">
 					<Button nativeButton={false} render={<Link to="/agents" />}>
 						Get started
 					</Button>
-				</Show>
+				</ClerkShow>
 				<Separator className="max-w-2xl" />
 				<div className="flex max-w-2xl flex-col gap-4">
 					{continualLearningCopy.map((paragraph) => (

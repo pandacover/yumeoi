@@ -1,4 +1,4 @@
-import { Show, UserButton } from "@clerk/tanstack-react-start";
+import { UserButton } from "@clerk/tanstack-react-start";
 import {
 	RiBrainLine,
 	RiChat2Line,
@@ -8,6 +8,7 @@ import {
 } from "@remixicon/react";
 import { Link, useRouterState } from "@tanstack/react-router";
 import type { ComponentType, ReactNode } from "react";
+import { ClerkShow } from "~/components/clerk-show.tsx";
 import { LandingSidebarNav } from "~/components/landing-sidebar-nav.tsx";
 import { pageTopPaddingClass } from "~/components/page.tsx";
 import { Button } from "~/components/ui/button.tsx";
@@ -100,7 +101,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 					</SidebarGroup>
 				</SidebarContent>
 				<SidebarFooter className="items-end px-2 pb-4">
-					<Show when="signed-out">
+					<ClerkShow when="signed-out">
 						{onAuthPage ? null : (
 							<Button
 								className="h-8"
@@ -115,10 +116,10 @@ export function AppShell({ children }: { children: ReactNode }) {
 								Sign in
 							</Button>
 						)}
-					</Show>
-					<Show when="signed-in">
+					</ClerkShow>
+					<ClerkShow when="signed-in">
 						<UserButton />
-					</Show>
+					</ClerkShow>
 				</SidebarFooter>
 			</Sidebar>
 			{/* biome-ignore lint/correctness/useUniqueElementIds: skip-link fragment target is unique to the app shell */}
