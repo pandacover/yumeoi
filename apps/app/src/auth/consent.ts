@@ -167,6 +167,9 @@ const pageShell = (title: string, inner: string, extraHead = "") => `<!doctype h
 	<meta charset="utf-8" />
 	<meta name="viewport" content="width=device-width, initial-scale=1" />
 	<title>${sanitizeText(title)}</title>
+	<link rel="icon" href="/favicon.ico" sizes="any" />
+	<link rel="icon" href="/favicon.png" type="image/png" sizes="192x192" />
+	<link rel="apple-touch-icon" href="/apple-touch-icon.png" sizes="180x180" />
 	${extraHead}
 	<style>
 		:root { color-scheme: light; --background: oklch(1 0 0); --foreground: oklch(0.145 0 0); --muted-foreground: oklch(0.556 0 0); --border: oklch(0.922 0 0); --primary: oklch(0.553 0.195 38.402); --primary-foreground: oklch(0.98 0.016 73.684); --destructive: oklch(0.577 0.245 27.325); }
