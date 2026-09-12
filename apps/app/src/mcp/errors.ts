@@ -12,13 +12,21 @@ const formatError = (
 	hint: string,
 	context: { readonly tool: string; readonly input?: unknown },
 ) => {
-	const retry_with = retryWithForTool(context.tool, context.input ?? {}, { error, hint });
+	const retry_with =
+		error === "invalid_input"
+			? retryWithForTool(context.tool, context.input ?? {}, { error, hint })
+			: undefined;
 	return {
 		isError: true as const,
 		content: [
 			{
 				type: "text" as const,
-				text: formatToolErrorText({ tool: context.tool, error, hint, retry_with }),
+				text: formatToolErrorText({
+					tool: context.tool,
+					error,
+					hint,
+					...(retry_with ? { retry_with } : {}),
+				}),
 			},
 		],
 	};

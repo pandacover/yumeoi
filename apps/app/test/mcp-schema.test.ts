@@ -205,6 +205,26 @@ describe("Horizon MCP tool schemas", () => {
 		const unauthorizedBody = parseToolErrorText(unauthorized.content[0].text);
 		expect(unauthorizedBody.error).toBe("unauthorized");
 		expect(unauthorizedBody.hint).toMatch(/reconnect/i);
-		expect(unauthorizedBody.retry_with).toEqual({ text: "keep me", mode: "verbatim" });
+		expect(unauthorizedBody.retry_with).toEqual({});
+		expect(unauthorized.content[0].text).not.toContain("retry_with:");
+	});
+
+	it("maps ProviderUnavailable to unavailable without retry_with so agents stop looping", () => {
+		const failed = asError(
+			new Error(
+				"ProviderUnavailable: 402 This request requires more credits, or fewer max_tokens. You requested up to 65536 tokens",
+			),
+			{
+				tool: "remember",
+				input: { text: "Luv likes Horizon as memory infrastructure.", mode: "verbatim" },
+			},
+		);
+		const body = errorFrom(failed);
+		expect(body.error).toBe("unavailable");
+		expect(body.hint).toMatch(/OPENROUTER_API_KEY|credits|max_tokens/i);
+		expect(body.retry_with).toEqual({});
+		expect((failed as { content: Array<{ text: string }> }).content[0].text).not.toContain(
+			"retry_with:",
+		);
 	});
 });

@@ -287,7 +287,9 @@ export const planExtractedWrite = (extracted: ExtractedMemory, context: Extracte
 					)
 			: [];
 		const decision: ConsolidateDecision = context.dedupe
-			? yield* consolidator.decide(extracted.text, similar)
+			? similar.length === 0
+				? { action: "new", targetId: null, mergedText: null, reason: "no-candidates" }
+				: yield* consolidator.decide(extracted.text, similar)
 			: { action: "new", targetId: null, mergedText: null, reason: "dedupe-off" };
 		const target = decision.targetId
 			? (similar.find((memory) => memory.id === decision.targetId) ??

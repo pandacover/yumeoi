@@ -8,7 +8,7 @@ import type {
 	Memory,
 	RememberOutcomeItem,
 } from "@yumeoi/domain";
-import { fillMemory } from "@yumeoi/domain";
+import { defaultTypeForKind, fillMemory } from "@yumeoi/domain";
 import { Effect } from "effect";
 import { classifyStatement } from "./classify.ts";
 import { Extractor } from "./extractor.ts";
@@ -65,17 +65,7 @@ export const remember = (params: RememberParams) =>
 			items.push(...(yield* extractor.extract(params.text, "remember")));
 		} else if (params.items && params.items.length > 0) {
 			for (const item of params.items) {
-				if (!item.type || !item.kind) {
-					const classified = yield* classifyStatement(item.text);
-					items.push({
-						...classified,
-						text: item.text,
-						importance: item.importance ?? classified.importance,
-						eventAt: item.eventAt ?? classified.eventAt,
-						validFrom: item.validFrom ?? classified.validFrom,
-						entities: item.entities ?? classified.entities,
-					});
-				} else {
+				if (item.type && item.kind) {
 					const coerced = coerceTypeKind(item.type, item.kind);
 					items.push({
 						type: coerced.type,
@@ -87,6 +77,16 @@ export const remember = (params: RememberParams) =>
 						validFrom: item.validFrom ?? null,
 						entities: item.entities ?? [],
 						relations: [],
+					});
+				} else {
+					const classified = yield* classifyStatement(item.text);
+					items.push({
+						...classified,
+						text: item.text,
+						importance: item.importance ?? classified.importance,
+						eventAt: item.eventAt ?? classified.eventAt,
+						validFrom: item.validFrom ?? classified.validFrom,
+						entities: item.entities ?? classified.entities,
 					});
 				}
 			}
@@ -126,13 +126,15 @@ export const remember = (params: RememberParams) =>
 
 export const addMemory = (userId: string, input: AddMemoryRequest) =>
 	Effect.gen(function* () {
+		const kind = input.kind;
+		const type = input.type ?? defaultTypeForKind(kind);
 		const outcome = yield* remember({
 			userId,
 			items: [
 				{
 					text: input.text,
-					kind: input.kind,
-					...(input.type ? { type: input.type } : {}),
+					kind,
+					type,
 					confidence: input.confidence,
 					importance: input.confidence,
 					...(input.clientRef ? { clientRef: input.clientRef } : {}),

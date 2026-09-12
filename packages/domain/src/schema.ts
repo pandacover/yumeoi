@@ -439,6 +439,8 @@ export const ToolErrorCode = Schema.Literals([
 	"scope_required",
 	"rate_limited",
 	"conflict",
+	"unavailable",
+	"schema_violation",
 ]);
 export type ToolErrorCode = typeof ToolErrorCode.Type;
 

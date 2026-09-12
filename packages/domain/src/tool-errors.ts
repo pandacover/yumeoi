@@ -1,4 +1,11 @@
-import { InvalidRequest, NotFound, RateLimited, SchemaViolation, Unauthorized } from "./errors.ts";
+import {
+	InvalidRequest,
+	NotFound,
+	ProviderUnavailable,
+	RateLimited,
+	SchemaViolation,
+	Unauthorized,
+} from "./errors.ts";
 import type { ToolError, ToolErrorCode } from "./schema.ts";
 
 export type FieldIssue = {
@@ -46,6 +53,21 @@ const payloadMessage = (value: unknown): string => {
 	return "";
 };
 
+const causeDetail = (value: unknown): string => {
+	const direct = payloadMessage(value);
+	if (direct) {
+		return direct;
+	}
+	if (value && typeof value === "object" && "cause" in value) {
+		const nested = (value as { cause: unknown }).cause;
+		return payloadMessage(nested) || causeDetail(nested);
+	}
+	if (typeof value === "string") {
+		return value.trim();
+	}
+	return "";
+};
+
 export const TOOL_ERROR_HINTS = {
 	unauthorized:
 		"MCP access token is missing, expired, or the grant was revoked. Reconnect OAuth in the host so it can refresh. Horizon → Agents lists connected clients.",
@@ -82,6 +104,18 @@ export const TOOL_ERROR_HINTS = {
 	conflict: "This write conflicted with a concurrent update. Recall the latest memory and retry.",
 	schema:
 		"Input did not match the tool schema. Check required fields, enums, and timestamp units (from/to/asOf/since are millisecond epochs; eventAt/validFrom/validTo are ISO-8601).",
+	llmMissing:
+		"No LLM provider is configured. Set OPENROUTER_API_KEY on the Worker (OPENAI_API_KEY is the fallback). Do not retry the same remember payload.",
+	unavailable: (provider: string, detail?: string) => {
+		const who = provider && provider !== "upstream" ? provider : "LLM";
+		const extra = detail ? ` (${detail})` : "";
+		if (/openrouter|openai|llm|none|missing/i.test(who) || !detail) {
+			return `The ${who} provider is unavailable${extra}. remember/classify needs a working OPENROUTER_API_KEY (or OPENAI_API_KEY fallback) with enough credit. Do not retry the same payload.`;
+		}
+		return `The ${who} provider is unavailable${extra}. Do not retry the same payload.`;
+	},
+	schemaViolation:
+		"The classify/consolidate model returned JSON that did not match the memory schema. This is a server-side failure, not a bad remember payload. Do not retry the same call.",
 } as const;
 
 const EPOCH_FIELDS = new Set(["from", "to", "asOf", "since"]);
@@ -193,8 +227,18 @@ const mapTagged = (error: { readonly _tag: string }, source: unknown): ToolError
 				),
 			};
 		}
-		case "InvalidRequest":
-		case "SchemaViolation": {
+		case "ProviderUnavailable": {
+			const provider =
+				source && typeof source === "object" && "provider" in source
+					? String((source as { provider: unknown }).provider)
+					: "LLM";
+			const detail = firstLine(causeDetail(source));
+			if (/no llm provider|not configured|missing key/i.test(detail)) {
+				return { error: "unavailable", hint: TOOL_ERROR_HINTS.llmMissing };
+			}
+			return { error: "unavailable", hint: TOOL_ERROR_HINTS.unavailable(provider, detail) };
+		}
+		case "InvalidRequest": {
 			const message = payloadMessage(source);
 			if (/confirm=true/.test(message) && /extracted/i.test(message)) {
 				return { error: "invalid_input", hint: TOOL_ERROR_HINTS.forgetConfirm };
@@ -218,6 +262,15 @@ const mapTagged = (error: { readonly _tag: string }, source: unknown): ToolError
 					: TOOL_ERROR_HINTS.schema,
 			};
 		}
+		case "SchemaViolation": {
+			const message = payloadMessage(source);
+			return {
+				error: "schema_violation",
+				hint: message
+					? `${firstLine(message)}. ${TOOL_ERROR_HINTS.schemaViolation}`
+					: TOOL_ERROR_HINTS.schemaViolation,
+			};
+		}
 		default:
 			return null;
 	}
@@ -238,6 +291,20 @@ const mapMessage = (message: string): ToolError => {
 	}
 	if (/rate.?limit/i.test(text)) {
 		return { error: "rate_limited", hint: TOOL_ERROR_HINTS.rateLimited("upstream") };
+	}
+	if (
+		/ProviderUnavailable|no llm provider|OPENROUTER_API_KEY|max_tokens|more credits/i.test(text)
+	) {
+		const providerMatch = text.match(/\b(openrouter|openai|workers-ai|llm)\b/i);
+		return {
+			error: "unavailable",
+			hint: /OPENROUTER_API_KEY is required|no llm provider|not configured/i.test(text)
+				? TOOL_ERROR_HINTS.llmMissing
+				: TOOL_ERROR_HINTS.unavailable(providerMatch?.[1] ?? "LLM", text),
+		};
+	}
+	if (/SchemaViolation|structured output failed schema decode/i.test(text)) {
+		return { error: "schema_violation", hint: TOOL_ERROR_HINTS.schemaViolation };
 	}
 	if (/conflict/i.test(text)) {
 		return { error: "conflict", hint: TOOL_ERROR_HINTS.conflict };
@@ -289,7 +356,23 @@ export const mapToolFailure = (caught: unknown): ToolError => {
 			hint: TOOL_ERROR_HINTS.rateLimited(caught.provider, caught.retryAfterMs),
 		};
 	}
-	if (caught instanceof InvalidRequest || caught instanceof SchemaViolation) {
+	if (caught instanceof ProviderUnavailable) {
+		return (
+			mapTagged({ _tag: "ProviderUnavailable" }, caught) ?? {
+				error: "unavailable",
+				hint: TOOL_ERROR_HINTS.unavailable(caught.provider, causeDetail(caught)),
+			}
+		);
+	}
+	if (caught instanceof SchemaViolation) {
+		return (
+			mapTagged({ _tag: "SchemaViolation" }, caught) ?? {
+				error: "schema_violation",
+				hint: TOOL_ERROR_HINTS.schemaViolation,
+			}
+		);
+	}
+	if (caught instanceof InvalidRequest) {
 		return (
 			mapTagged({ _tag: caught._tag }, caught) ?? {
 				error: "invalid_input",
@@ -322,4 +405,6 @@ export const isToolErrorCode = (value: string): value is ToolErrorCode =>
 	value === "unauthorized" ||
 	value === "scope_required" ||
 	value === "rate_limited" ||
-	value === "conflict";
+	value === "conflict" ||
+	value === "unavailable" ||
+	value === "schema_violation";

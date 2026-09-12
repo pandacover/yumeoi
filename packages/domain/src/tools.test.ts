@@ -1,6 +1,12 @@
 import { describe, expect, test } from "bun:test";
 import { Schema } from "effect";
-import { InvalidRequest, NotFound, Unauthorized } from "./errors.ts";
+import {
+	InvalidRequest,
+	NotFound,
+	ProviderUnavailable,
+	SchemaViolation,
+	Unauthorized,
+} from "./errors.ts";
 import { hintForFieldIssues, mapToolFailure, TOOL_ERROR_HINTS } from "./tool-errors.ts";
 import {
 	AddMemoryAliasInput,
@@ -122,6 +128,8 @@ describe("tool contract v2", () => {
 		expect(described.every((item) => item.description.length > 8)).toBe(true);
 		expect(AGENT_INSTRUCTIONS).toContain("retry_with");
 		expect(AGENT_INSTRUCTIONS).toMatch(/Do not invent new fields/);
+		expect(AGENT_INSTRUCTIONS).toMatch(/unavailable/);
+		expect(AGENT_INSTRUCTIONS).toMatch(/once/);
 		expect(MCP_TOOL_DESCRIPTIONS.remember).toContain("Example:");
 		expect(MCP_TOOL_DESCRIPTIONS.recall).toContain("Example:");
 		expect(MCP_TOOL_DESCRIPTIONS.feedback).toContain("Example:");
@@ -184,5 +192,42 @@ describe("mapToolFailure", () => {
 		expect(mapToolFailure(new Error("Error: boom\n    at foo (server.ts:1:1)")).hint).not.toMatch(
 			/at foo/,
 		);
+	});
+
+	test("maps ProviderUnavailable and SchemaViolation to tagged MCP errors", () => {
+		const unavailable = mapToolFailure(
+			new ProviderUnavailable({
+				provider: "openrouter",
+				cause:
+					"402 This request requires more credits, or fewer max_tokens. You requested up to 65536 tokens",
+			}),
+		);
+		expect(unavailable.error).toBe("unavailable");
+		expect(unavailable.hint).toMatch(/OPENROUTER_API_KEY/);
+		expect(unavailable.hint).toMatch(/65536|credits|unavailable/i);
+		expect(unavailable.hint).toMatch(/Do not retry/);
+
+		const missing = mapToolFailure(
+			new ProviderUnavailable({
+				provider: "openrouter",
+				cause: "no llm provider configured",
+			}),
+		);
+		expect(missing.error).toBe("unavailable");
+		expect(missing.hint).toBe(TOOL_ERROR_HINTS.llmMissing);
+
+		const schema = mapToolFailure(
+			new SchemaViolation({ message: "structured output failed schema decode" }),
+		);
+		expect(schema.error).toBe("schema_violation");
+		expect(schema.hint).toMatch(/server-side failure|schema/i);
+
+		expect(
+			mapToolFailure(
+				new Error(
+					"ProviderUnavailable: 402 This request requires more credits, or fewer max_tokens. You requested up to 65536 tokens",
+				),
+			).error,
+		).toBe("unavailable");
 	});
 });

@@ -4,6 +4,7 @@ import { Effect } from "effect";
 import {
 	classifyGatewayError,
 	firstAvailableStructured,
+	isTransientLlmError,
 	modelIdForProvider,
 	resolveGatewayLlmProviders,
 	resolveGatewayLlmProvidersFromKeys,
@@ -105,6 +106,22 @@ describe("classifyGatewayError", () => {
 		const error = classifyGatewayError("openrouter", { status: 404 });
 		expect(error._tag).toBe("ProviderUnavailable");
 		expect(error.provider).toBe("openrouter");
+	});
+
+	test("maps OpenRouter 402 credit/max_tokens errors as non-transient", () => {
+		const error = classifyGatewayError("openrouter", {
+			status: 402,
+			message:
+				"402 This request requires more credits, or fewer max_tokens. You requested up to 65536 tokens, but can only afford 28952.",
+		});
+		expect(error._tag).toBe("ProviderUnavailable");
+		expect(isTransientLlmError(error)).toBe(false);
+		expect(String(error.cause)).toMatch(/65536/);
+
+		const fromMessage = classifyGatewayError("openrouter", {
+			message: "402 This request requires more credits, or fewer max_tokens",
+		});
+		expect(isTransientLlmError(fromMessage)).toBe(false);
 	});
 });
 

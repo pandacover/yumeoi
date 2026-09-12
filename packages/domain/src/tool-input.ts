@@ -431,6 +431,12 @@ export const leadForToolError = (tool: string, error: string, hint: string): str
 	if (error === "conflict") {
 		return `${label} failed: concurrent update. Recall the latest memory and retry.`;
 	}
+	if (error === "unavailable") {
+		return `${label} failed: ${firstSentence(hint) || "upstream provider unavailable"}.`;
+	}
+	if (error === "schema_violation") {
+		return `${label} failed: server classify output did not match the memory schema.`;
+	}
 	if (tool === "remember" && /text or items/i.test(hint)) {
 		return "Remember failed: need text or items[].";
 	}
@@ -455,16 +461,18 @@ export const formatToolErrorText = (args: {
 	readonly tool: string;
 	readonly error: string;
 	readonly hint: string;
-	readonly retry_with: Record<string, unknown>;
+	readonly retry_with?: Record<string, unknown>;
 }): string => {
 	const lead = leadForToolError(args.tool, args.error, args.hint);
-	const retry = JSON.stringify(args.retry_with);
 	const payload = JSON.stringify({
 		error: args.error,
 		hint: args.hint,
-		retry_with: args.retry_with,
+		...(args.retry_with ? { retry_with: args.retry_with } : {}),
 	});
-	return `${lead}\nretry_with: ${retry}\n${payload}`;
+	if (args.retry_with) {
+		return `${lead}\nretry_with: ${JSON.stringify(args.retry_with)}\n${payload}`;
+	}
+	return `${lead}\n${payload}`;
 };
 
 export const parseToolErrorText = (

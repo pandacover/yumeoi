@@ -5,6 +5,7 @@ import {
 	type LlmJobName,
 	type LlmProviderName,
 	type LlmUsage,
+	maxOutputTokensForJob,
 	ProviderUnavailable,
 	parseResponseUsage,
 	RateLimited,
@@ -74,16 +75,40 @@ export const resolveGatewayLlmProvidersFromKeys = (options: {
 			: {}),
 	});
 
+const causeText = (cause: unknown): string => {
+	if (typeof cause === "string" && cause.trim()) {
+		return cause.trim();
+	}
+	if (cause instanceof Error && cause.message.trim()) {
+		return cause.message.trim();
+	}
+	if (cause && typeof cause === "object" && "message" in cause) {
+		const message = (cause as { message: unknown }).message;
+		if (typeof message === "string" && message.trim()) {
+			return message.trim();
+		}
+	}
+	return "";
+};
+
 const httpStatusOf = (cause: unknown): number | undefined => {
 	if (!cause || typeof cause !== "object") {
-		return undefined;
+		const fromText = causeText(cause).match(/\b(401|402|403|404|408|409|413|429|5\d{2})\b/);
+		return fromText ? Number(fromText[1]) : undefined;
 	}
-	const record = cause as { status?: unknown; statusCode?: unknown };
+	const record = cause as { status?: unknown; statusCode?: unknown; cause?: unknown };
 	if (typeof record.status === "number") {
 		return record.status;
 	}
 	if (typeof record.statusCode === "number") {
 		return record.statusCode;
+	}
+	const fromText = causeText(cause).match(/\b(401|402|403|404|408|409|413|429|5\d{2})\b/);
+	if (fromText) {
+		return Number(fromText[1]);
+	}
+	if ("cause" in record) {
+		return httpStatusOf(record.cause);
 	}
 	return undefined;
 };
@@ -95,10 +120,14 @@ export const classifyGatewayError = (
 	if (httpStatusOf(cause) === 429) {
 		return new RateLimited({ provider });
 	}
-	return new ProviderUnavailable({ provider, cause });
+	const detail = causeText(cause);
+	return new ProviderUnavailable({
+		provider,
+		cause: detail || cause,
+	});
 };
 
-const isTransientLlmError = (error: StructuredError): boolean => {
+export const isTransientLlmError = (error: StructuredError): boolean => {
 	if (error._tag === "RateLimited") {
 		return true;
 	}
@@ -106,7 +135,10 @@ const isTransientLlmError = (error: StructuredError): boolean => {
 		return false;
 	}
 	const status = httpStatusOf(error.cause);
-	return status === undefined || status >= 500 || status === 429;
+	if (status === 429 || (status !== undefined && status >= 500)) {
+		return true;
+	}
+	return status === undefined;
 };
 
 const withLlmResilience = <A>(
@@ -177,6 +209,7 @@ const structuredFromProvider = <A, I>(
 			try: () =>
 				client.responses.create({
 					model: modelIdForProvider(provider.provider, jobConfig.model),
+					max_output_tokens: maxOutputTokensForJob(options.job),
 					...(jobConfig.effort === "none" ? {} : { reasoning: { effort: jobConfig.effort } }),
 					input: [
 						{ role: "system", content: options.system },

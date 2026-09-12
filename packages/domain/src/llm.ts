@@ -67,6 +67,23 @@ export const defaultLlmConfig: LlmConfig = {
 	summarize: { model: SUMMARIZE_MODEL_ID, effort: "none" },
 };
 
+/**
+ * Per-job Responses API `max_output_tokens`. OpenRouter reserves credit against this
+ * cap; omitting it defaults to 65536 and 402s a tiny classify on a funded key.
+ */
+export const LLM_JOB_MAX_OUTPUT_TOKENS: Record<LlmJobName, number> = {
+	chat: 4096,
+	extract: 4096,
+	consolidate: 768,
+	rerank: 512,
+	classify: 1024,
+	query: 768,
+	resolve: 256,
+	summarize: 1024,
+};
+
+export const maxOutputTokensForJob = (job: LlmJobName): number => LLM_JOB_MAX_OUTPUT_TOKENS[job];
+
 export type LlmUsage = {
 	readonly job: LlmJobName;
 	readonly model: string;
