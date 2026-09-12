@@ -1,4 +1,5 @@
 export { canonicalName } from "./graph/names.ts";
+export { maySupersede, parseEventAt } from "./write-extracted.ts";
 
 import type {
 	AddMemoryRequest,
@@ -10,80 +11,12 @@ import type {
 import { fillMemory } from "@yumeoi/domain";
 import { Effect } from "effect";
 import { classifyStatement } from "./classify.ts";
-import { Consolidator } from "./consolidator.ts";
-import { Embeddings } from "./embeddings.ts";
 import { Extractor } from "./extractor.ts";
 import { extractMentions, extractRelations } from "./graph/names.ts";
-import { writeGraphForMemory } from "./graph/write.ts";
 import { newShortId } from "./ids.ts";
-import { overlapCandidates, similarExistingMemories } from "./ingest.ts";
-import { type InsertMemoryInput, MemoryRepo } from "./memory-repo.ts";
-import { memoryVectorId } from "./recall.ts";
+import { MemoryRepo } from "./memory-repo.ts";
 import { coerceTypeKind } from "./types.ts";
-import { VALID_TO_SENTINEL, VectorIndex } from "./vector-index.ts";
-
-export const parseEventAt = (value: string | null | undefined): number | null => {
-	if (!value) {
-		return null;
-	}
-	const ms = Date.parse(value);
-	return Number.isFinite(ms) ? ms : null;
-};
-
-export const maySupersede = (
-	candidate: { readonly observedAt: number; readonly eventAt: number | null },
-	target: Memory,
-	documentDate: number | null,
-): boolean => {
-	const targetObserved = target.observedAt ?? 0;
-	if (candidate.observedAt < targetObserved) {
-		return false;
-	}
-	const candidateEvent = candidate.eventAt ?? documentDate ?? candidate.observedAt;
-	const targetEvent = target.eventAt ?? targetObserved;
-	return candidateEvent >= targetEvent;
-};
-
-const memoryVectorMeta = (memory: Memory, sourceId: string, documentId: string, ts: number) => ({
-	sourceId,
-	documentId,
-	kind: memory.kind,
-	type: memory.type,
-	state: memory.state,
-	ts,
-	eventAt: memory.eventAt ?? memory.observedAt ?? ts,
-	validTo: memory.validTo ? Date.parse(memory.validTo) || VALID_TO_SENTINEL : VALID_TO_SENTINEL,
-});
-
-const writeEntities = (
-	memoryId: string,
-	extracted: ExtractedMemory,
-	values: ReadonlyArray<number> | undefined,
-	userId: string,
-	now: number,
-) =>
-	writeGraphForMemory({
-		memoryId,
-		userId,
-		now,
-		entities: extracted.entities,
-		relations: extracted.relations,
-		...(values ? { values } : {}),
-		validFrom: extracted.validFrom,
-	});
-
-const toOutcome = (
-	action: RememberOutcomeItem["action"],
-	memory: Memory,
-	affected: ReadonlyArray<string> = [],
-): RememberOutcomeItem => ({
-	action,
-	id: memory.id,
-	text: memory.text,
-	type: memory.type,
-	kind: memory.kind,
-	affected: [...affected],
-});
+import { type ExtractedWriteContext, rememberExtracted } from "./write-extracted.ts";
 
 export type RememberParams = {
 	readonly userId: string;
@@ -105,200 +38,21 @@ export type RememberParams = {
 	readonly documentDate?: number | null;
 	readonly origin?: Memory["origin"];
 	readonly observedAt?: number | null;
+	readonly documentId?: string;
+	readonly chunkId?: string;
 };
 
-const rememberOne = (params: {
-	readonly userId: string;
-	readonly sourceId: string;
-	readonly extracted: ExtractedMemory;
-	readonly clientRef?: string;
-	readonly origin: Memory["origin"];
-	readonly documentDate: number | null;
-	readonly dedupe: boolean;
-	readonly observedAt?: number | null;
-}) =>
-	Effect.gen(function* () {
-		const repo = yield* MemoryRepo;
-		const embeddings = yield* Embeddings;
-		const index = yield* VectorIndex;
-		const consolidator = yield* Consolidator;
-		if (params.clientRef) {
-			const existing = yield* repo.getMemoryByClientRef(params.clientRef);
-			if (existing) {
-				return { ...toOutcome("duplicate", existing), idempotent: true };
-			}
-		}
-		const coerced = coerceTypeKind(params.extracted.type, params.extracted.kind);
-		const now = Date.now();
-		const eventAt = parseEventAt(params.extracted.eventAt);
-		const vectors = yield* embeddings
-			.embed([params.extracted.text])
-			.pipe(
-				Effect.catchTag("ProviderUnavailable", () =>
-					Effect.succeed<ReadonlyArray<ReadonlyArray<number>>>([]),
-				),
-			);
-		const values = vectors[0];
-		const similar = params.dedupe
-			? values
-				? yield* similarExistingMemories({
-						userId: params.userId,
-						text: params.extracted.text,
-						values,
-						inBatch: [],
-						inBatchValues: new Map(),
-					})
-				: overlapCandidates(yield* repo.similarMemoryCandidates([], 50), params.extracted.text)
-			: [];
-		const decision = params.dedupe
-			? yield* consolidator.decide(params.extracted.text, similar)
-			: { action: "new" as const, targetId: null, mergedText: null, reason: "dedupe-off" };
-		const target = decision.targetId
-			? (similar.find((memory) => memory.id === decision.targetId) ??
-				(yield* repo.getMemory(decision.targetId).pipe(Effect.orElseSucceed(() => null))))
-			: null;
-
-		if (decision.action === "duplicate" && target) {
-			return toOutcome("duplicate", target);
-		}
-
-		if (decision.action === "merge" && target && decision.mergedText) {
-			const updated = yield* repo.updateMemory(target.id, {
-				text: decision.mergedText,
-				importance: Math.max(target.importance, params.extracted.importance),
-			});
-			yield* repo.insertHistory({
-				memoryId: target.id,
-				text: decision.mergedText,
-				type: updated.type,
-				kind: updated.kind,
-				confidence: updated.confidence,
-				validFrom: updated.validFrom,
-				validTo: updated.validTo,
-				state: updated.state,
-				reason: "merge",
-			});
-			if (values) {
-				yield* index
-					.upsert([
-						{
-							id: memoryVectorId(updated.id),
-							values,
-							namespace: params.userId,
-							metadata: memoryVectorMeta(updated, params.sourceId, `${params.sourceId}:notes`, now),
-						},
-					])
-					.pipe(Effect.catchTag("ProviderUnavailable", () => Effect.void));
-			}
-			return toOutcome("merged", updated, [target.id]);
-		}
-
-		if (decision.action === "contradicts" && target) {
-			yield* repo.updateMemory(target.id, { confidence: target.confidence * 0.8 });
-			const insert: InsertMemoryInput = {
-				text: params.extracted.text,
-				kind: coerced.kind,
-				type: coerced.type,
-				confidence: params.extracted.confidence * 0.8,
-				importance: params.extracted.importance,
-				eventAt,
-				validFrom: params.extracted.validFrom,
-				origin: params.origin,
-				sourceId: params.sourceId,
-				...(params.clientRef !== undefined ? { clientRef: params.clientRef } : {}),
-			};
-			const created = yield* repo.insertMemory(params.userId, insert);
-			yield* repo.insertEdge(created.id, target.id, "contradicts");
-			if (values) {
-				yield* index
-					.upsert([
-						{
-							id: memoryVectorId(created.id),
-							values,
-							namespace: params.userId,
-							metadata: memoryVectorMeta(created, params.sourceId, `${params.sourceId}:notes`, now),
-						},
-					])
-					.pipe(Effect.catchTag("ProviderUnavailable", () => Effect.void));
-			}
-			yield* writeEntities(created.id, params.extracted, values, params.userId, now);
-			return toOutcome("conflict", created, [target.id]);
-		}
-
-		let supersedes = decision.action === "supersedes" ? decision.targetId : null;
-		let validTo: string | null = null;
-		let state: Memory["state"] = "active";
-		if (
-			supersedes &&
-			target &&
-			!maySupersede({ observedAt: now, eventAt }, target, params.documentDate)
-		) {
-			supersedes = null;
-			validTo =
-				target.validFrom ??
-				(target.observedAt
-					? new Date(target.observedAt).toISOString()
-					: new Date(now).toISOString());
-			state = "superseded";
-		}
-
-		const created = yield* repo.insertMemory(
-			params.userId,
-			{
-				id: newShortId("m"),
-				text: params.extracted.text,
-				kind: coerced.kind,
-				type: coerced.type,
-				confidence: params.extracted.confidence,
-				importance: params.extracted.importance,
-				eventAt,
-				validFrom: params.extracted.validFrom,
-				validTo,
-				origin: params.origin,
-				sourceId: params.sourceId,
-				state,
-				...(params.clientRef !== undefined ? { clientRef: params.clientRef } : {}),
-				...(params.observedAt !== undefined ? { observedAt: params.observedAt } : {}),
-			},
-			{ supersedes },
-		);
-		if (supersedes) {
-			yield* repo.updateMemory(supersedes, {
-				validTo: new Date(now).toISOString(),
-				state: "superseded",
-			});
-			yield* repo.insertEdge(created.id, supersedes, "supersedes");
-			yield* repo.insertHistory({
-				memoryId: supersedes,
-				text: target?.text ?? "",
-				type: target?.type ?? created.type,
-				kind: target?.kind ?? created.kind,
-				confidence: target?.confidence ?? created.confidence,
-				validFrom: target?.validFrom ?? null,
-				validTo: new Date(now).toISOString(),
-				state: "superseded",
-				reason: "supersede",
-			});
-		}
-		if (values && created.state === "active") {
-			yield* index
-				.upsert([
-					{
-						id: memoryVectorId(created.id),
-						values,
-						namespace: params.userId,
-						metadata: memoryVectorMeta(created, params.sourceId, `${params.sourceId}:notes`, now),
-					},
-				])
-				.pipe(Effect.catchTag("ProviderUnavailable", () => Effect.void));
-		}
-		yield* writeEntities(created.id, params.extracted, values, params.userId, now);
-		return toOutcome(
-			supersedes ? "superseded" : "created",
-			created,
-			supersedes ? [supersedes] : [],
-		);
-	});
+const withGraph = (item: ExtractedMemory): ExtractedMemory => {
+	if (item.entities.length > 0) {
+		return item;
+	}
+	const mentions = extractMentions(item.text);
+	return {
+		...item,
+		entities: mentions,
+		relations: extractRelations(item.text, mentions),
+	};
+};
 
 export const remember = (params: RememberParams) =>
 	Effect.gen(function* () {
@@ -340,33 +94,32 @@ export const remember = (params: RememberParams) =>
 			const classified = yield* classifyStatement(params.text);
 			items.push(classified);
 		}
-		const withGraph = items.map((item) => {
-			if (item.entities.length > 0) {
-				return item;
-			}
-			const mentions = extractMentions(item.text);
-			return {
-				...item,
-				entities: mentions,
-				relations: extractRelations(item.text, mentions),
-			};
-		});
 
+		const known: Memory[] = [];
+		const knownValues = new Map<string, ReadonlyArray<number>>();
 		const outcomes: RememberOutcomeItem[] = [];
-		for (const [index, extracted] of withGraph.entries()) {
+		for (const [index, extracted] of items.map(withGraph).entries()) {
 			const clientRef = params.items?.[index]?.clientRef;
-			outcomes.push(
-				yield* rememberOne({
-					userId: params.userId,
-					sourceId,
-					extracted,
-					...(clientRef ? { clientRef } : {}),
-					origin: params.origin ?? "agent",
-					documentDate,
-					dedupe,
-					...(params.observedAt !== undefined ? { observedAt: params.observedAt } : {}),
-				}),
-			);
+			const context: ExtractedWriteContext = {
+				userId: params.userId,
+				sourceId,
+				origin: params.origin ?? "agent",
+				documentDate,
+				dedupe,
+				inBatch: known,
+				inBatchValues: knownValues,
+				...(clientRef ? { clientRef } : {}),
+				...(params.observedAt !== undefined ? { observedAt: params.observedAt } : {}),
+				...(params.documentId !== undefined ? { documentId: params.documentId } : {}),
+				...(params.chunkId !== undefined ? { chunkId: params.chunkId } : {}),
+			};
+			const outcome = yield* rememberExtracted(extracted, context);
+			outcomes.push(outcome);
+			const repo = yield* MemoryRepo;
+			const stored = yield* repo.getMemory(outcome.id).pipe(Effect.orElseSucceed(() => null));
+			if (stored) {
+				known.push(stored);
+			}
 		}
 		return { items: outcomes };
 	});

@@ -697,6 +697,11 @@ export const sqlMemoryRepoLayer = Layer.effect(
 					INSERT OR IGNORE INTO memory_edges (src, dst, relation, created_at)
 					VALUES (${src}, ${dst}, ${relation}, ${Date.now()})
 				`.pipe(Effect.asVoid),
+			linkProvenance: (input) =>
+				sql`
+					INSERT OR IGNORE INTO memory_sources (memory_id, source_id, document_id, chunk_id)
+					VALUES (${input.memoryId}, ${input.sourceId}, ${input.documentId}, ${input.chunkId})
+				`.pipe(Effect.asVoid),
 			insertHistory: (row) =>
 				sql`
 					INSERT INTO memory_history (

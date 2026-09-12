@@ -1,24 +1,22 @@
-import {
-	type ExtractedMemory,
-	fillMemory,
-	type IngestRequest,
-	type IngestResult,
-	MEMORY_KINDS,
-	type Memory,
-} from "@yumeoi/domain";
+import type { ExtractedMemory, IngestRequest, IngestResult } from "@yumeoi/domain";
 import { Effect } from "effect";
 import { chunkMarkdown } from "./chunker.ts";
-import { Consolidator } from "./consolidator.ts";
-import { cosineSimilarity } from "./cosine.ts";
 import { Embeddings } from "./embeddings.ts";
 import { Extractor } from "./extractor.ts";
 import { sha256Hex } from "./hasher.ts";
-import { newShortId } from "./ids.ts";
 import { type CommitBatch, MemoryRepo } from "./memory-repo.ts";
 import { documentObjectKey, ObjectStore } from "./object-store.ts";
-import { chunkVectorId, memoryVectorId, parseVectorId, VECTOR_KIND_CHUNK } from "./recall.ts";
-import { coerceTypeKind } from "./types.ts";
-import { VALID_TO_SENTINEL, VectorIndex } from "./vector-index.ts";
+import { chunkVectorId, VECTOR_KIND_CHUNK } from "./recall.ts";
+import { VectorIndex } from "./vector-index.ts";
+import {
+	commitMemoryFromWrite,
+	type ExtractedWrite,
+	finalizeIngestWrites,
+	planExtractedWrite,
+	plannedMemory,
+} from "./write-extracted.ts";
+
+export { overlapCandidates, similarExistingMemories } from "./write-extracted.ts";
 
 const newId = () => crypto.randomUUID();
 
@@ -67,85 +65,9 @@ export type IngestState = {
 		readonly memories: ReadonlyArray<ExtractedMemory>;
 	}>;
 	readonly memories: CommitBatch["memories"];
+	readonly writes: ReadonlyArray<ExtractedWrite>;
 	readonly result?: IngestResult;
 };
-
-const MEMORY_KIND_FILTER = { kind: { $in: [...MEMORY_KINDS] } };
-
-export const overlapCandidates = (
-	existing: ReadonlyArray<Memory>,
-	text: string,
-): ReadonlyArray<Memory> => {
-	const needle = text.toLowerCase();
-	return existing
-		.filter((memory) => {
-			const hay = memory.text.toLowerCase();
-			return hay.includes(needle.slice(0, 24)) || needle.includes(hay.slice(0, 24));
-		})
-		.slice(0, 5);
-};
-
-const uniqueMemories = (memories: ReadonlyArray<Memory>): Memory[] => {
-	const seen = new Set<string>();
-	const out: Memory[] = [];
-	for (const memory of memories) {
-		if (seen.has(memory.id)) {
-			continue;
-		}
-		seen.add(memory.id);
-		out.push(memory);
-	}
-	return out;
-};
-
-export const similarExistingMemories = (options: {
-	readonly userId: string;
-	readonly text: string;
-	readonly values: ReadonlyArray<number>;
-	readonly inBatch: ReadonlyArray<Memory>;
-	readonly inBatchValues: ReadonlyMap<string, ReadonlyArray<number>>;
-}) =>
-	Effect.gen(function* () {
-		const index = yield* VectorIndex;
-		const repo = yield* MemoryRepo;
-
-		const vectorHits = yield* index
-			.query({
-				values: options.values,
-				namespace: options.userId,
-				topK: 5,
-				filter: MEMORY_KIND_FILTER,
-			})
-			.pipe(Effect.catchTag("ProviderUnavailable", () => Effect.succeed([])));
-
-		const vectorIds = vectorHits
-			.map((hit) => parseVectorId(hit.id))
-			.filter((parsed): parsed is { type: "memory"; id: string } => parsed?.type === "memory")
-			.map((parsed) => parsed.id);
-		const fromVector =
-			vectorIds.length > 0 ? yield* repo.listMemoriesByIds(vectorIds) : ([] as Memory[]);
-		const byId = new Map(fromVector.map((memory) => [memory.id, memory]));
-		const orderedVector = vectorIds.flatMap((id) => {
-			const memory = byId.get(id);
-			return memory ? [memory] : [];
-		});
-
-		const localRanked = [...options.inBatch]
-			.map((memory) => ({
-				memory,
-				score: cosineSimilarity(options.values, options.inBatchValues.get(memory.id) ?? []),
-			}))
-			.sort((a, b) => b.score - a.score)
-			.slice(0, 5)
-			.map((row) => row.memory);
-
-		if (orderedVector.length > 0 || localRanked.length > 0) {
-			return uniqueMemories([...orderedVector, ...localRanked]).slice(0, 5);
-		}
-
-		const recent = yield* repo.similarMemoryCandidates([], 50);
-		return overlapCandidates([...options.inBatch, ...recent], options.text);
-	});
 
 const sourceKindFor = (
 	request: IngestRequest,
@@ -188,6 +110,7 @@ export const initialIngestState = (params: IngestParams): IngestState => {
 		chunks: [],
 		extracted: [],
 		memories: [],
+		writes: [],
 	};
 };
 
@@ -336,75 +259,59 @@ const extractIngest = (state: IngestState) =>
 
 const consolidateIngest = (state: IngestState) =>
 	Effect.gen(function* () {
-		const embeddings = yield* Embeddings;
-		const consolidator = yield* Consolidator;
-		const known: Memory[] = [];
+		const known: ReturnType<typeof plannedMemory>[] = [];
 		const knownValues = new Map<string, ReadonlyArray<number>>();
-		const commitMemories: Array<CommitBatch["memories"][number]> = [];
+		const writes: ExtractedWrite[] = [];
+		const commitMemories: CommitBatch["memories"][number][] = [];
 		for (const group of state.extracted) {
 			for (const memory of group.memories) {
-				const [values] = yield* embeddings.embed([memory.text]);
-				const vector = values ?? [];
-				const similar = yield* similarExistingMemories({
+				const write = yield* planExtractedWrite(memory, {
 					userId: state.userId,
-					text: memory.text,
-					values: vector,
-					inBatch: known,
+					sourceId: state.sourceId,
+					origin: "extracted",
+					documentDate: null,
+					dedupe: true,
+					documentId: state.documentId,
+					chunkId: group.chunkId,
+					inBatch: known.filter((item): item is NonNullable<typeof item> => item !== null),
 					inBatchValues: knownValues,
 				});
-				const decision = yield* consolidator.decide(memory.text, similar);
-				if (decision.action === "duplicate") {
-					continue;
+				writes.push(write);
+				if (write.tag === "merge") {
+					const existing = commitMemories.find((row) => row.id === write.target.id);
+					if (existing) {
+						const index = commitMemories.indexOf(existing);
+						commitMemories[index] = {
+							...existing,
+							text: write.mergedText,
+							importance: write.importance,
+							chunkIds: [...new Set([...existing.chunkIds, group.chunkId])],
+						};
+					}
 				}
-				const coerced = coerceTypeKind(memory.type, memory.kind);
-				const id = newShortId("m");
-				const eventAt = memory.eventAt ? Date.parse(memory.eventAt) : Number.NaN;
-				const row = {
-					id,
-					kind: coerced.kind,
-					text: memory.text,
-					confidence: memory.confidence,
-					validFrom: memory.validFrom,
-					validTo: null,
-					supersedes: decision.action === "supersedes" ? decision.targetId : null,
-					chunkIds: [group.chunkId],
-					values: values ?? null,
-					type: coerced.type,
-					state: "active" as const,
-					importance: memory.importance,
-					eventAt: Number.isFinite(eventAt) ? eventAt : null,
-					origin: "extracted" as const,
-					entities: memory.entities,
-					relations: memory.relations,
-				};
-				commitMemories.push(row);
-				known.push(
-					fillMemory({
-						id,
-						kind: coerced.kind,
-						text: memory.text,
-						confidence: memory.confidence,
-						validFrom: memory.validFrom,
-						validTo: null,
-						supersedes: row.supersedes,
-						type: coerced.type,
-						importance: memory.importance,
-						eventAt: row.eventAt,
-						origin: "extracted",
-					}),
-				);
-				if (values) {
-					knownValues.set(id, values);
+				const commitRow = commitMemoryFromWrite(write, group.chunkId);
+				if (commitRow) {
+					commitMemories.push({
+						...commitRow,
+						values:
+							write.tag === "insert" || write.tag === "conflict" ? (write.values ?? null) : null,
+					});
+				}
+				const planned = plannedMemory(write);
+				if (planned) {
+					known.push(planned);
+					if (write.tag !== "duplicate" && write.values) {
+						knownValues.set(planned.id, write.values);
+					}
 				}
 			}
 		}
-		return { ...state, memories: commitMemories } satisfies IngestState;
+		return { ...state, memories: commitMemories, writes } satisfies IngestState;
 	});
 
 const commitIngest = (state: IngestState) =>
 	Effect.gen(function* () {
 		const repo = yield* MemoryRepo;
-		const index = yield* VectorIndex;
 		const skippedChunks = state.chunks.filter((chunk) => chunk.reused).length;
 		const batch: CommitBatch = {
 			userId: state.userId,
@@ -435,34 +342,20 @@ const commitIngest = (state: IngestState) =>
 			replaceDocument: state.existing,
 		};
 		const result = yield* repo.commit(batch);
-		const ts = Date.now();
-		const records = state.memories.flatMap((memory) =>
-			memory.values
-				? [
-						{
-							id: memoryVectorId(memory.id),
-							values: memory.values,
-							namespace: state.userId,
-							metadata: {
-								sourceId: state.sourceId,
-								documentId: state.documentId,
-								kind: memory.kind,
-								type: memory.type ?? "semantic",
-								state: memory.state ?? "active",
-								ts,
-								eventAt: memory.eventAt ?? ts,
-								validTo: VALID_TO_SENTINEL,
-							},
-						},
-					]
-				: [],
-		);
-		if (records.length > 0) {
-			yield* index.upsert(records).pipe(Effect.catchTag("ProviderUnavailable", () => Effect.void));
-		}
+		const insertedIds = new Set(state.memories.map((memory) => memory.id));
+		yield* finalizeIngestWrites(state.userId, state.writes ?? [], insertedIds);
+		const memoryCount =
+			state.writes.filter((write) => write.tag !== "duplicate").length > 0
+				? result.memoryCount +
+					state.writes
+						.filter((write) => write.tag === "merge")
+						.filter((write) => {
+							return !insertedIds.has(write.target.id);
+						}).length
+				: result.memoryCount;
 		return {
 			...state,
-			result: { ...result, skippedChunks },
+			result: { ...result, skippedChunks, memoryCount },
 		} satisfies IngestState;
 	});
 

@@ -485,15 +485,35 @@ export const memoryMemoryRepoLayer = (userId = "test-user") => {
 					retention: 1,
 				};
 				db.memories.push(memory);
+				const document = db.documents.find((item) => item.id === documentId);
 				db.links.push({
 					memoryId,
 					sourceId,
 					documentId,
 					chunkId,
-					title: "Agent notes",
-					url: null,
+					title: document?.title ?? "Agent notes",
+					url: document?.url ?? null,
 				});
 				return toMemory(memory);
+			}),
+		linkProvenance: (input) =>
+			Effect.sync(() => {
+				if (
+					db.links.some(
+						(link) => link.memoryId === input.memoryId && link.chunkId === input.chunkId,
+					)
+				) {
+					return;
+				}
+				const document = db.documents.find((item) => item.id === input.documentId);
+				db.links.push({
+					memoryId: input.memoryId,
+					sourceId: input.sourceId,
+					documentId: input.documentId,
+					chunkId: input.chunkId,
+					title: document?.title ?? "",
+					url: document?.url ?? null,
+				});
 			}),
 		updateMemory: (id, patch) =>
 			Effect.gen(function* () {
