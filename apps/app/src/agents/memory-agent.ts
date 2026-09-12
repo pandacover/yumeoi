@@ -86,6 +86,9 @@ const causeText = (cause: unknown): string => {
 	return "";
 };
 
+/** HTTP `/ingest` and SourceAgent batch-wait. Large pages can exceed the old 180s cap. */
+export const INGEST_WORKFLOW_TIMEOUT_MS = 15 * 60 * 1000;
+
 const publicError = (error: unknown): Error => {
 	if (error instanceof Error && error.message.trim()) {
 		return error;
@@ -314,24 +317,57 @@ export class MemoryAgent extends AIChatAgent<Env, MemoryAgentState> {
 	}
 
 	@callable()
-	async startIngest(request: IngestRequest): Promise<IngestResult & { instanceId?: string }> {
+	async enqueueIngest(
+		request: IngestRequest,
+	): Promise<{ instanceId?: string; pending: boolean; result?: IngestResult }> {
 		try {
 			if (!this.env.INGEST_WORKFLOW) {
-				return this.ingest(request);
+				const result = await this.ingest(request);
+				return { pending: false, result };
 			}
 			const instanceId = await this.runWorkflow("INGEST_WORKFLOW", {
 				userId: this.name,
 				request,
 			});
-			const result = await this.#waitForIngestWorkflow(instanceId);
+			return { instanceId, pending: true };
+		} catch (error) {
+			throw publicError(error);
+		}
+	}
+
+	@callable()
+	async waitForIngest(
+		instanceId: string,
+		timeoutMs = INGEST_WORKFLOW_TIMEOUT_MS,
+	): Promise<IngestResult> {
+		try {
+			const result = await this.#waitForIngestWorkflow(instanceId, timeoutMs);
 			this.setState({ ...this.state, lastIngest: result });
+			return result;
+		} catch (error) {
+			throw publicError(error);
+		}
+	}
+
+	@callable()
+	async startIngest(request: IngestRequest): Promise<IngestResult & { instanceId?: string }> {
+		try {
+			const queued = await this.enqueueIngest(request);
+			if (!queued.pending) {
+				return queued.result ?? (await this.ingest(request));
+			}
+			const instanceId = queued.instanceId ?? "";
+			const result = await this.waitForIngest(instanceId);
 			return { ...result, instanceId };
 		} catch (error) {
 			throw publicError(error);
 		}
 	}
 
-	async #waitForIngestWorkflow(instanceId: string, timeoutMs = 180_000): Promise<IngestResult> {
+	async #waitForIngestWorkflow(
+		instanceId: string,
+		timeoutMs = INGEST_WORKFLOW_TIMEOUT_MS,
+	): Promise<IngestResult> {
 		const deadline = Date.now() + timeoutMs;
 		while (Date.now() < deadline) {
 			const status = await this.getWorkflowStatus("INGEST_WORKFLOW", instanceId);
@@ -352,7 +388,7 @@ export class MemoryAgent extends AIChatAgent<Env, MemoryAgentState> {
 							: `ingest workflow ${status.status}`;
 				throw new Error(message);
 			}
-			await scheduler.wait(50);
+			await scheduler.wait(250);
 		}
 		throw new Error(`ingest workflow ${instanceId} timed out`);
 	}

@@ -1,5 +1,5 @@
 import { ProviderUnavailable, RateLimited, type Unauthorized } from "@yumeoi/domain";
-import { Duration, Effect } from "effect";
+import { Clock, Duration, Effect, Ref, Semaphore } from "effect";
 import { ConnectorHttp } from "../http.ts";
 import type { NotionBlock } from "./blocks.ts";
 import { NOTION_API_BASE, NOTION_VERSION } from "./oauth.ts";
@@ -21,7 +21,44 @@ type Paginated<T> = {
 
 export type NotionHttpError = RateLimited | ProviderUnavailable | Unauthorized;
 
-const REQUEST_GAP_MS = 350;
+/** Min gap between Notion request *starts*. Shared across concurrent child fetches (~3 req/s). */
+export const NOTION_REQUEST_GAP_MS = 300;
+/** Sibling / nested `has_children` fetches run with this bound, still gated by `NOTION_REQUEST_GAP_MS`. */
+export const NOTION_CHILD_FETCH_CONCURRENCY = 4;
+
+export type NotionFetchOptions = {
+	readonly requestGapMs?: number;
+	readonly childConcurrency?: number;
+};
+
+type RateGate = {
+	readonly acquire: Effect.Effect<void>;
+};
+
+const makeRateGate = (gapMs: number): Effect.Effect<RateGate> =>
+	Effect.gen(function* () {
+		if (gapMs <= 0) {
+			return { acquire: Effect.void };
+		}
+		const nextAt = yield* Ref.make(0);
+		const lock = yield* Semaphore.make(1);
+		return {
+			acquire: Effect.gen(function* () {
+				const waitMs = yield* lock.withPermits(1)(
+					Effect.gen(function* () {
+						const now = yield* Clock.currentTimeMillis;
+						const scheduled = yield* Ref.get(nextAt);
+						const start = Math.max(now, scheduled);
+						yield* Ref.set(nextAt, start + gapMs);
+						return start - now;
+					}),
+				);
+				if (waitMs > 0) {
+					yield* Effect.sleep(Duration.millis(waitMs));
+				}
+			}),
+		};
+	});
 
 export const notionHeaders = (accessToken: string): Record<string, string> => ({
 	authorization: `Bearer ${accessToken}`,
@@ -51,8 +88,12 @@ export const notionRequest = <T>(
 	accessToken: string,
 	path: string,
 	init?: { readonly method?: string; readonly body?: string },
+	gate?: RateGate,
 ): Effect.Effect<T, NotionHttpError, ConnectorHttp> =>
 	Effect.gen(function* () {
+		if (gate) {
+			yield* gate.acquire;
+		}
 		const http = yield* ConnectorHttp;
 		const response = yield* http
 			.fetch(`${NOTION_API_BASE}${path}`, {
@@ -79,29 +120,34 @@ export const notionRequest = <T>(
 				}),
 			);
 		}
-		const body = yield* parseJson<T>(response);
-		yield* Effect.sleep(Duration.millis(REQUEST_GAP_MS));
-		return body;
+		return yield* parseJson<T>(response);
 	});
 
 export const searchNotionPages = (
 	accessToken: string,
 	watermark: string | null,
+	options?: NotionFetchOptions,
 ): Effect.Effect<NotionSearchResult[], NotionHttpError, ConnectorHttp> =>
 	Effect.gen(function* () {
+		const gate = yield* makeRateGate(options?.requestGapMs ?? NOTION_REQUEST_GAP_MS);
 		const collected: NotionSearchResult[] = [];
 		let cursor: string | null = null;
 		let more = true;
 		while (more) {
-			const raw: unknown = yield* notionRequest<unknown>(accessToken, "/search", {
-				method: "POST",
-				body: JSON.stringify({
-					filter: { property: "object", value: "page" },
-					sort: { direction: "descending", timestamp: "last_edited_time" },
-					page_size: 100,
-					...(cursor ? { start_cursor: cursor } : {}),
-				}),
-			});
+			const raw: unknown = yield* notionRequest<unknown>(
+				accessToken,
+				"/search",
+				{
+					method: "POST",
+					body: JSON.stringify({
+						filter: { property: "object", value: "page" },
+						sort: { direction: "descending", timestamp: "last_edited_time" },
+						page_size: 100,
+						...(cursor ? { start_cursor: cursor } : {}),
+					}),
+				},
+				gate,
+			);
 			const page: Paginated<NotionSearchResult> = asPaginated<NotionSearchResult>(raw);
 			for (const item of page.results) {
 				const edited = item.last_edited_time ?? "";
@@ -116,12 +162,15 @@ export const searchNotionPages = (
 		return collected;
 	});
 
-export const fetchBlockChildren = (
+const fetchBlockChildrenWithGate = (
 	accessToken: string,
 	blockId: string,
+	gate: RateGate,
+	childConcurrency: number,
 ): Effect.Effect<NotionBlock[], NotionHttpError, ConnectorHttp> =>
 	Effect.gen(function* () {
 		const collected: NotionBlock[] = [];
+		const nested: Array<{ readonly index: number; readonly id: string }> = [];
 		let cursor: string | null = null;
 		let more = true;
 		while (more) {
@@ -131,29 +180,72 @@ export const fetchBlockChildren = (
 			const raw: unknown = yield* notionRequest<unknown>(
 				accessToken,
 				`/blocks/${encodeURIComponent(blockId)}/children${query}`,
+				undefined,
+				gate,
 			);
 			const page: Paginated<NotionBlock> = asPaginated<NotionBlock>(raw);
 			for (const block of page.results) {
+				const index = collected.length;
+				collected.push(block);
 				if (block.has_children && block.id) {
-					const children = yield* fetchBlockChildren(accessToken, block.id);
-					collected.push({ ...block, children });
-				} else {
-					collected.push(block);
+					nested.push({ index, id: block.id });
 				}
 			}
 			more = page.has_more;
 			cursor = page.next_cursor;
 		}
+		if (nested.length === 0) {
+			return collected;
+		}
+		const children = yield* Effect.forEach(
+			nested,
+			(item) => fetchBlockChildrenWithGate(accessToken, item.id, gate, childConcurrency),
+			{ concurrency: childConcurrency },
+		);
+		for (let i = 0; i < nested.length; i++) {
+			const item = nested[i];
+			const nestedChildren = children[i];
+			if (!item || !nestedChildren) {
+				continue;
+			}
+			const block = collected[item.index];
+			if (block) {
+				collected[item.index] = { ...block, children: nestedChildren };
+			}
+		}
 		return collected;
 	});
 
-export const fetchNotionPage = (accessToken: string, pageId: string) =>
+export const fetchBlockChildren = (
+	accessToken: string,
+	blockId: string,
+	options?: NotionFetchOptions,
+): Effect.Effect<NotionBlock[], NotionHttpError, ConnectorHttp> =>
 	Effect.gen(function* () {
+		const gate = yield* makeRateGate(options?.requestGapMs ?? NOTION_REQUEST_GAP_MS);
+		return yield* fetchBlockChildrenWithGate(
+			accessToken,
+			blockId,
+			gate,
+			options?.childConcurrency ?? NOTION_CHILD_FETCH_CONCURRENCY,
+		);
+	});
+
+export const fetchNotionPage = (
+	accessToken: string,
+	pageId: string,
+	options?: NotionFetchOptions,
+) =>
+	Effect.gen(function* () {
+		const gate = yield* makeRateGate(options?.requestGapMs ?? NOTION_REQUEST_GAP_MS);
+		const childConcurrency = options?.childConcurrency ?? NOTION_CHILD_FETCH_CONCURRENCY;
 		const page = yield* notionRequest<Record<string, unknown>>(
 			accessToken,
 			`/pages/${encodeURIComponent(pageId)}`,
+			undefined,
+			gate,
 		);
-		const children = yield* fetchBlockChildren(accessToken, pageId);
+		const children = yield* fetchBlockChildrenWithGate(accessToken, pageId, gate, childConcurrency);
 		return { page, children };
 	});
 

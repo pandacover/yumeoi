@@ -43,6 +43,23 @@ describe("MemoryAgent", () => {
 		expect(ingest.memoryCount).toBeGreaterThan(0);
 		expect(ingest.instanceId).toBeTruthy();
 	});
+
+	it("enqueueIngest returns an instanceId without waiting when the workflow binding exists", async () => {
+		const stub = env.MemoryAgent.getByName("enqueue-user");
+		const queued = await stub.enqueueIngest({
+			externalId: "enqueue-doc",
+			title: "Enqueue",
+			markdown: "Luv prefers Effect 4 for the yumeoi domain layer.",
+			sourceId: "generic",
+			sourceLabel: "Notes",
+			url: null,
+		});
+		expect(queued.pending).toBe(true);
+		expect(queued.instanceId).toBeTruthy();
+		const ingest = await stub.waitForIngest(queued.instanceId ?? "");
+		expect(ingest.unchanged).toBe(false);
+		expect(ingest.memoryCount).toBeGreaterThan(0);
+	});
 });
 
 describe("HTTP ingest and recall", () => {

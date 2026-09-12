@@ -9,7 +9,8 @@ import {
 	type NotionOAuthConfig,
 	notionConnectorLayer,
 } from "@yumeoi/connectors";
-import type { SourceKind, SourceStatus, SourceView } from "@yumeoi/domain";
+import type { IngestResult, SourceKind, SourceStatus, SourceView } from "@yumeoi/domain";
+import { sha256Hex } from "@yumeoi/memory";
 import { Agent, callable } from "agents";
 import { Effect, Layer, Stream } from "effect";
 
@@ -297,9 +298,16 @@ export class SourceAgent extends Agent<Env, SourceAgentState> {
 			documentsSeen: changed.length > 0 ? changed.length : previousSeen,
 		});
 		await this.#publish();
+		const pending: string[] = [];
 		for (const ref of changed) {
 			const document = await this.#fetchNormalized(layer, ref);
-			const result = await memory.startIngest({
+			const contentHash = await sha256Hex(document.markdown);
+			const previousHash = await memory.getDocumentHash(this.name, document.externalId);
+			if (previousHash === contentHash) {
+				unchanged += 1;
+				continue;
+			}
+			const queued = await memory.enqueueIngest({
 				externalId: document.externalId,
 				title: document.title,
 				markdown: document.markdown,
@@ -308,11 +316,25 @@ export class SourceAgent extends Agent<Env, SourceAgentState> {
 				url: document.url,
 				sourceKind: this.state.kind || "notion",
 			});
-			if (result.unchanged) {
-				unchanged += 1;
-			} else {
-				ingested += 1;
+			if (!queued.pending) {
+				this.#countIngest(queued.result, (delta) => {
+					unchanged += delta.unchanged;
+					ingested += delta.ingested;
+				});
+				continue;
 			}
+			if (queued.instanceId) {
+				pending.push(queued.instanceId);
+			}
+		}
+		const settled = await Promise.all(
+			pending.map((instanceId) => memory.waitForIngest(instanceId)),
+		);
+		for (const result of settled) {
+			this.#countIngest(result, (delta) => {
+				unchanged += delta.unchanged;
+				ingested += delta.ingested;
+			});
 		}
 		const nextCursor =
 			changed.reduce<string | null>((max, ref) => {
@@ -341,6 +363,21 @@ export class SourceAgent extends Agent<Env, SourceAgentState> {
 			status: "idle",
 			error: null,
 		};
+	}
+
+	#countIngest(
+		result: IngestResult | undefined,
+		add: (delta: { unchanged: number; ingested: number }) => void,
+	): void {
+		if (!result) {
+			add({ unchanged: 0, ingested: 1 });
+			return;
+		}
+		if (result.unchanged) {
+			add({ unchanged: 1, ingested: 0 });
+			return;
+		}
+		add({ unchanged: 0, ingested: 1 });
 	}
 
 	async #fetchNormalized(
