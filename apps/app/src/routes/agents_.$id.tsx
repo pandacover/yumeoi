@@ -1,5 +1,5 @@
 import { createFileRoute, notFound } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
 	formatTimestamp,
@@ -10,12 +10,26 @@ import {
 } from "../api/agent-rpc.ts";
 import { requireAuth } from "../auth/page-user.ts";
 import { CatalogList, CatalogRow } from "../components/catalog-row.tsx";
+import { copyText, McpSetup } from "../components/mcp-setup.tsx";
 import { Page, PageCrumb, PageHeader } from "../components/page.tsx";
 import { Alert, AlertDescription, AlertTitle } from "../components/ui/alert.tsx";
 import { Button } from "../components/ui/button.tsx";
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "../components/ui/empty.tsx";
 import { Spinner } from "../components/ui/spinner.tsx";
-import { agentCatalog, grantMatchesAgent, isAgentId } from "../content/catalog.ts";
+import {
+	agentById,
+	bearerMcpSnippet,
+	cursorMcpInstallUrl,
+	displayMcpUrl,
+	grantDisplayName,
+	grantMatchesAgent,
+	grantRowDetail,
+	isAgentId,
+	type McpClientId,
+	mcpSnippetForClient,
+	remoteMcpSnippet,
+	stdioMcpRemoteSnippet,
+} from "../content/catalog.ts";
 
 export const Route = createFileRoute("/agents_/$id")({
 	beforeLoad: () => requireAuth(),
@@ -31,66 +45,29 @@ export const Route = createFileRoute("/agents_/$id")({
 
 function AgentManagePage() {
 	const initial = Route.useLoaderData();
-	const agent = agentCatalog.find((item) => item.id === initial.id);
-	if (!agent) {
-		return null;
-	}
+	const agent = agentById(initial.id);
 
 	return (
 		<Page>
 			<PageCrumb current={agent.name} label="Agents" to="/agents" />
-			<PageHeader title={agent.name} description={agent.detail} />
+			<PageHeader title={agent.name} description={agent.summary} />
 			{initial.id === "http" ? <HttpManage /> : <McpManage id={initial.id} />}
 		</Page>
 	);
 }
 
-function McpManage({ id }: { id: "cursor" | "claude" }) {
+function McpManage({ id }: { id: McpClientId }) {
 	const initial = Route.useLoaderData();
 	const [grants, setGrants] = useState(initial.grants);
 	const [busy, setBusy] = useState<string | null>(null);
-	const origin = typeof window === "undefined" ? "" : window.location.origin;
-	const mcpUrl = `${origin}${initial.mcpPath}`;
-	const snippet = useMemo(() => {
-		if (id === "claude") {
-			return JSON.stringify(
-				{
-					mcpServers: {
-						horizon: {
-							command: "npx",
-							args: ["mcp-remote", mcpUrl || "https://<your-worker>/mcp"],
-						},
-					},
-				},
-				null,
-				2,
-			);
-		}
-		return JSON.stringify(
-			{
-				mcpServers: {
-					horizon: {
-						url: mcpUrl || "https://<your-worker>/mcp",
-					},
-				},
-			},
-			null,
-			2,
-		);
-	}, [id, mcpUrl]);
+	const [origin, setOrigin] = useState("");
+	useEffect(() => {
+		setOrigin(window.location.origin);
+	}, []);
+	const mcpUrl = displayMcpUrl(origin, initial.mcpPath);
+	const snippet = useMemo(() => mcpSnippetForClient(id, mcpUrl), [id, mcpUrl]);
 	const mine = grants.filter((grant) => grantMatchesAgent(id, grant));
-	const others = grants.filter(
-		(grant) => !grantMatchesAgent("cursor", grant) && !grantMatchesAgent("claude", grant),
-	);
-
-	const copy = async (label: string, value: string) => {
-		try {
-			await navigator.clipboard.writeText(value);
-			toast.success(label === "url" ? "Copied URL" : "Copied config");
-		} catch {
-			toast.error("Could not copy to the clipboard.");
-		}
-	};
+	const installUrl = id === "cursor" ? cursorMcpInstallUrl(mcpUrl) : null;
 
 	const revoke = async (grantId: string) => {
 		setBusy(grantId);
@@ -107,29 +84,70 @@ function McpManage({ id }: { id: "cursor" | "claude" }) {
 
 	return (
 		<div className="flex flex-col gap-8">
-			<p className="text-sm text-muted-foreground">
-				{id === "cursor"
-					? "Paste this into Cursor MCP settings. Cursor opens a browser for OAuth and returns to http://localhost:8787/callback on your machine — that is Cursor's loopback, not this Worker. Do not put an API key in this config."
-					: "Paste this URL into Claude connectors (Customize → Connectors → Add custom connector), or use the config below in Claude Desktop. Claude opens this site to allow access, then the browser must return to Claude. Click Allow access once and wait — do not press it again. Do not put an API key in this config."}
-			</p>
-			<p className="font-mono text-sm break-all">{mcpUrl || initial.mcpPath}</p>
-			<div className="flex flex-wrap gap-2">
-				<Button size="sm" variant="outline" onClick={() => copy("url", mcpUrl || initial.mcpPath)}>
-					Copy URL
-				</Button>
-				<Button size="sm" variant="outline" onClick={() => copy("snippet", snippet)}>
-					Copy config
-				</Button>
-			</div>
-			<pre className="overflow-x-auto bg-muted p-3 font-mono text-xs text-muted-foreground">
-				{snippet}
-			</pre>
+			<McpSetup
+				help={<McpHelp id={id} />}
+				mcpUrl={mcpUrl}
+				scopes={initial.scopes}
+				snippet={snippet}
+				actions={
+					installUrl ? (
+						<Button
+							nativeButton={false}
+							render={
+								// biome-ignore lint/a11y/useAnchorContent: Button children supply the label
+								<a href={installUrl} />
+							}
+							size="sm"
+						>
+							Add to Cursor
+						</Button>
+					) : null
+				}
+			/>
+			{id === "claude" ? (
+				<details className="flex flex-col gap-2">
+					<summary className="cursor-pointer text-sm text-muted-foreground">
+						Remote URL config (if the host supports HTTP MCP)
+					</summary>
+					<pre className="overflow-x-auto bg-muted p-3 font-mono text-xs text-muted-foreground">
+						{remoteMcpSnippet(mcpUrl)}
+					</pre>
+					<Button
+						className="self-start"
+						size="sm"
+						variant="outline"
+						onClick={() => void copyText("Copied config", remoteMcpSnippet(mcpUrl))}
+					>
+						Copy remote config
+					</Button>
+				</details>
+			) : null}
+			{id === "mcp" ? (
+				<details className="flex flex-col gap-2">
+					<summary className="cursor-pointer text-sm text-muted-foreground">
+						stdio via mcp-remote (hosts that cannot speak HTTP MCP)
+					</summary>
+					<pre className="overflow-x-auto bg-muted p-3 font-mono text-xs text-muted-foreground">
+						{stdioMcpRemoteSnippet(mcpUrl)}
+					</pre>
+					<Button
+						className="self-start"
+						size="sm"
+						variant="outline"
+						onClick={() => void copyText("Copied config", stdioMcpRemoteSnippet(mcpUrl))}
+					>
+						Copy mcp-remote config
+					</Button>
+				</details>
+			) : null}
 			<section className="flex flex-col gap-4">
 				<h2 className="font-heading text-base font-medium">Connected</h2>
 				{mine.length === 0 ? (
 					<Empty className="border">
 						<EmptyHeader>
-							<EmptyTitle>No {agentLabel(id)} grant yet</EmptyTitle>
+							<EmptyTitle>
+								{id === "mcp" ? "No other MCP grant yet" : `No ${agentById(id).name} grant yet`}
+							</EmptyTitle>
 							<EmptyDescription>Add the config, then approve OAuth.</EmptyDescription>
 						</EmptyHeader>
 					</Empty>
@@ -138,8 +156,8 @@ function McpManage({ id }: { id: "cursor" | "claude" }) {
 						{mine.map((grant) => (
 							<CatalogRow
 								key={grant.id}
-								title={grant.clientName}
-								detail={`${grant.scopes.join(", ")} · ${formatTimestamp(grant.createdAt)}`}
+								title={grantDisplayName(grant)}
+								detail={grantRowDetail(grant, formatTimestamp(grant.createdAt))}
 								action={
 									<Button
 										disabled={busy !== null}
@@ -156,31 +174,37 @@ function McpManage({ id }: { id: "cursor" | "claude" }) {
 					</CatalogList>
 				)}
 			</section>
-			{id === "cursor" && others.length > 0 ? (
-				<section className="flex flex-col gap-4">
-					<h2 className="font-heading text-base font-medium">Other MCP clients</h2>
-					<CatalogList>
-						{others.map((grant) => (
-							<CatalogRow
-								key={grant.id}
-								title={grant.clientName}
-								detail={grant.clientId}
-								action={
-									<Button
-										disabled={busy !== null}
-										size="sm"
-										variant="ghost"
-										onClick={() => void revoke(grant.id)}
-									>
-										Revoke
-									</Button>
-								}
-							/>
-						))}
-					</CatalogList>
-				</section>
-			) : null}
 		</div>
+	);
+}
+
+function McpHelp({ id }: { id: McpClientId }) {
+	if (id === "cursor") {
+		return (
+			<p className="text-sm text-muted-foreground">
+				Paste this into Cursor MCP settings, or use Add to Cursor. Cursor opens a browser for OAuth
+				and returns to <code>http://localhost:8787/callback</code> on your machine — that is
+				Cursor's loopback, not this Worker. Do not put an API key in this config.
+			</p>
+		);
+	}
+	if (id === "claude") {
+		return (
+			<p className="text-sm text-muted-foreground">
+				Paste this URL into Claude connectors (Customize → Connectors → Add custom connector), or
+				use the mcp-remote config below in Claude Desktop. Claude opens this site to allow access,
+				then the browser must return to Claude. Click Allow access once and wait — do not press it
+				again. Do not put an API key in this config.
+			</p>
+		);
+	}
+	return (
+		<p className="text-sm text-muted-foreground">
+			Use this URL in Windsurf, Codex, Continue, or any other MCP host that speaks remote HTTP MCP.
+			The host opens a browser for OAuth; after you allow access it returns to that client. Grants
+			Horizon cannot classify as Cursor or Claude Desktop show up here. Do not put an API key in
+			this config.
+		</p>
 	);
 }
 
@@ -189,33 +213,22 @@ function HttpManage() {
 	const [keys, setKeys] = useState(initial.keys);
 	const [mintedToken, setMintedToken] = useState("");
 	const [busy, setBusy] = useState<string | null>(null);
-	const origin = typeof window === "undefined" ? "" : window.location.origin;
-	const mcpUrl = `${origin}${initial.mcpPath}`;
+	const [origin, setOrigin] = useState("");
+	useEffect(() => {
+		setOrigin(window.location.origin);
+	}, []);
+	const mcpUrl = displayMcpUrl(origin, initial.mcpPath);
 	const headlessSnippet = useMemo(
-		() =>
-			JSON.stringify(
-				{
-					mcpServers: {
-						horizon: {
-							url: mcpUrl || "https://<your-worker>/mcp",
-							headers: {
-								Authorization: "Bearer ym_…",
-							},
-						},
-					},
-				},
-				null,
-				2,
-			),
-		[mcpUrl],
+		() => bearerMcpSnippet(mcpUrl, mintedToken || "ym_…"),
+		[mcpUrl, mintedToken],
 	);
 
 	return (
 		<div className="flex flex-col gap-8">
 			<p className="text-sm text-muted-foreground">
 				Mint a <code>ym_</code> key for curl, scripts, or other headless clients that send{" "}
-				<code>Authorization: Bearer</code>. Not for Cursor or Claude OAuth. The full token is shown
-				once.
+				<code>Authorization: Bearer</code>. Not for MCP OAuth — Cursor, Claude Desktop, and other
+				MCP hosts use the MCP section. The full token is shown once.
 			</p>
 			<Button
 				disabled={busy !== null}
@@ -245,7 +258,7 @@ function HttpManage() {
 				</Alert>
 			) : null}
 			<pre className="overflow-x-auto bg-muted p-3 font-mono text-xs text-muted-foreground">
-				{mintedToken ? headlessSnippet.replace("ym_…", mintedToken) : headlessSnippet}
+				{headlessSnippet}
 			</pre>
 			{keys.length === 0 ? (
 				<Empty className="border">
@@ -293,5 +306,3 @@ function HttpManage() {
 		</div>
 	);
 }
-
-const agentLabel = (id: "cursor" | "claude"): string => (id === "cursor" ? "Cursor" : "Claude");
