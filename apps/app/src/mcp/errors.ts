@@ -1,10 +1,34 @@
-import { hintForFieldIssues, mapToolFailure } from "@yumeoi/domain";
+import {
+	formatToolErrorText,
+	hintForFieldIssues,
+	mapToolFailure,
+	retryWithForTool,
+} from "@yumeoi/domain";
 import { z } from "zod";
+import { parseHorizonInput } from "./schemas.ts";
 
-export const toolError = (error: string, hint: string) => ({
-	isError: true as const,
-	content: [{ type: "text" as const, text: JSON.stringify({ error, hint }) }],
-});
+const formatError = (
+	error: string,
+	hint: string,
+	context: { readonly tool: string; readonly input?: unknown },
+) => {
+	const retry_with = retryWithForTool(context.tool, context.input ?? {}, { error, hint });
+	return {
+		isError: true as const,
+		content: [
+			{
+				type: "text" as const,
+				text: formatToolErrorText({ tool: context.tool, error, hint, retry_with }),
+			},
+		],
+	};
+};
+
+export const toolError = (
+	error: string,
+	hint: string,
+	context: { readonly tool: string; readonly input?: unknown } = { tool: "tool" },
+) => formatError(error, hint, context);
 
 const isZodError = (caught: unknown): caught is z.ZodError => {
 	if (caught instanceof z.ZodError) {
@@ -21,9 +45,12 @@ const isZodError = (caught: unknown): caught is z.ZodError => {
 	);
 };
 
-export const asError = (caught: unknown) => {
+export const asError = (
+	caught: unknown,
+	context: { readonly tool: string; readonly input?: unknown } = { tool: "tool" },
+) => {
 	if (isZodError(caught)) {
-		return toolError(
+		return formatError(
 			"invalid_input",
 			hintForFieldIssues(
 				caught.issues.map((issue) => ({
@@ -32,10 +59,11 @@ export const asError = (caught: unknown) => {
 					code: issue.code,
 				})),
 			),
+			context,
 		);
 	}
 	const mapped = mapToolFailure(caught);
-	return toolError(mapped.error, mapped.hint);
+	return formatError(mapped.error, mapped.hint, context);
 };
 
 export const jsonText = (value: unknown) => ({
@@ -47,17 +75,18 @@ export const textResult = (text: string) => ({
 });
 
 export const runTool = async <S extends z.ZodType, R>(
+	tool: string,
 	schema: S,
 	raw: unknown,
 	run: (input: z.infer<S>) => Promise<R>,
 ): Promise<R | ReturnType<typeof asError>> => {
-	const parsed = schema.safeParse(raw ?? {});
+	const { prepared, parsed } = parseHorizonInput(schema, raw);
 	if (!parsed.success) {
-		return asError(parsed.error);
+		return asError(parsed.error, { tool, input: prepared });
 	}
 	try {
 		return await run(parsed.data);
 	} catch (caught) {
-		return asError(caught);
+		return asError(caught, { tool, input: parsed.data });
 	}
 };

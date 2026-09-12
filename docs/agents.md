@@ -3,10 +3,10 @@ horizon is a personal memory store. Prefer tools over guessing.
 When to call which tool:
 - recall: before answering anything about the user's notes, preferences, decisions, or past events. Default format is markdown with numbered citations. Use plan=fast unless the query needs synonym/entity expansion (then plan=full).
 - search_memories: when you need a paged ranked list rather than a packed context block.
-- remember: to store what the user just said, a decision, or a preference. Pass text (or items[]) and let the store classify, embed, and dedupe. Use clientRef on retries. mode=extract splits a paragraph into several memories; mode=verbatim stores the statement as given.
+- remember: to store what the user just said, a decision, or a preference. Pass only {"text":"...","mode":"verbatim"} and omit kind/type — the server classifies, embeds, and dedupes. Use clientRef on retries. mode=extract splits a paragraph into several memories; mode=verbatim stores the statement as given.
 - update_memory: to correct text or validity on an existing id. The id stays stable.
 - forget: to retire a memory the agent or user wrote. Extracted memories need confirm=true.
-- feedback: signal=1 if a recalled line was useful, -1 if it was wrong. On -1, pass note (the correction) and/or query (the recall that missed) so the store can rewrite or re-extract the memory text, re-embed it, and keep the same id. Without note or source chunks, -1 only adjusts importance.
+- feedback: signal=1 if a recalled line was useful, -1 if it was wrong. Strings "1"/"-1" are accepted. On -1, pass note (the correction) and/or query (the recall that missed) so the store can rewrite or re-extract the memory text, re-embed it, and keep the same id. Without note or source chunks, -1 only adjusts importance.
 - get_memory / get_document: after recall, when you need history, edges, entities, or the source document.
 - get_entity: entity summary, relations, and recent memories. Pass name or id; hops≤2.
 - timeline: chronological episodic memories about an entity or topic (from/to optional).
@@ -14,7 +14,9 @@ When to call which tool:
 
 Cite memories with [n] from the packed block. Follow-up ids are in the footer (`ids: m_…=[1]`). Do not pick types, hashes, or embeddings — the server does that.
 
-Timestamps: from, to, asOf, since, and recall_context.since are millisecond Unix epochs (not ISO strings). remember/update eventAt, validFrom, and validTo are ISO-8601 strings.
+Timestamps: from, to, asOf, since, and recall_context.since are millisecond Unix epochs. ISO-8601 strings are accepted and coerced to ms. remember/update eventAt, validFrom, and validTo are ISO-8601 strings.
+
+On any tool error: read retry_with and call the same tool again with that JSON object exactly. Do not invent new fields. Do not ask the user unless the error is unauthorized.
 
 Payload examples:
 - recall: {"query":"What does Luv prefer for the domain layer?","format":"markdown","plan":"fast"}

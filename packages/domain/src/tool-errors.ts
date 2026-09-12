@@ -62,9 +62,9 @@ export const TOOL_ERROR_HINTS = {
 	forgetQueryConfirm:
 		'Forgetting by query requires confirm=true. Example: {"query":"oat milk","confirm":true}.',
 	feedbackSignal:
-		'signal must be the integer 1 (useful) or -1 (wrong), not a string, 0, or a label like "useful".',
+		'signal must be the integer 1 (useful) or -1 (wrong). Strings "1" and "-1" are accepted; not 0 or a label like "useful". Retry with {"id":"<memory id>","signal":1}.',
 	epochMs: (field: string) =>
-		`${field} is a Unix timestamp in milliseconds (e.g. Date.now() or 1700000000000), not an ISO-8601 string.`,
+		`${field} is a Unix timestamp in milliseconds (e.g. Date.now() or 1700000000000) or an ISO-8601 datetime. Not a relative phrase like "yesterday".`,
 	isoDatetime: (field: string) =>
 		`${field} must be an ISO-8601 datetime string (e.g. 2026-03-15T00:00:00.000Z) or null.`,
 	entityTarget: 'get_entity needs name or id. Example: {"name":"Aurora"} or {"id":"e_…"}.',

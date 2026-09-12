@@ -85,9 +85,13 @@ describe("P2 MCP agent experience", () => {
 		expect(text).toContain("text or items");
 		expect(text).toMatch(/signal[\s\S]{0,400}1/);
 		expect(text).toContain("ISO-8601");
+		expect(text).toContain("Example:");
+		expect(text).toMatch(/mode\\?":\\?"verbatim/);
+		expect(text).toMatch(/query\\?":\\?"\.\.\./);
+		expect(text).toMatch(/signal\\?":\s*1/);
 	});
 
-	it("invalid remember/feedback/forget payloads return structured hints", async () => {
+	it("invalid remember/feedback/forget payloads return retry_with; ISO from is coerced", async () => {
 		const remember = await mcpResultText({
 			jsonrpc: "2.0",
 			id: 11,
@@ -96,6 +100,8 @@ describe("P2 MCP agent experience", () => {
 		});
 		expect(remember).toContain("invalid_input");
 		expect(remember).toContain("text or items");
+		expect(remember).toContain("retry_with");
+		expect(remember).toMatch(/text\\?":\\?"\.\.\./);
 		expect(remember).not.toContain("Input validation error");
 
 		const feedback = await mcpResultText({
@@ -105,7 +111,10 @@ describe("P2 MCP agent experience", () => {
 			params: { name: "feedback", arguments: { id: "m_missing", signal: "useful" } },
 		});
 		expect(feedback).toContain("invalid_input");
-		expect(feedback).toMatch(/signal must be the integer 1/);
+		expect(feedback).toMatch(/signal must be/);
+		expect(feedback).toContain("retry_with");
+		expect(feedback).toMatch(/id\\?":\\?"m_missing/);
+		expect(feedback).toMatch(/signal\\?":\s*1/);
 
 		const recall = await mcpResultText({
 			jsonrpc: "2.0",
@@ -113,8 +122,7 @@ describe("P2 MCP agent experience", () => {
 			method: "tools/call",
 			params: { name: "recall", arguments: { query: "prefs", from: "2026-01-01" } },
 		});
-		expect(recall).toContain("invalid_input");
-		expect(recall).toMatch(/milliseconds/);
+		expect(recall).not.toContain("invalid_input");
 
 		const missing = await mcpResultText({
 			jsonrpc: "2.0",
@@ -123,5 +131,6 @@ describe("P2 MCP agent experience", () => {
 			params: { name: "get_memory", arguments: { id: "m_does_not_exist_xx" } },
 		});
 		expect(missing).toMatch(/not_found|not found/i);
+		expect(missing).toContain("retry_with");
 	}, 30_000);
 });

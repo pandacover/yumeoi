@@ -1,4 +1,9 @@
-import { MEMORY_KINDS, MEMORY_TYPES, TOOL_FIELD_DESCRIPTIONS } from "@yumeoi/domain";
+import {
+	MEMORY_KINDS,
+	MEMORY_TYPES,
+	preprocessToolInput,
+	TOOL_FIELD_DESCRIPTIONS,
+} from "@yumeoi/domain";
 import { z } from "zod";
 
 const F = TOOL_FIELD_DESCRIPTIONS;
@@ -204,3 +209,9 @@ export const advertiseInput = <S extends z.ZodType>(schema: S) => {
 
 export const mcpInputJsonSchema = (schema: z.ZodType): Record<string, unknown> =>
 	z.toJSONSchema(schema) as Record<string, unknown>;
+
+/** Shared preprocess + Zod parse used by `runTool`. Canonical schemas stay strict for tools/list. */
+export const parseHorizonInput = <S extends z.ZodType>(schema: S, raw: unknown) => {
+	const prepared = preprocessToolInput(raw ?? {});
+	return { prepared, parsed: schema.safeParse(prepared) };
+};

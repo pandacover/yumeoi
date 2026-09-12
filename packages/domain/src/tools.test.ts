@@ -4,11 +4,13 @@ import { InvalidRequest, NotFound, Unauthorized } from "./errors.ts";
 import { hintForFieldIssues, mapToolFailure, TOOL_ERROR_HINTS } from "./tool-errors.ts";
 import {
 	AddMemoryAliasInput,
+	AGENT_INSTRUCTIONS,
 	ChangesSinceToolInput,
 	FeedbackToolInput,
 	ForgetToolInput,
 	GetEntityToolInput,
 	GetMemoryToolInput,
+	MCP_TOOL_DESCRIPTIONS,
 	RecallContextAliasInput,
 	RecallToolInput,
 	RememberToolInput,
@@ -118,6 +120,12 @@ describe("tool contract v2", () => {
 		expect(byPath.get("confirm")).toMatch(/confirm/i);
 		expect(byPath.get("text") ?? byPath.get("items")).toBeTruthy();
 		expect(described.every((item) => item.description.length > 8)).toBe(true);
+		expect(AGENT_INSTRUCTIONS).toContain("retry_with");
+		expect(AGENT_INSTRUCTIONS).toMatch(/Do not invent new fields/);
+		expect(MCP_TOOL_DESCRIPTIONS.remember).toContain("Example:");
+		expect(MCP_TOOL_DESCRIPTIONS.recall).toContain("Example:");
+		expect(MCP_TOOL_DESCRIPTIONS.feedback).toContain("Example:");
+		expect(MCP_TOOL_DESCRIPTIONS.forget).toContain("Example:");
 		const recallProps = toolInputJsonSchema(RecallToolInput).properties;
 		expect(isRecord(recallProps)).toBe(true);
 		if (isRecord(recallProps)) {
