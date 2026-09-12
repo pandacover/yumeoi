@@ -8,7 +8,7 @@ import {
 	RiUserLine,
 } from "@remixicon/react";
 import { Link, useRouterState } from "@tanstack/react-router";
-import { type ComponentType, type ReactNode, useState } from "react";
+import { type ComponentType, type ReactNode, useEffect, useState } from "react";
 import { ClerkShow } from "~/components/clerk-show.tsx";
 import { LandingSidebarNav } from "~/components/landing-sidebar-nav.tsx";
 import { pageTopPaddingClass } from "~/components/page.tsx";
@@ -150,6 +150,22 @@ function AppSidebarMenu({ pathname }: { pathname: string }) {
 
 function MobileNav({ onLanding, pathname }: { onLanding: boolean; pathname: string }) {
 	const [open, setOpen] = useState(false);
+	const [menuPath, setMenuPath] = useState(pathname);
+	if (menuPath !== pathname) {
+		setMenuPath(pathname);
+		setOpen(false);
+	}
+
+	useEffect(() => {
+		const closeOnDesktop = () => {
+			if (window.matchMedia("(min-width: 768px)").matches) {
+				setOpen(false);
+			}
+		};
+		closeOnDesktop();
+		window.addEventListener("resize", closeOnDesktop);
+		return () => window.removeEventListener("resize", closeOnDesktop);
+	}, []);
 
 	return (
 		<header className="flex h-12 shrink-0 items-center gap-2 border-b bg-background px-3 md:hidden">

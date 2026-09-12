@@ -10,7 +10,7 @@ export const Route = createFileRoute("/profile/$")({
 
 function ProfilePage() {
 	return (
-		<Page wide className="max-w-4xl">
+		<Page wide className="max-w-none">
 			<PageHeader title="Profile" description="Account, security, and sign-out." />
 			<div className="w-full min-w-0 overflow-x-auto">
 				<UserProfile path="/profile" routing="path" />
