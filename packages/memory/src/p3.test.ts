@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { fillMemory } from "@yumeoi/domain";
 import { defaultRetrievalConfig } from "./retrieval/config.ts";
 import { fuseMemories, validAt, weightedRrf } from "./retrieval/fuse.ts";
+import { packRecall } from "./retrieval/pack.ts";
 import { freshness, planQueryFast } from "./retrieval/plan.ts";
 import { blendRerank, mmrDiversify } from "./retrieval/rerank.ts";
 
@@ -121,5 +122,114 @@ describe("P3 retrieval helpers", () => {
 			},
 		);
 		expect(blended.get("b") ?? 0).toBeGreaterThan(blended.get("a") ?? 0);
+	});
+
+	test("fuse ranks Horizon product memories above generic memory articles", () => {
+		const lists = {
+			fts: ["article", "horizon", "salary"],
+			vector: ["salary", "article", "horizon"],
+			graph: [],
+			recent: [],
+			ftsChunks: [],
+			vectorChunks: [],
+			vectorValues: new Map<string, ReadonlyArray<number>>(),
+		};
+		const memories = [
+			fillMemory({
+				id: "article",
+				kind: "fact",
+				text: "Episodic Memory is a long-term memory (LTM) system in the MNEME paper.",
+				confidence: 0.95,
+				validFrom: null,
+				validTo: null,
+				supersedes: null,
+				importance: 0.8,
+			}),
+			fillMemory({
+				id: "horizon",
+				kind: "fact",
+				text: "Horizon is a memory product for continual learning over the user's work context.",
+				confidence: 0.9,
+				validFrom: null,
+				validTo: null,
+				supersedes: null,
+				importance: 0.7,
+			}),
+			fillMemory({
+				id: "salary",
+				kind: "fact",
+				text: "Current salary is ₹160k with investments of ₹85k. S&P 500 closed at 1396.87.",
+				confidence: 0.99,
+				validFrom: null,
+				validTo: null,
+				supersedes: null,
+				importance: 0.95,
+			}),
+		];
+		const plan = planQueryFast({
+			query: "Horizon memory product, continual learning, user's work context",
+		});
+		const scores = fuseMemories({
+			lists,
+			memories,
+			plan,
+			config: defaultRetrievalConfig,
+		});
+		expect(scores.get("horizon") ?? 0).toBeGreaterThan(scores.get("article") ?? 0);
+		expect(scores.get("horizon") ?? 0).toBeGreaterThan(scores.get("salary") ?? 0);
+	});
+
+	test("packRecall drops weak keyword hits instead of filling the budget", () => {
+		const horizon = fillMemory({
+			id: "horizon",
+			kind: "fact",
+			text: "Horizon is a continual-learning memory product for work context.",
+			confidence: 0.9,
+			validFrom: null,
+			validTo: null,
+			supersedes: null,
+		});
+		const article = fillMemory({
+			id: "article",
+			kind: "fact",
+			text: "Episodic Memory / MNEME / LTM notes from a Notion article.",
+			confidence: 0.95,
+			validFrom: null,
+			validTo: null,
+			supersedes: null,
+		});
+		const salary = fillMemory({
+			id: "salary",
+			kind: "fact",
+			text: "Current salary is ₹160k.",
+			confidence: 0.99,
+			validFrom: null,
+			validTo: null,
+			supersedes: null,
+		});
+		const packed = packRecall({
+			memories: [article, salary, horizon],
+			scores: new Map([
+				["horizon", 0.04],
+				["article", 0.006],
+				["salary", 0.002],
+			]),
+			why: new Map([
+				["horizon", ["kw", "vec"]],
+				["article", ["kw"]],
+				["salary", ["vec"]],
+			]),
+			provenance: [],
+			chunks: [],
+			chunkScores: new Map(),
+			chunkMeta: [],
+			budgetTokens: 1500,
+			includeEvidence: false,
+			conflicts: [],
+			format: "json",
+			scoreFloorRatio: defaultRetrievalConfig.scoreFloorRatio,
+			minPackScore: defaultRetrievalConfig.minPackScore,
+		});
+		expect(packed.memories.map((hit) => hit.memory.id)).toEqual(["horizon"]);
 	});
 });

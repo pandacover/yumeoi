@@ -2,9 +2,10 @@ import type { QueryPlan, RecallQuery, SearchQuery } from "@yumeoi/domain";
 import { Effect } from "effect";
 import { graphCandidateIds } from "../graph/expand.ts";
 import { MemoryRepo, type RankedId, type SearchFilters } from "../memory-repo.ts";
-import { ftsMatchQuery } from "../rrf.ts";
+import { ftsMatchQuery, ftsMatchWeighted } from "../rrf.ts";
 import { VALID_TO_SENTINEL, VectorIndex } from "../vector-index.ts";
 import { defaultRetrievalConfig, type RetrievalConfig } from "./config.ts";
+import { weightQueryTerms } from "./terms.ts";
 
 export type CandidateLists = {
 	readonly fts: ReadonlyArray<string>;
@@ -87,7 +88,8 @@ export const collectCandidates = (input: {
 		const repo = yield* MemoryRepo;
 		const index = yield* VectorIndex;
 		const filters = asSearchFilters(input.query, input.plan, config.ftsLimit);
-		const match = ftsMatchQuery(input.plan.terms.join(" ") || input.plan.text);
+		const match =
+			ftsMatchWeighted(weightQueryTerms(input.plan.terms)) ?? ftsMatchQuery(input.plan.text);
 
 		const ftsMemories = match ? yield* repo.searchMemoryFts(match, filters) : ([] as RankedId[]);
 		const vector =

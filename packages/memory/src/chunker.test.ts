@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { chunkMarkdown } from "./chunker.ts";
-import { ftsMatchQuery, recencyBoost, rrfScore } from "./rrf.ts";
+import { ftsMatchQuery, ftsMatchWeighted, parseFtsMatch, recencyBoost, rrfScore } from "./rrf.ts";
 
 describe("chunkMarkdown", () => {
 	test("splits on headings and keeps utf-8 byte ranges", () => {
@@ -40,5 +40,18 @@ describe("rrf", () => {
 	test("ftsMatchQuery quotes tokens", () => {
 		expect(ftsMatchQuery("hello, yumeoi!")).toBe('"hello" OR "yumeoi"');
 		expect(ftsMatchQuery("???")).toBeNull();
+	});
+
+	test("ftsMatchWeighted boosts specific terms", () => {
+		expect(
+			ftsMatchWeighted([
+				{ term: "Horizon", weight: 12 },
+				{ term: "memory", weight: 1 },
+			]),
+		).toBe('"Horizon"^12 OR "memory"');
+		expect(parseFtsMatch('"Horizon"^12 OR "memory"')).toEqual([
+			{ term: "Horizon", weight: 12 },
+			{ term: "memory", weight: 1 },
+		]);
 	});
 });

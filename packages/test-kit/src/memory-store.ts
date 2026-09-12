@@ -14,6 +14,7 @@ import {
 	MemoryRepo,
 	newShortId,
 	ObjectStore,
+	parseFtsMatch,
 	type SearchFilters,
 	VectorIndex,
 } from "@yumeoi/memory";
@@ -1041,16 +1042,28 @@ const strip = (memory: StoredMemory, store: Stored): Memory =>
 	});
 
 const needle = (match: string, text: string): boolean => {
-	const tokens = match
-		.replaceAll('"', "")
-		.split(" OR ")
-		.map((token) => token.trim().toLowerCase());
+	const terms = parseFtsMatch(match);
+	if (terms.length === 0) {
+		return true;
+	}
 	const hay = text.toLowerCase();
-	return tokens.some((token) => token.length > 0 && hay.includes(token));
+	return terms.some((term) => term.term.length > 0 && hay.includes(term.term.toLowerCase()));
 };
 
-const filterMemories = (db: Stored, match: string, filters: SearchFilters) =>
-	db.memories.filter((memory) => {
+const ftsWeight = (match: string, text: string): number => {
+	const terms = parseFtsMatch(match);
+	if (terms.length === 0) {
+		return 0;
+	}
+	const hay = text.toLowerCase();
+	return terms.reduce(
+		(sum, term) => sum + (hay.includes(term.term.toLowerCase()) ? term.weight : 0),
+		0,
+	);
+};
+
+const filterMemories = (db: Stored, match: string, filters: SearchFilters) => {
+	const filtered = db.memories.filter((memory) => {
 		const asOf = filters.asOf ?? null;
 		if (asOf != null) {
 			const observed = memory.observedAt ?? memory.createdAt;
@@ -1107,6 +1120,13 @@ const filterMemories = (db: Stored, match: string, filters: SearchFilters) =>
 		}
 		return true;
 	});
+	if (match.trim().length === 0) {
+		return filtered;
+	}
+	return [...filtered].sort(
+		(left, right) => ftsWeight(match, right.text) - ftsWeight(match, left.text),
+	);
+};
 
 export const inMemoryVectorIndexLayer = (options?: {
 	readonly onDelete?: (ids: ReadonlyArray<string>) => void;

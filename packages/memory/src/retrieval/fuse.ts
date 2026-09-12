@@ -3,6 +3,7 @@ import { useFactor } from "../retention.ts";
 import type { CandidateLists } from "./candidates.ts";
 import type { RetrievalConfig } from "./config.ts";
 import { freshness } from "./plan.ts";
+import { coverageMultiplier, specificQueryTerms, termCoverage } from "./terms.ts";
 
 export const weightedRrf = (
 	lists: ReadonlyArray<{ readonly ids: ReadonlyArray<string>; readonly weight: number }>,
@@ -60,6 +61,11 @@ export const fuseMemories = (input: {
 	);
 	const byId = new Map(input.memories.map((memory) => [memory.id, memory]));
 	const asOf = input.plan.asOf;
+	const specific = specificQueryTerms(input.plan.terms);
+	const ftsSet = new Set(input.lists.fts);
+	const vectorSet = new Set(input.lists.vector);
+	const graphSet = new Set(input.lists.graph);
+	const recentSet = new Set(input.lists.recent);
 	const adjusted = new Map<string, number>();
 	for (const [id, score] of fused) {
 		const memory = byId.get(id);
@@ -73,6 +79,16 @@ export const fuseMemories = (input: {
 			input.feedbackById === undefined
 				? 1
 				: Math.max(0.05, useFactor(memory.accessCount, input.feedbackById.get(id) ?? 0));
+		const coverage = termCoverage(input.plan.terms, memory.text);
+		const coverageMul = coverageMultiplier(coverage, input.config.termCoverageFloor);
+		const inFts = ftsSet.has(id);
+		const inVector = vectorSet.has(id);
+		const inGraph = graphSet.has(id);
+		const inRecent = recentSet.has(id);
+		const kwOnly = inFts && !inVector && !inGraph && !inRecent;
+		const kwPenalty = kwOnly && coverage < 0.5 ? input.config.kwOnlyPenalty : 1;
+		const unmatched =
+			specific.length > 0 && coverage === 0 && !inGraph ? input.config.unmatchedSpecificPenalty : 1;
 		adjusted.set(
 			id,
 			score *
@@ -80,7 +96,10 @@ export const fuseMemories = (input: {
 				(0.7 + 0.6 * memory.importance) *
 				fresh *
 				typeWeight *
-				use,
+				use *
+				coverageMul *
+				kwPenalty *
+				unmatched,
 		);
 	}
 	return adjusted;

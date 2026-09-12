@@ -5,11 +5,12 @@ import { Embeddings } from "./embeddings.ts";
 import { MemoryRepo } from "./memory-repo.ts";
 import { orderProvenanceForOrigin } from "./provenance.ts";
 import { collectCandidates } from "./retrieval/candidates.ts";
-import { defaultRetrievalConfig } from "./retrieval/config.ts";
+import { defaultRetrievalConfig, retrievalConfigForQuery } from "./retrieval/config.ts";
 import { fuseMemories, validAt, weightedRrf, whyFor } from "./retrieval/fuse.ts";
 import { packRecall } from "./retrieval/pack.ts";
 import { planQuery, planQueryFast } from "./retrieval/plan.ts";
 import { crossEncode, llmRerank, mmrDiversify } from "./retrieval/rerank.ts";
+import { isMultiConceptQuery } from "./retrieval/terms.ts";
 
 const VECTOR_KIND_CHUNK = "chunk";
 const memoryVectorId = (id: string) => `m:${id}`;
@@ -113,11 +114,12 @@ export const searchMemories = (
 		const ids = uniqueIds([...lists.fts, ...lists.vector, ...lists.graph, ...lists.recent]);
 		const memories = yield* repo.listMemoriesByIds(ids);
 		const feedback = yield* repo.listFeedbackSums(ids);
+		const config = retrievalConfigForQuery(defaultRetrievalConfig, isMultiConceptQuery(plan.terms));
 		const scores = fuseMemories({
 			lists,
 			memories,
 			plan,
-			config: defaultRetrievalConfig,
+			config,
 			feedbackById: new Map(feedback.map((row) => [row.id, row.sum])),
 		});
 		const ranked = [...scores.entries()]
@@ -169,18 +171,19 @@ export const recallContext = (input: Partial<RecallQuery> & { query: string; nam
 		const memoryIds = uniqueIds([...lists.fts, ...lists.vector, ...lists.graph, ...lists.recent]);
 		const memories = yield* repo.listMemoriesByIds(memoryIds);
 		const feedback = yield* repo.listFeedbackSums(memoryIds);
+		const config = retrievalConfigForQuery(defaultRetrievalConfig, isMultiConceptQuery(plan.terms));
 		let scores = fuseMemories({
 			lists,
 			memories,
 			plan,
-			config: defaultRetrievalConfig,
+			config,
 			feedbackById: new Map(feedback.map((row) => [row.id, row.sum])),
 		});
 		const texts = new Map(memories.map((memory) => [memory.id, memory.text]));
 		const rankedIds = [...scores.entries()].sort((a, b) => b[1] - a[1]).map(([id]) => id);
-		const mode = query.rerankMode ?? (query.rerank ? defaultRetrievalConfig.defaultRerank : "none");
+		const mode = query.rerankMode ?? (query.rerank ? config.defaultRerank : "none");
 		if (mode === "cross" && rankedIds.length > 1) {
-			scores = yield* crossEncode(query.query, rankedIds, texts, scores, defaultRetrievalConfig);
+			scores = yield* crossEncode(query.query, rankedIds, texts, scores, config);
 		} else if (mode === "llm" && rankedIds.length > 1) {
 			const order = yield* llmRerank(query.query, rankedIds, texts);
 			const next = new Map(scores);
@@ -190,13 +193,7 @@ export const recallContext = (input: Partial<RecallQuery> & { query: string; nam
 			scores = next;
 		}
 		const afterRerank = [...scores.entries()].sort((a, b) => b[1] - a[1]).map(([id]) => id);
-		const diversified = mmrDiversify(
-			afterRerank,
-			scores,
-			lists.vectorValues,
-			defaultRetrievalConfig.mmrLambda,
-			40,
-		);
+		const diversified = mmrDiversify(afterRerank, scores, lists.vectorValues, config.mmrLambda, 40);
 		const edges = yield* repo.listEdges(diversified);
 		const kept = collapseEdges(diversified, edges, scores);
 		const keptMemories = memories.filter((memory) => kept.includes(memory.id));
@@ -206,7 +203,7 @@ export const recallContext = (input: Partial<RecallQuery> & { query: string; nam
 				{ ids: lists.ftsChunks, weight: 1 },
 				{ ids: lists.vectorChunks, weight: 1 },
 			],
-			defaultRetrievalConfig.rrfK,
+			config.rrfK,
 		);
 		const chunks = includeEvidence ? yield* repo.listChunksByIds(chunkIds) : [];
 		const chunkMeta = includeEvidence ? yield* repo.chunkMeta(chunkIds) : [];
@@ -267,6 +264,8 @@ export const recallContext = (input: Partial<RecallQuery> & { query: string; nam
 			format,
 			relations,
 			now,
+			scoreFloorRatio: config.scoreFloorRatio,
+			minPackScore: config.minPackScore,
 		});
 		const packedIds = result.memories.map((hit) => hit.memory.id);
 		if (packedIds.length > 0) {

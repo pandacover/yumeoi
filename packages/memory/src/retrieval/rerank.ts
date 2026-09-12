@@ -4,6 +4,8 @@ import { cosineSimilarity } from "../cosine.ts";
 import { Llm } from "../llm.ts";
 import { Reranker } from "../reranker.ts";
 import type { RetrievalConfig } from "./config.ts";
+import { tokenizeQuery } from "./plan.ts";
+import { coverageMultiplier, lexicalRerankScores, termCoverage } from "./terms.ts";
 
 export const blendRerank = (
 	fused: Map<string, number>,
@@ -42,10 +44,21 @@ export const crossEncode = (
 		const scored = yield* reranker
 			.score(query, documents)
 			.pipe(Effect.catchTag("ProviderUnavailable", () => Effect.succeed([])));
-		if (scored.length === 0) {
+		const terms = tokenizeQuery(query);
+		const lexical = lexicalRerankScores(terms, documents);
+		const raw = scored.length > 0 ? scored : lexical;
+		if (raw.length === 0) {
 			return fused;
 		}
-		return blendRerank(fused, scored, config.rerankBlend);
+		const coverageFloor = config.termCoverageFloor;
+		const withCoverage = raw.map((row) => {
+			const text = texts.get(row.id) ?? "";
+			return {
+				id: row.id,
+				score: row.score * coverageMultiplier(termCoverage(terms, text), coverageFloor),
+			};
+		});
+		return blendRerank(fused, withCoverage, config.rerankBlend);
 	});
 
 export const llmRerank = (

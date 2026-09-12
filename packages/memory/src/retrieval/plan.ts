@@ -10,6 +10,7 @@ import { Effect } from "effect";
 import { properNamesInQuery } from "../graph/names.ts";
 import { Llm } from "../llm.ts";
 import { MemoryRepo } from "../memory-repo.ts";
+import { GENERIC_RETRIEVAL_TOKENS, isSpecificTerm } from "./terms.ts";
 
 const STOPWORDS = new Set([
 	"a",
@@ -70,10 +71,36 @@ export const tokenizeQuery = (text: string): string[] => {
 		.replace(/[^\p{L}\p{N}\s]+/gu, " ")
 		.trim()
 		.split(/\s+/)
-		.filter((token) => token.length > 0);
+		.filter((token) => token.length >= 2);
 	const kept = rest.filter((token) => !STOPWORDS.has(token.toLowerCase()));
 	const terms = kept.length > 0 ? kept : rest;
-	return [...phrases, ...terms].slice(0, 12);
+	const bigrams: string[] = [];
+	for (let i = 1; i < terms.length; i++) {
+		const left = terms[i - 1] ?? "";
+		const right = terms[i] ?? "";
+		if (
+			isSpecificTerm(left) &&
+			isSpecificTerm(right) &&
+			!GENERIC_RETRIEVAL_TOKENS.has(left.toLowerCase()) &&
+			!GENERIC_RETRIEVAL_TOKENS.has(right.toLowerCase())
+		) {
+			bigrams.push(`${left} ${right}`);
+		}
+	}
+	const specific = terms.filter((term) => isSpecificTerm(term));
+	const generic = terms.filter((term) => !isSpecificTerm(term));
+	const ordered = [...phrases, ...bigrams, ...specific, ...generic];
+	const seen = new Set<string>();
+	const unique: string[] = [];
+	for (const term of ordered) {
+		const key = term.toLowerCase();
+		if (seen.has(key)) {
+			continue;
+		}
+		seen.add(key);
+		unique.push(term);
+	}
+	return unique.slice(0, 16);
 };
 
 const parseTemporal = (text: string, now: number): { from: number | null; to: number | null } => {

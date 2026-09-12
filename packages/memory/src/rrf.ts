@@ -18,6 +18,50 @@ export const recencyBoost = (score: number, timestampMs: number, now = Date.now(
 
 export const estimateTokens = (text: string): number => Math.max(1, Math.ceil(text.length / 4));
 
+export type FtsTerm = {
+	readonly term: string;
+	readonly weight?: number;
+};
+
+const quoteFtsTerm = (term: string): string => `"${term.replaceAll('"', "")}"`;
+
+export const ftsMatchWeighted = (terms: ReadonlyArray<FtsTerm>): string | null => {
+	const clipped = terms
+		.map((term) => ({ term: term.term.trim(), weight: term.weight ?? 1 }))
+		.filter((term) => term.term.length > 0)
+		.slice(0, 16);
+	if (clipped.length === 0) {
+		return null;
+	}
+	return clipped
+		.map((term) => {
+			const quoted = quoteFtsTerm(term.term);
+			return term.weight === 1 ? quoted : `${quoted}^${term.weight}`;
+		})
+		.join(" OR ");
+};
+
+export const parseFtsMatch = (match: string): Array<{ term: string; weight: number }> => {
+	if (match.trim().length === 0) {
+		return [];
+	}
+	return match.split(/\s+OR\s+/i).flatMap((part) => {
+		const trimmed = part.trim();
+		if (trimmed.length === 0) {
+			return [];
+		}
+		const boosted = trimmed.match(/^"([^"]+)"(?:\^([0-9.]+))?$/);
+		if (boosted?.[1]) {
+			return [{ term: boosted[1], weight: boosted[2] ? Number(boosted[2]) : 1 }];
+		}
+		const bare = trimmed.match(/^([^"^]+?)(?:\^([0-9.]+))?$/);
+		if (bare?.[1]) {
+			return [{ term: bare[1].trim(), weight: bare[2] ? Number(bare[2]) : 1 }];
+		}
+		return [{ term: trimmed.replaceAll('"', ""), weight: 1 }];
+	});
+};
+
 export const ftsMatchQuery = (query: string): string | null => {
 	const stop = new Set(["a", "an", "and", "the", "to", "of", "in", "on", "for", "is", "are"]);
 	const tokens = query
@@ -31,5 +75,5 @@ export const ftsMatchQuery = (query: string): string | null => {
 	if (clipped.length === 0) {
 		return null;
 	}
-	return clipped.map((token) => `"${token.replaceAll('"', "")}"`).join(" OR ");
+	return ftsMatchWeighted(clipped.map((token) => ({ term: token, weight: 1 })));
 };

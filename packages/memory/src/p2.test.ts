@@ -127,4 +127,12 @@ describe("P2 format and planner", () => {
 		expect(plan.intent).toBe("history");
 		expect(plan.temporalFrom).not.toBeNull();
 	});
+
+	test("multi-concept queries keep specific terms ahead of generic memory tokens", () => {
+		const terms = tokenizeQuery("Horizon memory product, continual learning, user's work context");
+		const lower = terms.map((term) => term.toLowerCase());
+		expect(lower.some((term) => term.includes("continual"))).toBe(true);
+		expect(lower).toContain("horizon");
+		expect(lower.indexOf("horizon")).toBeLessThan(lower.indexOf("memory"));
+	});
 });

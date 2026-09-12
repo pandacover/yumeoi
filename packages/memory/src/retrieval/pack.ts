@@ -32,6 +32,8 @@ export const packRecall = (input: {
 	readonly format: "markdown" | "json";
 	readonly relations?: ReadonlyArray<GraphRelationLine>;
 	readonly now?: number;
+	readonly scoreFloorRatio?: number;
+	readonly minPackScore?: number;
 }): RecallResult => {
 	const provenanceByMemory = new Map<string, Provenance[]>();
 	for (const row of input.provenance) {
@@ -59,7 +61,12 @@ export const packRecall = (input: {
 
 	const packedMemories: MemoryHit[] = [];
 	let used = 0;
+	const maxScore = rankedMemories[0]?.score ?? 0;
+	const floor = Math.max(input.minPackScore ?? 0, maxScore * (input.scoreFloorRatio ?? 0));
 	for (const hit of rankedMemories) {
+		if (hit.score < floor) {
+			break;
+		}
 		const cost = estimateTokens(hit.memory.text);
 		if (used + cost > input.budgetTokens) {
 			break;
