@@ -25,6 +25,9 @@ export type FtsTerm = {
 
 const quoteFtsTerm = (term: string): string => `"${term.replaceAll('"', "")}"`;
 
+/** FTS5 has no query-time `^` boost; drop generic tokens when specific ones exist. */
+const SPECIFIC_FTS_WEIGHT = 4;
+
 export const ftsMatchWeighted = (terms: ReadonlyArray<FtsTerm>): string | null => {
 	const clipped = terms
 		.map((term) => ({ term: term.term.trim(), weight: term.weight ?? 1 }))
@@ -33,12 +36,10 @@ export const ftsMatchWeighted = (terms: ReadonlyArray<FtsTerm>): string | null =
 	if (clipped.length === 0) {
 		return null;
 	}
-	return clipped
-		.map((term) => {
-			const quoted = quoteFtsTerm(term.term);
-			return term.weight === 1 ? quoted : `${quoted}^${term.weight}`;
-		})
-		.join(" OR ");
+	const unigrams = clipped.filter((term) => !term.term.includes(" "));
+	const specific = unigrams.filter((term) => term.weight >= SPECIFIC_FTS_WEIGHT);
+	const used = specific.length > 0 ? specific : unigrams.length > 0 ? unigrams : clipped;
+	return used.map((term) => quoteFtsTerm(term.term)).join(" OR ");
 };
 
 export const parseFtsMatch = (match: string): Array<{ term: string; weight: number }> => {

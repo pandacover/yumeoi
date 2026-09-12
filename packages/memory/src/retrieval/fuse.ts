@@ -85,7 +85,8 @@ export const fuseMemories = (input: {
 		const inVector = vectorSet.has(id);
 		const inGraph = graphSet.has(id);
 		const inRecent = recentSet.has(id);
-		const kwOnly = inFts && !inVector && !inGraph && !inRecent;
+		const vectorRan = input.lists.vector.length > 0;
+		const kwOnly = inFts && !inVector && !inGraph && !inRecent && vectorRan;
 		const kwPenalty = kwOnly && coverage < 0.5 ? input.config.kwOnlyPenalty : 1;
 		const unmatched =
 			specific.length > 0 && coverage === 0 && !inGraph ? input.config.unmatchedSpecificPenalty : 1;

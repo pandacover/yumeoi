@@ -42,15 +42,21 @@ describe("rrf", () => {
 		expect(ftsMatchQuery("???")).toBeNull();
 	});
 
-	test("ftsMatchWeighted boosts specific terms", () => {
+	test("ftsMatchWeighted keeps specific terms and drops generic ones", () => {
 		expect(
 			ftsMatchWeighted([
 				{ term: "Horizon", weight: 12 },
 				{ term: "memory", weight: 1 },
 			]),
-		).toBe('"Horizon"^12 OR "memory"');
-		expect(parseFtsMatch('"Horizon"^12 OR "memory"')).toEqual([
-			{ term: "Horizon", weight: 12 },
+		).toBe('"Horizon"');
+		expect(
+			ftsMatchWeighted([
+				{ term: "memory", weight: 1 },
+				{ term: "context", weight: 1 },
+			]),
+		).toBe('"memory" OR "context"');
+		expect(parseFtsMatch('"Horizon" OR "memory"')).toEqual([
+			{ term: "Horizon", weight: 1 },
 			{ term: "memory", weight: 1 },
 		]);
 	});

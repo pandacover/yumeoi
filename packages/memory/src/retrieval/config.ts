@@ -34,7 +34,7 @@ export const defaultRetrievalConfig: RetrievalConfig = {
 	kwOnlyPenalty: 0.45,
 	unmatchedSpecificPenalty: 0.4,
 	scoreFloorRatio: 0.22,
-	minPackScore: 0.003,
+	minPackScore: 0,
 };
 
 export const retrievalConfigForQuery = (
