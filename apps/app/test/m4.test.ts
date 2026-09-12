@@ -100,6 +100,8 @@ const approve = async (clientId: string, challenge: string) => {
 	expect(html).toContain("Connect an agent");
 	expect(html).toContain("this computer");
 	expect(html).toContain("horizon");
+	expect(html).toContain("approve-spinner");
+	expect(html).toContain("Allow access");
 	expect(html).toContain("test-user");
 	const body = hiddenFields(html);
 	body.set("decision", "approve");

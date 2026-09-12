@@ -30,7 +30,10 @@ function ChatPage() {
 	}, []);
 
 	return (
-		<Page wide className="mx-auto flex min-h-svh w-[70%] max-w-[70%] flex-col">
+		<Page
+			wide
+			className="mx-auto flex h-full min-h-0 w-full max-w-5xl flex-1 flex-col md:w-[70%] md:max-w-[70%]"
+		>
 			<PageHeader title="Chat" description="Talk to your memories." />
 			{mounted ? (
 				<ChatPane className="min-h-0 flex-1" mock={mock} userId={userId} />

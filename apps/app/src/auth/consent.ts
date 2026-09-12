@@ -185,12 +185,16 @@ const pageShell = (title: string, inner: string, extraHead = "") => `<!doctype h
 		.scopes { margin: 1rem 0 0; padding-left: 1.2rem; }
 		.actions { display: flex; gap: 0.75rem; margin-top: 1.5rem; flex-wrap: wrap; }
 		button, .ghost { font-family: inherit; font-size: 13px; cursor: pointer; }
-		button[name="decision"][value="approve"] { background: var(--primary); color: var(--primary-foreground); border: 0; border-radius: 0; padding: 11px 22px; min-width: 8rem; }
+		button[name="decision"][value="approve"] { background: var(--primary); color: var(--primary-foreground); border: 0; border-radius: 0; padding: 11px 22px; min-width: 8rem; display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; }
 		button[name="decision"][value="deny"] { background: transparent; color: var(--foreground); border: 1px solid var(--border); border-radius: 0; padding: 10px 18px; min-width: 8rem; }
 		.ghost { color: var(--foreground); text-decoration: underline; text-decoration-color: var(--border); text-underline-offset: 3px; display: inline-block; margin-top: 1.5rem; }
 		.error { color: var(--destructive); }
 		.notice { color: var(--foreground); }
 		code { color: var(--foreground); font-size: 0.92em; }
+		.approve-spinner { display: none; width: 14px; height: 14px; }
+		form[data-busy="1"] .approve-spinner { display: block; animation: horizon-spin 0.7s linear infinite; }
+		form[data-busy="1"] button { opacity: 0.7; pointer-events: none; }
+		@keyframes horizon-spin { to { transform: rotate(360deg); } }
 	</style>
 </head>
 <body>
@@ -244,11 +248,14 @@ const renderConsent = (
 		<ul class="scopes">
 			${scopes.map((scope) => `<li><code>${sanitizeText(scope)}</code></li>`).join("")}
 		</ul>
-		<form method="post" action="/authorize" onsubmit="if(this.dataset.busy){event.preventDefault();return false;} this.dataset.busy='1';">
+		<form method="post" action="/authorize" onsubmit="if(this.dataset.busy){event.preventDefault();return false;} this.dataset.busy='1'; var label=this.querySelector('.approve-label'); if(label) label.textContent='Allowing access…';">
 			${hiddenOAuthFields(oauthRequest)}
 			<input type="hidden" name="csrf_token" value="${sanitizeText(csrfToken)}" />
 			<div class="actions">
-				<button type="submit" name="decision" value="approve">Allow access</button>
+				<button type="submit" name="decision" value="approve">
+					<svg class="approve-spinner" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2a10 10 0 1 0 10 10h-2.2A7.8 7.8 0 1 1 12 4.2V2z"/></svg>
+					<span class="approve-label">Allow access</span>
+				</button>
 				<button type="submit" name="decision" value="deny">Deny</button>
 			</div>
 		</form>

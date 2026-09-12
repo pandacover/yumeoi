@@ -17,6 +17,7 @@ import { Route as MemoriesRouteImport } from './routes/memories'
 import { Route as SourcesRouteImport } from './routes/sources'
 import { Route as AgentsIdRouteImport } from './routes/agents_.$id'
 import { Route as IntegrationsIdRouteImport } from './routes/integrations_.$id'
+import { Route as ProfileSplatRouteImport } from './routes/profile.$'
 import { Route as SignInSplatRouteImport } from './routes/sign-in.$'
 import { Route as SignUpSplatRouteImport } from './routes/sign-up.$'
 
@@ -60,6 +61,11 @@ const IntegrationsIdRoute = IntegrationsIdRouteImport.update({
   path: '/integrations/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ProfileSplatRoute = ProfileSplatRouteImport.update({
+  id: '/profile/$',
+  path: '/profile/$',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SignInSplatRoute = SignInSplatRouteImport.update({
   id: '/sign-in/$',
   path: '/sign-in/$',
@@ -80,6 +86,7 @@ export interface FileRoutesByFullPath {
   '/sources': typeof SourcesRoute
   '/agents/$id': typeof AgentsIdRoute
   '/integrations/$id': typeof IntegrationsIdRoute
+  '/profile/$': typeof ProfileSplatRoute
   '/sign-in/$': typeof SignInSplatRoute
   '/sign-up/$': typeof SignUpSplatRoute
 }
@@ -92,6 +99,7 @@ export interface FileRoutesByTo {
   '/sources': typeof SourcesRoute
   '/agents/$id': typeof AgentsIdRoute
   '/integrations/$id': typeof IntegrationsIdRoute
+  '/profile/$': typeof ProfileSplatRoute
   '/sign-in/$': typeof SignInSplatRoute
   '/sign-up/$': typeof SignUpSplatRoute
 }
@@ -105,6 +113,7 @@ export interface FileRoutesById {
   '/sources': typeof SourcesRoute
   '/agents_/$id': typeof AgentsIdRoute
   '/integrations_/$id': typeof IntegrationsIdRoute
+  '/profile/$': typeof ProfileSplatRoute
   '/sign-in/$': typeof SignInSplatRoute
   '/sign-up/$': typeof SignUpSplatRoute
 }
@@ -119,6 +128,7 @@ export interface FileRouteTypes {
     | '/sources'
     | '/agents/$id'
     | '/integrations/$id'
+    | '/profile/$'
     | '/sign-in/$'
     | '/sign-up/$'
   fileRoutesByTo: FileRoutesByTo
@@ -131,6 +141,7 @@ export interface FileRouteTypes {
     | '/sources'
     | '/agents/$id'
     | '/integrations/$id'
+    | '/profile/$'
     | '/sign-in/$'
     | '/sign-up/$'
   id:
@@ -143,6 +154,7 @@ export interface FileRouteTypes {
     | '/sources'
     | '/agents_/$id'
     | '/integrations_/$id'
+    | '/profile/$'
     | '/sign-in/$'
     | '/sign-up/$'
   fileRoutesById: FileRoutesById
@@ -156,6 +168,7 @@ export interface RootRouteChildren {
   SourcesRoute: typeof SourcesRoute
   AgentsIdRoute: typeof AgentsIdRoute
   IntegrationsIdRoute: typeof IntegrationsIdRoute
+  ProfileSplatRoute: typeof ProfileSplatRoute
   SignInSplatRoute: typeof SignInSplatRoute
   SignUpSplatRoute: typeof SignUpSplatRoute
 }
@@ -218,6 +231,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IntegrationsIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/profile/$': {
+      id: '/profile/$'
+      path: '/profile/$'
+      fullPath: '/profile/$'
+      preLoaderRoute: typeof ProfileSplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/sign-in/$': {
       id: '/sign-in/$'
       path: '/sign-in/$'
@@ -244,6 +264,7 @@ const rootRouteChildren: RootRouteChildren = {
   SourcesRoute: SourcesRoute,
   AgentsIdRoute: AgentsIdRoute,
   IntegrationsIdRoute: IntegrationsIdRoute,
+  ProfileSplatRoute: ProfileSplatRoute,
   SignInSplatRoute: SignInSplatRoute,
   SignUpSplatRoute: SignUpSplatRoute,
 }

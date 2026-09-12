@@ -10,6 +10,7 @@ import { assertSourceOwner, disconnectSource, syncSource } from "../api/sources.
 import { requireAuth, requireUserId } from "../auth/page-user.ts";
 import { CatalogList, CatalogRow } from "../components/catalog-row.tsx";
 import { Page, PageCrumb, PageHeader } from "../components/page.tsx";
+import { PendingHrefButton } from "../components/pending-href-button.tsx";
 import { Alert, AlertDescription, AlertTitle } from "../components/ui/alert.tsx";
 import { Button } from "../components/ui/button.tsx";
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "../components/ui/empty.tsx";
@@ -82,17 +83,11 @@ function IntegrationManagePage() {
 			/>
 			{mounted ? <IntegrationLive onSources={setSources} userId={initial.userId} /> : null}
 			{initial.notionConfigured ? (
-				<Button
-					nativeButton={false}
-					render={
-						// biome-ignore lint/a11y/useAnchorContent: link text is the Button children
-						<a href="/api/sources/notion/authorize" />
-					}
-				>
+				<PendingHrefButton href="/api/sources/notion/authorize">
 					{sources.some((source) => source.status !== "disconnected")
 						? "Connect another workspace"
 						: "Connect Notion"}
-				</Button>
+				</PendingHrefButton>
 			) : (
 				<Alert>
 					<AlertTitle>OAuth is not configured</AlertTitle>

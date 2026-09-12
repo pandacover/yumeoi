@@ -5,6 +5,7 @@ import type { SourceView } from "@yumeoi/domain";
 import { requireAuth, requireUserId } from "../auth/page-user.ts";
 import { CatalogList, CatalogRow } from "../components/catalog-row.tsx";
 import { Page, PageHeader } from "../components/page.tsx";
+import { PendingHrefButton } from "../components/pending-href-button.tsx";
 import { Button } from "../components/ui/button.tsx";
 import { isFixtureSourceId } from "../content/catalog.ts";
 
@@ -58,16 +59,9 @@ function IntegrationsPage() {
 								Manage
 							</Button>
 						) : (
-							<Button
-								nativeButton={false}
-								render={
-									// biome-ignore lint/a11y/useAnchorContent: link text is the Button children
-									<a href="/api/sources/notion/authorize" />
-								}
-								size="sm"
-							>
+							<PendingHrefButton href="/api/sources/notion/authorize" size="sm">
 								Connect
-							</Button>
+							</PendingHrefButton>
 						)
 					}
 				/>

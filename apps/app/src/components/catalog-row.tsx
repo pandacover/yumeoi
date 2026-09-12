@@ -23,7 +23,7 @@ export function CatalogRow({
 }) {
 	return (
 		<Item variant="outline">
-			<ItemContent>
+			<ItemContent className="min-w-0">
 				<ItemTitle>{title}</ItemTitle>
 				{detail ? <ItemDescription>{detail}</ItemDescription> : null}
 			</ItemContent>
