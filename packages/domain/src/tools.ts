@@ -28,7 +28,7 @@ const rerankList = "none, cross, llm";
 const modeList = "extract, verbatim";
 
 const epochMs =
-	"Unix timestamp in milliseconds (e.g. Date.now() or 1700000000000). Not an ISO-8601 string.";
+	"Unix timestamp in milliseconds (e.g. Date.now() or 1700000000000). ISO-8601 strings are coerced to ms.";
 const isoDatetime = "ISO-8601 datetime string (e.g. 2026-03-15T00:00:00.000Z), or null.";
 
 /** Shared field copy used by Effect schemas, MCP zod `.describe()`, and tests. */
@@ -67,9 +67,10 @@ export const TOOL_FIELD_DESCRIPTIONS = {
 		items:
 			"Optional if text is set. Up to 20 pre-split memories. Required unless text is provided. Each item needs text; type/kind are classified when omitted.",
 		itemText: "Required per item. Memory text to store.",
-		itemType: `Optional. Allowed: ${typesList}. Server classifies if omitted.`,
-		itemKind: `Optional. Allowed: ${kindsList}. Server classifies if omitted.`,
-		itemImportance: "Optional. Importance in 0–1. Server fills if omitted.",
+		itemType: `Optional. Allowed: ${typesList}. Omit unless sure — invalid or mismatched values are dropped and the server classifies.`,
+		itemKind: `Optional. Allowed: ${kindsList}. Omit unless sure — invalid or mismatched values are dropped and the server classifies.`,
+		itemImportance:
+			"Optional. Importance in 0–1. Numeric strings are accepted. Server fills if omitted.",
 		itemEventAt: `Optional. When the event happened. ${isoDatetime}`,
 		itemValidFrom: `Optional. Start of validity. ${isoDatetime}`,
 		itemEntities:
@@ -100,7 +101,7 @@ export const TOOL_FIELD_DESCRIPTIONS = {
 	feedback: {
 		id: "Required. Memory id from a recall footer (`ids: m_…=[1]`).",
 		signal:
-			'Required. Integer 1 if the recalled line was useful, or -1 if it was wrong. Not a string, not 0, not a label like "useful".',
+			'Required. Integer 1 if the recalled line was useful, or -1 if it was wrong. Strings "1" and "-1" are accepted. Not 0 or a label like "useful".',
 		note: "Optional. Correction text. On signal=-1, used to rewrite the memory (same id, re-embedded).",
 		query:
 			"Optional. The recall query that missed. On signal=-1, used to re-extract. Without note or query, -1 only adjusts importance.",
@@ -139,15 +140,37 @@ export const TOOL_FIELD_DESCRIPTIONS = {
 	},
 } as const;
 
+export const MCP_TOOL_DESCRIPTIONS = {
+	recall:
+		'Packed, cited memory context for a question. Prefer this before doing work. Default output is markdown. Example: {"query":"..."}',
+	search_memories: "Flat ranked memory list with the same filters as recall. Use to page.",
+	remember:
+		'Store a statement or extract several memories from a paragraph. The server classifies, embeds, and dedupes. Omit kind/type. Example: {"text":"...","mode":"verbatim"}',
+	update_memory:
+		"Correct an existing memory in place. The id stays stable and history is recorded.",
+	forget:
+		'Soft-forget a memory. Agent/user/chat origin can be forgotten by id; extracted memories need confirm=true. Example: {"id":"m_…"}',
+	feedback:
+		'Mark a recalled memory as useful (1) or wrong (-1). On -1, note and/or query rewrites the memory. Example: {"id":"m_…","signal":1}',
+	get_memory: "Full memory record: history, edges, entities, provenance.",
+	get_document: "Fetch a normalized document (markdown) by id.",
+	list_sources: "List connected sources and their labels.",
+	get_entity: "Entity summary, relations, and recent memories. Pass name or id.",
+	timeline: "Chronological episodic memories about an entity or topic.",
+	changes_since: "Created, updated, superseded, or forgotten memory ids since a timestamp.",
+	recall_context: "Deprecated alias of recall. Prefer recall.",
+	add_memory: "Deprecated alias of remember. Prefer remember.",
+} as const;
+
 export const AGENT_INSTRUCTIONS = `horizon is a personal memory store. Prefer tools over guessing.
 
 When to call which tool:
 - recall: before answering anything about the user's notes, preferences, decisions, or past events. Default format is markdown with numbered citations. Use plan=fast unless the query needs synonym/entity expansion (then plan=full).
 - search_memories: when you need a paged ranked list rather than a packed context block.
-- remember: to store what the user just said, a decision, or a preference. Pass text (or items[]) and let the store classify, embed, and dedupe. Use clientRef on retries. mode=extract splits a paragraph into several memories; mode=verbatim stores the statement as given.
+- remember: to store what the user just said, a decision, or a preference. Pass only {"text":"...","mode":"verbatim"} and omit kind/type — the server classifies, embeds, and dedupes. Use clientRef on retries. mode=extract splits a paragraph into several memories; mode=verbatim stores the statement as given.
 - update_memory: to correct text or validity on an existing id. The id stays stable.
 - forget: to retire a memory the agent or user wrote. Extracted memories need confirm=true.
-- feedback: signal=1 if a recalled line was useful, -1 if it was wrong. On -1, pass note (the correction) and/or query (the recall that missed) so the store can rewrite or re-extract the memory text, re-embed it, and keep the same id. Without note or source chunks, -1 only adjusts importance.
+- feedback: signal=1 if a recalled line was useful, -1 if it was wrong. Strings "1"/"-1" are accepted. On -1, pass note (the correction) and/or query (the recall that missed) so the store can rewrite or re-extract the memory text, re-embed it, and keep the same id. Without note or source chunks, -1 only adjusts importance.
 - get_memory / get_document: after recall, when you need history, edges, entities, or the source document.
 - get_entity: entity summary, relations, and recent memories. Pass name or id; hops≤2.
 - timeline: chronological episodic memories about an entity or topic (from/to optional).
@@ -155,7 +178,9 @@ When to call which tool:
 
 Cite memories with [n] from the packed block. Follow-up ids are in the footer (\`ids: m_…=[1]\`). Do not pick types, hashes, or embeddings — the server does that.
 
-Timestamps: from, to, asOf, since, and recall_context.since are millisecond Unix epochs (not ISO strings). remember/update eventAt, validFrom, and validTo are ISO-8601 strings.
+Timestamps: from, to, asOf, since, and recall_context.since are millisecond Unix epochs. ISO-8601 strings are accepted and coerced to ms. remember/update eventAt, validFrom, and validTo are ISO-8601 strings.
+
+On any tool error: read retry_with and call the same tool again with that JSON object exactly. Do not invent new fields. Do not ask the user unless the error is unauthorized.
 
 Payload examples:
 - recall: {"query":"What does Luv prefer for the domain layer?","format":"markdown","plan":"fast"}

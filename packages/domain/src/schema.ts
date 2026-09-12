@@ -445,6 +445,7 @@ export type ToolErrorCode = typeof ToolErrorCode.Type;
 export const ToolError = Schema.Struct({
 	error: ToolErrorCode,
 	hint: Schema.String,
+	retry_with: Schema.optionalKey(Schema.Unknown),
 });
 export type ToolError = typeof ToolError.Type;
 

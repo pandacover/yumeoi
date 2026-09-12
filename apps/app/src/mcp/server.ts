@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/server";
 import {
 	AGENT_INSTRUCTIONS,
+	MCP_TOOL_DESCRIPTIONS,
 	type MemoryKind,
 	type MemoryType,
 	type RecallFormat,
@@ -56,13 +57,12 @@ export function createYumeoiMcpServer(env: Env) {
 	server.registerTool(
 		"recall",
 		{
-			description:
-				"Packed, cited memory context for a question. Prefer this before doing work. Default output is markdown.",
+			description: MCP_TOOL_DESCRIPTIONS.recall,
 			annotations: { readOnlyHint: true },
 			inputSchema: advertiseInput(recallInputSchema),
 		},
 		async (input) =>
-			runTool(recallInputSchema, input, async (parsed) => {
+			runTool("recall", recallInputSchema, input, async (parsed) => {
 				const result = await agentFor(env).recall({
 					query: parsed.query,
 					sources: parsed.sources ?? [],
@@ -90,12 +90,12 @@ export function createYumeoiMcpServer(env: Env) {
 	server.registerTool(
 		"search_memories",
 		{
-			description: "Flat ranked memory list with the same filters as recall. Use to page.",
+			description: MCP_TOOL_DESCRIPTIONS.search_memories,
 			annotations: { readOnlyHint: true },
 			inputSchema: advertiseInput(searchMemoriesInputSchema),
 		},
 		async (input) =>
-			runTool(searchMemoriesInputSchema, input, async (parsed) => {
+			runTool("search_memories", searchMemoriesInputSchema, input, async (parsed) => {
 				const hits = await agentFor(env).search({
 					query: parsed.query,
 					sources: parsed.sources ?? [],
@@ -122,13 +122,12 @@ export function createYumeoiMcpServer(env: Env) {
 	server.registerTool(
 		"remember",
 		{
-			description:
-				"Store a statement or extract several memories from a paragraph. The server classifies, embeds, and dedupes. Pass clientRef on items to make retries idempotent.",
+			description: MCP_TOOL_DESCRIPTIONS.remember,
 			annotations: { idempotentHint: true },
 			inputSchema: advertiseInput(rememberInputSchema),
 		},
 		async (input) =>
-			runTool(rememberInputSchema, input, async (parsed) => {
+			runTool("remember", rememberInputSchema, input, async (parsed) => {
 				const { clientId } = authProps();
 				return jsonText(
 					await agentFor(env).remember(
@@ -147,12 +146,11 @@ export function createYumeoiMcpServer(env: Env) {
 	server.registerTool(
 		"update_memory",
 		{
-			description:
-				"Correct an existing memory in place. The id stays stable and history is recorded.",
+			description: MCP_TOOL_DESCRIPTIONS.update_memory,
 			inputSchema: advertiseInput(updateMemoryInputSchema),
 		},
 		async (input) =>
-			runTool(updateMemoryInputSchema, input, async (parsed) =>
+			runTool("update_memory", updateMemoryInputSchema, input, async (parsed) =>
 				jsonText(await agentFor(env).updateMemory(omitUndefined(parsed) as never)),
 			),
 	);
@@ -160,13 +158,12 @@ export function createYumeoiMcpServer(env: Env) {
 	server.registerTool(
 		"forget",
 		{
-			description:
-				"Soft-forget a memory. Agent/user/chat origin can be forgotten by id; extracted memories need confirm=true.",
+			description: MCP_TOOL_DESCRIPTIONS.forget,
 			annotations: { destructiveHint: true },
 			inputSchema: advertiseInput(forgetInputSchema),
 		},
 		async (input) =>
-			runTool(forgetInputSchema, input, async (parsed) =>
+			runTool("forget", forgetInputSchema, input, async (parsed) =>
 				jsonText(await agentFor(env).forget(omitUndefined(parsed) as never)),
 			),
 	);
@@ -174,13 +171,12 @@ export function createYumeoiMcpServer(env: Env) {
 	server.registerTool(
 		"feedback",
 		{
-			description:
-				"Mark a recalled memory as useful (1) or wrong (-1). On -1, note and/or query rewrites or re-extracts the memory text (same id, re-embedded); otherwise only importance changes.",
+			description: MCP_TOOL_DESCRIPTIONS.feedback,
 			annotations: { idempotentHint: true },
 			inputSchema: advertiseInput(feedbackInputSchema),
 		},
 		async (input) =>
-			runTool(feedbackInputSchema, input, async (parsed) => {
+			runTool("feedback", feedbackInputSchema, input, async (parsed) => {
 				const { clientId } = authProps();
 				return jsonText(
 					await agentFor(env).feedback(omitUndefined({ ...parsed, clientId }) as never),
@@ -191,12 +187,12 @@ export function createYumeoiMcpServer(env: Env) {
 	server.registerTool(
 		"get_memory",
 		{
-			description: "Full memory record: history, edges, entities, provenance.",
+			description: MCP_TOOL_DESCRIPTIONS.get_memory,
 			annotations: { readOnlyHint: true },
 			inputSchema: advertiseInput(getMemoryInputSchema),
 		},
 		async (input) =>
-			runTool(getMemoryInputSchema, input, async ({ id }) =>
+			runTool("get_memory", getMemoryInputSchema, input, async ({ id }) =>
 				jsonText(await agentFor(env).getMemoryDetail(id)),
 			),
 	);
@@ -204,12 +200,12 @@ export function createYumeoiMcpServer(env: Env) {
 	server.registerTool(
 		"get_document",
 		{
-			description: "Fetch a normalized document (markdown) by id.",
+			description: MCP_TOOL_DESCRIPTIONS.get_document,
 			annotations: { readOnlyHint: true },
 			inputSchema: advertiseInput(getDocumentInputSchema),
 		},
 		async (input) =>
-			runTool(getDocumentInputSchema, input, async ({ id }) =>
+			runTool("get_document", getDocumentInputSchema, input, async ({ id }) =>
 				jsonText(await agentFor(env).getDocument(id)),
 			),
 	);
@@ -217,12 +213,12 @@ export function createYumeoiMcpServer(env: Env) {
 	server.registerTool(
 		"list_sources",
 		{
-			description: "List connected sources and their labels.",
+			description: MCP_TOOL_DESCRIPTIONS.list_sources,
 			annotations: { readOnlyHint: true },
 			inputSchema: advertiseInput(listSourcesInputSchema),
 		},
 		async (input) =>
-			runTool(listSourcesInputSchema, input, async () =>
+			runTool("list_sources", listSourcesInputSchema, input, async () =>
 				jsonText(await agentFor(env).listSources()),
 			),
 	);
@@ -230,17 +226,18 @@ export function createYumeoiMcpServer(env: Env) {
 	server.registerTool(
 		"get_entity",
 		{
-			description: "Entity summary, relations, and recent memories. Pass name or id.",
+			description: MCP_TOOL_DESCRIPTIONS.get_entity,
 			annotations: { readOnlyHint: true },
 			inputSchema: advertiseInput(getEntityInputSchema),
 		},
 		async (input) =>
-			runTool(getEntityInputSchema, input, async (parsed) => {
+			runTool("get_entity", getEntityInputSchema, input, async (parsed) => {
 				const view = await agentFor(env).getEntity(omitUndefined(parsed));
 				if (!view) {
 					return toolError(
 						"not_found",
 						"entity was not found. Pass a name or id from recall entities, get_memory, or memory://entities.",
+						{ tool: "get_entity", input: parsed },
 					);
 				}
 				return jsonText(view);
@@ -250,12 +247,12 @@ export function createYumeoiMcpServer(env: Env) {
 	server.registerTool(
 		"timeline",
 		{
-			description: "Chronological episodic memories about an entity or topic.",
+			description: MCP_TOOL_DESCRIPTIONS.timeline,
 			annotations: { readOnlyHint: true },
 			inputSchema: advertiseInput(timelineInputSchema),
 		},
 		async (input) =>
-			runTool(timelineInputSchema, input, async (parsed) =>
+			runTool("timeline", timelineInputSchema, input, async (parsed) =>
 				jsonText(await agentFor(env).timeline(omitUndefined(parsed) as never)),
 			),
 	);
@@ -263,12 +260,12 @@ export function createYumeoiMcpServer(env: Env) {
 	server.registerTool(
 		"changes_since",
 		{
-			description: "Created, updated, superseded, or forgotten memory ids since a timestamp.",
+			description: MCP_TOOL_DESCRIPTIONS.changes_since,
 			annotations: { readOnlyHint: true },
 			inputSchema: advertiseInput(changesSinceInputSchema),
 		},
 		async (input) =>
-			runTool(changesSinceInputSchema, input, async ({ since }) =>
+			runTool("changes_since", changesSinceInputSchema, input, async ({ since }) =>
 				jsonText(await agentFor(env).changesSince(since)),
 			),
 	);
@@ -276,12 +273,12 @@ export function createYumeoiMcpServer(env: Env) {
 	server.registerTool(
 		"recall_context",
 		{
-			description: "Deprecated alias of recall. Prefer recall.",
+			description: MCP_TOOL_DESCRIPTIONS.recall_context,
 			annotations: { readOnlyHint: true },
 			inputSchema: advertiseInput(recallContextAliasInputSchema),
 		},
 		async (input) =>
-			runTool(recallContextAliasInputSchema, input, async (parsed) => {
+			runTool("recall_context", recallContextAliasInputSchema, input, async (parsed) => {
 				const result = await agentFor(env).recall({
 					query: parsed.query,
 					sources: parsed.sources ?? [],
@@ -298,11 +295,11 @@ export function createYumeoiMcpServer(env: Env) {
 	server.registerTool(
 		"add_memory",
 		{
-			description: "Deprecated alias of remember. Prefer remember.",
+			description: MCP_TOOL_DESCRIPTIONS.add_memory,
 			inputSchema: advertiseInput(addMemoryAliasInputSchema),
 		},
 		async (input) =>
-			runTool(addMemoryAliasInputSchema, input, async (parsed) => {
+			runTool("add_memory", addMemoryAliasInputSchema, input, async (parsed) => {
 				const { clientId } = authProps();
 				return jsonText(
 					await agentFor(env).remember({
