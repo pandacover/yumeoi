@@ -411,6 +411,30 @@ const upsertMemoryVector = (
 			.pipe(Effect.catchTag("ProviderUnavailable", () => Effect.void));
 	});
 
+export const reembedMemory = (input: {
+	readonly userId: string;
+	readonly memory: Memory;
+	readonly text?: string;
+	readonly sourceId?: string;
+	readonly documentId?: string;
+}) =>
+	Effect.gen(function* () {
+		const embeddings = yield* Embeddings;
+		const text = input.text ?? input.memory.text;
+		const memory = { ...input.memory, text };
+		const vectors = yield* embeddings
+			.embed([text])
+			.pipe(
+				Effect.catchTag("ProviderUnavailable", () =>
+					Effect.succeed<ReadonlyArray<ReadonlyArray<number>>>([]),
+				),
+			);
+		const sourceId = input.sourceId ?? `agent:${input.userId}`;
+		const documentId = input.documentId ?? `${sourceId}:notes`;
+		yield* upsertMemoryVector(input.userId, memory, vectors[0], sourceId, documentId, Date.now());
+		return vectors[0];
+	});
+
 export const persistExtractedWrite = (userId: string, write: ExtractedWrite) =>
 	Effect.gen(function* () {
 		const repo = yield* MemoryRepo;
@@ -446,8 +470,14 @@ export const persistExtractedWrite = (userId: string, write: ExtractedWrite) =>
 					chunkId: write.chunkId,
 				});
 			}
-			yield* upsertMemoryVector(userId, updated, write.values, write.sourceId, documentId, now);
-			yield* writeEntities(updated.id, write.extracted, write.values, userId, now);
+			const values = yield* reembedMemory({
+				userId,
+				memory: updated,
+				text: write.mergedText,
+				sourceId: write.sourceId,
+				documentId,
+			});
+			yield* writeEntities(updated.id, write.extracted, values, userId, now);
 			return toOutcome("merged", { ...updated, text: write.mergedText }, [write.target.id]);
 		}
 		if (write.tag === "conflict") {
