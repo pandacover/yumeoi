@@ -3,6 +3,7 @@ import { Effect } from "effect";
 import { nowMillis } from "./clock.ts";
 import { Embeddings } from "./embeddings.ts";
 import { MemoryRepo } from "./memory-repo.ts";
+import { orderProvenanceForOrigin } from "./provenance.ts";
 import { collectCandidates } from "./retrieval/candidates.ts";
 import { defaultRetrievalConfig } from "./retrieval/config.ts";
 import { fuseMemories, validAt, weightedRrf, whyFor } from "./retrieval/fuse.ts";
@@ -140,7 +141,10 @@ export const searchMemories = (
 				{
 					memory,
 					score: scores.get(id) ?? 0,
-					provenance: (provenanceByMemory.get(id) ?? []).map(({ memoryId: _id, ...rest }) => rest),
+					provenance: orderProvenanceForOrigin(
+						memory.origin,
+						(provenanceByMemory.get(id) ?? []).map(({ memoryId: _id, ...rest }) => rest),
+					),
 					why: whyFor(id, lists),
 				},
 			];

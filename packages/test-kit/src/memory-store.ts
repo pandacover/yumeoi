@@ -515,6 +515,54 @@ export const memoryMemoryRepoLayer = (userId = "test-user") => {
 					url: document?.url ?? null,
 				});
 			}),
+		ensureLinkedProvenance: (input) =>
+			Effect.sync(() => {
+				const sourceId = input.sourceId;
+				const documentId = input.documentId ?? `${sourceId}:notes`;
+				const chunkId = input.chunkId ?? crypto.randomUUID();
+				if (!db.sources.some((source) => source.id === sourceId)) {
+					db.sources.push({
+						id: sourceId,
+						userId: input.userId,
+						kind: "agent",
+						label: "Agent writes",
+					});
+				}
+				if (!db.documents.some((doc) => doc.id === documentId)) {
+					db.documents.push({
+						id: documentId,
+						sourceId,
+						externalId: "notes",
+						contentHash: "agent",
+						title: "Agent notes",
+						markdown: input.text,
+						url: null,
+						r2Key: `${input.userId}/${sourceId}/notes.json`,
+					});
+				}
+				if (!db.chunks.some((chunk) => chunk.id === chunkId)) {
+					db.chunks.push({
+						id: chunkId,
+						documentId,
+						text: input.text,
+						contentHash: input.memoryId,
+						byteStart: 0,
+						byteEnd: input.text.length,
+					});
+				}
+				if (db.links.some((link) => link.memoryId === input.memoryId && link.chunkId === chunkId)) {
+					return;
+				}
+				const document = db.documents.find((item) => item.id === documentId);
+				db.links.push({
+					memoryId: input.memoryId,
+					sourceId,
+					documentId,
+					chunkId,
+					title: document?.title ?? "Agent notes",
+					url: document?.url ?? null,
+				});
+			}),
 		updateMemory: (id, patch) =>
 			Effect.gen(function* () {
 				const memory = db.memories.find((item) => item.id === id);
@@ -547,6 +595,9 @@ export const memoryMemoryRepoLayer = (userId = "test-user") => {
 				}
 				if (patch.retention !== undefined) {
 					memory.retention = patch.retention;
+				}
+				if (patch.origin !== undefined) {
+					memory.origin = patch.origin;
 				}
 				memory.updatedAt = Date.now();
 				return toMemory(memory);

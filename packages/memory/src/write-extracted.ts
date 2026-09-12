@@ -14,6 +14,7 @@ import { Embeddings } from "./embeddings.ts";
 import { writeGraphForMemory } from "./graph/write.ts";
 import { newShortId } from "./ids.ts";
 import { type CommitMemory, type InsertMemoryInput, MemoryRepo } from "./memory-repo.ts";
+import { mergeCitationOrigin } from "./provenance.ts";
 import { memoryVectorId } from "./recall.ts";
 import { coerceTypeKind } from "./types.ts";
 import { VALID_TO_SENTINEL, VectorIndex } from "./vector-index.ts";
@@ -192,6 +193,7 @@ export type ExtractedWrite =
 			readonly chunkId?: string;
 			readonly documentId?: string;
 			readonly sourceId: string;
+			readonly origin: MemoryOrigin;
 	  }
 	| {
 			readonly tag: "conflict";
@@ -305,6 +307,7 @@ export const planExtractedWrite = (extracted: ExtractedMemory, context: Extracte
 				extracted,
 				values,
 				sourceId: context.sourceId,
+				origin: context.origin,
 				...(context.chunkId !== undefined ? { chunkId: context.chunkId } : {}),
 				...(context.documentId !== undefined ? { documentId: context.documentId } : {}),
 			} satisfies ExtractedWrite;
@@ -445,10 +448,16 @@ export const persistExtractedWrite = (userId: string, write: ExtractedWrite) =>
 				: toOutcome("duplicate", write.memory);
 		}
 		if (write.tag === "merge") {
+			const origin = mergeCitationOrigin(
+				write.target.origin,
+				write.origin,
+				write.mergedText !== write.target.text,
+			);
 			const updated = yield* repo.updateMemory(write.target.id, {
 				text: write.mergedText,
 				importance: write.importance,
 				state: "active",
+				...(origin !== write.target.origin ? { origin } : {}),
 			});
 			yield* repo.insertHistory({
 				memoryId: write.target.id,
@@ -462,23 +471,23 @@ export const persistExtractedWrite = (userId: string, write: ExtractedWrite) =>
 				reason: "merge",
 			});
 			const documentId = write.documentId ?? `${write.sourceId}:notes`;
-			if (write.chunkId) {
-				yield* repo.linkProvenance({
-					memoryId: updated.id,
-					sourceId: write.sourceId,
-					documentId,
-					chunkId: write.chunkId,
-				});
-			}
+			yield* repo.ensureLinkedProvenance({
+				userId,
+				memoryId: updated.id,
+				sourceId: write.sourceId,
+				text: write.mergedText,
+				documentId,
+				...(write.chunkId !== undefined ? { chunkId: write.chunkId } : {}),
+			});
 			const values = yield* reembedMemory({
 				userId,
-				memory: updated,
+				memory: { ...updated, origin },
 				text: write.mergedText,
 				sourceId: write.sourceId,
 				documentId,
 			});
 			yield* writeEntities(updated.id, write.extracted, values, userId, now);
-			return toOutcome("merged", { ...updated, text: write.mergedText }, [write.target.id]);
+			return toOutcome("merged", { ...updated, text: write.mergedText, origin }, [write.target.id]);
 		}
 		if (write.tag === "conflict") {
 			yield* repo.updateMemory(write.target.id, { confidence: write.target.confidence * 0.8 });
@@ -562,7 +571,12 @@ export const plannedMemory = (write: ExtractedWrite): Memory | null => {
 		return write.memory;
 	}
 	if (write.tag === "merge") {
-		return { ...write.target, text: write.mergedText, importance: write.importance };
+		const origin = mergeCitationOrigin(
+			write.target.origin,
+			write.origin,
+			write.mergedText !== write.target.text,
+		);
+		return { ...write.target, text: write.mergedText, importance: write.importance, origin };
 	}
 	const insert = write.insert;
 	const coerced = coerceTypeKind(

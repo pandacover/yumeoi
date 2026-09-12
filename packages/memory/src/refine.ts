@@ -1,6 +1,7 @@
 import {
 	type ExtractedMemory,
 	type Memory,
+	type MemoryOrigin,
 	SummaryResult,
 	summaryResultJsonSchema,
 } from "@yumeoi/domain";
@@ -11,6 +12,7 @@ import { extractMentions, extractRelations } from "./graph/names.ts";
 import { writeGraphForMemory } from "./graph/write.ts";
 import { Llm } from "./llm.ts";
 import { MemoryRepo } from "./memory-repo.ts";
+import { orderProvenanceForOrigin, rewriteCitationOrigin } from "./provenance.ts";
 import { normalizeMemoryText } from "./retention.ts";
 import { reembedMemory } from "./write-extracted.ts";
 
@@ -59,13 +61,16 @@ export const applyMemoryText = (input: {
 	readonly text: string;
 	readonly namespace: string;
 	readonly reason: string;
+	readonly origin?: MemoryOrigin;
 }) =>
 	Effect.gen(function* () {
 		const repo = yield* MemoryRepo;
 		const now = yield* nowMillis;
+		const origin = input.origin ?? input.memory.origin;
 		const updated = yield* repo.updateMemory(input.memory.id, {
 			text: input.text,
 			state: "active",
+			...(origin !== input.memory.origin ? { origin } : {}),
 		});
 		yield* repo.insertHistory({
 			memoryId: updated.id,
@@ -79,11 +84,26 @@ export const applyMemoryText = (input: {
 			reason: input.reason,
 			changedAt: now,
 		});
+		if (origin !== "extracted") {
+			yield* repo.ensureLinkedProvenance({
+				userId: input.namespace,
+				memoryId: updated.id,
+				sourceId: `agent:${input.namespace}`,
+				text: updated.text,
+			});
+		}
 		const provenance = yield* repo.provenanceFor([updated.id]);
-		const first = provenance[0];
+		const ordered = orderProvenanceForOrigin(
+			origin,
+			provenance.map(({ memoryId: _id, ...rest }) => rest),
+		);
+		const first =
+			origin === "extracted"
+				? ordered[0]
+				: (ordered.find((row) => row.sourceId.startsWith("agent")) ?? ordered[0]);
 		yield* reembedMemory({
 			userId: input.namespace,
-			memory: updated,
+			memory: { ...updated, origin },
 			...(first?.sourceId ? { sourceId: first.sourceId } : {}),
 			...(first?.documentId ? { documentId: first.documentId } : {}),
 		});
@@ -95,7 +115,7 @@ export const applyMemoryText = (input: {
 			entities: mentions,
 			relations: extractRelations(updated.text, mentions),
 		});
-		return updated;
+		return { ...updated, origin };
 	});
 
 const rewriteFromNote = (memory: Memory, note: string, query?: string) =>
@@ -170,6 +190,7 @@ export const refineMemoryFromUse = (input: {
 					text: rewritten,
 					namespace: input.namespace,
 					reason: "refine",
+					origin: rewriteCitationOrigin(input.memory.origin),
 				});
 				return { action: "rewritten" as const, memory };
 			}
@@ -181,6 +202,7 @@ export const refineMemoryFromUse = (input: {
 				text: reextracted,
 				namespace: input.namespace,
 				reason: "refine",
+				origin: "extracted",
 			});
 			return { action: "reextracted" as const, memory };
 		}

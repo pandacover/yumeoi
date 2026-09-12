@@ -1,4 +1,5 @@
 import type { ChunkHit, Memory, MemoryHit, WhyFlag } from "@yumeoi/domain";
+import { formatMemoryCite } from "./provenance.ts";
 import { estimateTokens } from "./rrf.ts";
 
 const isoDate = (ms: number | null | undefined): string | null => {
@@ -21,16 +22,17 @@ export const formatMemoryLine = (
 	options?: { readonly conflictWith?: number },
 ): string => {
 	const memory = hit.memory;
-	const src = hit.provenance[0];
-	const srcBit = src ? `, src ${src.title ? JSON.stringify(src.title) : src.sourceId}` : "";
 	const seen = isoDate(memory.eventAt ?? memory.observedAt);
 	const conf = memory.confidence.toFixed(2).replace(/^0/, "");
-	const eventPrefix =
-		memory.type === "episodic" && seen ? `${seen} ` : seen ? `seen ${seen}, ` : "";
-	const meta =
-		memory.type === "episodic"
-			? `(${memory.type}·${memory.kind}, conf ${conf}${srcBit})`
-			: `(${memory.type}·${memory.kind}, conf ${conf}, ${eventPrefix.replace(/, $/, "")}${srcBit})`;
+	const cite = formatMemoryCite(memory.origin, hit.provenance);
+	const bits = [
+		`${memory.type}·${memory.kind}`,
+		`conf ${conf}`,
+		memory.type !== "episodic" && seen ? `seen ${seen}` : null,
+		cite,
+	].filter((bit): bit is string => Boolean(bit));
+	const meta = `(${bits.join(", ")})`;
+	const eventPrefix = memory.type === "episodic" && seen ? `${seen} ` : "";
 	const conflict = options?.conflictWith ? ` ⚠ conflicts with [${options.conflictWith}]` : "";
 	const stale = hit.stale
 		? ` ⚠ last confirmed ${isoDate(memory.observedAt)?.slice(0, 7) ?? "unknown"}`

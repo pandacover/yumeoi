@@ -69,6 +69,7 @@ export type MemoryPatch = {
 	readonly eventAt?: number | null;
 	readonly observedAt?: number | null;
 	readonly retention?: number;
+	readonly origin?: MemoryOrigin;
 };
 
 export type CommitBatch = {
@@ -189,6 +190,14 @@ export class MemoryRepo extends Context.Service<
 			readonly sourceId: string;
 			readonly documentId: string;
 			readonly chunkId: string;
+		}) => Effect.Effect<void, unknown>;
+		readonly ensureLinkedProvenance: (input: {
+			readonly userId: string;
+			readonly memoryId: string;
+			readonly sourceId: string;
+			readonly text: string;
+			readonly documentId?: string;
+			readonly chunkId?: string;
 		}) => Effect.Effect<void, unknown>;
 		readonly insertHistory: (row: {
 			readonly memoryId: string;

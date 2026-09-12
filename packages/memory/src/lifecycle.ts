@@ -2,6 +2,7 @@ import { InvalidRequest, type Memory, NotFound, type RememberOutcomeItem } from 
 import { Effect } from "effect";
 import { nowMillis } from "./clock.ts";
 import { MemoryRepo } from "./memory-repo.ts";
+import { rewriteCitationOrigin } from "./provenance.ts";
 import { applyMemoryText, refineMemoryFromUse } from "./refine.ts";
 import { ftsMatchQuery } from "./rrf.ts";
 import { restoreArchivedMemory } from "./sweep.ts";
@@ -35,6 +36,7 @@ export const updateMemoryRecord = (input: {
 				text: input.text,
 				namespace: input.namespace ?? "default",
 				reason: "correct",
+				origin: rewriteCitationOrigin(current.origin),
 			});
 		}
 		const updated = yield* repo.updateMemory(input.id, {

@@ -1,4 +1,5 @@
 import type { ChatCitation, RecallResult } from "@yumeoi/domain";
+import { citationSourceForHit } from "./provenance.ts";
 
 const CITATION_MARK = /\[(\d+)\]/g;
 
@@ -20,7 +21,7 @@ export const citationsFromRecall = (result: RecallResult): ChatCitation[] => {
 			continue;
 		}
 		seenMemories.add(hit.memory.id);
-		const provenance = hit.provenance[0];
+		const provenance = citationSourceForHit(hit);
 		if (provenance?.documentId) {
 			seenDocuments.add(provenance.documentId);
 		}
@@ -28,7 +29,7 @@ export const citationsFromRecall = (result: RecallResult): ChatCitation[] => {
 			index: citations.length + 1,
 			memoryId: hit.memory.id,
 			documentId: provenance?.documentId ?? null,
-			title: provenance?.title ?? hit.memory.kind,
+			title: provenance?.title ?? hit.memory.origin,
 			url: provenance?.url ?? null,
 			text: hit.memory.text,
 			kind: hit.memory.kind,
