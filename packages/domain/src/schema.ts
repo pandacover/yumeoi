@@ -435,6 +435,7 @@ export type RememberOutcomeItem = typeof RememberOutcomeItem.Type;
 export const ToolErrorCode = Schema.Literals([
 	"not_found",
 	"invalid_input",
+	"unauthorized",
 	"scope_required",
 	"rate_limited",
 	"conflict",

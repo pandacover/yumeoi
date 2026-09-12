@@ -13,3 +13,11 @@ When to call which tool:
 - changes_since: created/updated/superseded/forgotten ids since a timestamp, for local mirrors.
 
 Cite memories with [n] from the packed block. Follow-up ids are in the footer (`ids: m_…=[1]`). Do not pick types, hashes, or embeddings — the server does that.
+
+Timestamps: from, to, asOf, since, and recall_context.since are millisecond Unix epochs (not ISO strings). remember/update eventAt, validFrom, and validTo are ISO-8601 strings.
+
+Payload examples:
+- recall: {"query":"What does Luv prefer for the domain layer?","format":"markdown","plan":"fast"}
+- remember: {"text":"Luv prefers Effect 4 for the yumeoi domain layer.","mode":"verbatim"} or {"items":[{"text":"Luv prefers Effect 4.","clientRef":"note-1"}]}
+- feedback: {"id":"m_0123456789ab","signal":1} or {"id":"m_0123456789ab","signal":-1,"note":"Luv prefers Effect 4.","query":"What does Luv prefer?"}
+- forget: {"id":"m_0123456789ab"} for agent/user/chat origin; add "confirm":true for extracted memories. Query form: {"query":"oat milk","confirm":true}.

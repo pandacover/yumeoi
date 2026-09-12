@@ -75,4 +75,53 @@ describe("P2 MCP agent experience", () => {
 		const forgotten = await stub.forget({ id, confirm: true });
 		expect(forgotten.ids).toContain(id);
 	}, 30_000);
+
+	it("tools/list includes field descriptions for error-prone inputs", async () => {
+		const listed = await mcp({ jsonrpc: "2.0", id: 10, method: "tools/list", params: {} });
+		expect(listed.ok).toBe(true);
+		const text = await listed.text();
+		expect(text).toContain("milliseconds");
+		expect(text).toContain("confirm=true");
+		expect(text).toContain("text or items");
+		expect(text).toMatch(/signal[\s\S]{0,400}1/);
+		expect(text).toContain("ISO-8601");
+	});
+
+	it("invalid remember/feedback/forget payloads return structured hints", async () => {
+		const remember = await mcpResultText({
+			jsonrpc: "2.0",
+			id: 11,
+			method: "tools/call",
+			params: { name: "remember", arguments: {} },
+		});
+		expect(remember).toContain("invalid_input");
+		expect(remember).toContain("text or items");
+		expect(remember).not.toContain("Input validation error");
+
+		const feedback = await mcpResultText({
+			jsonrpc: "2.0",
+			id: 12,
+			method: "tools/call",
+			params: { name: "feedback", arguments: { id: "m_missing", signal: "useful" } },
+		});
+		expect(feedback).toContain("invalid_input");
+		expect(feedback).toMatch(/signal must be the integer 1/);
+
+		const recall = await mcpResultText({
+			jsonrpc: "2.0",
+			id: 13,
+			method: "tools/call",
+			params: { name: "recall", arguments: { query: "prefs", from: "2026-01-01" } },
+		});
+		expect(recall).toContain("invalid_input");
+		expect(recall).toMatch(/milliseconds/);
+
+		const missing = await mcpResultText({
+			jsonrpc: "2.0",
+			id: 14,
+			method: "tools/call",
+			params: { name: "get_memory", arguments: { id: "m_does_not_exist_xx" } },
+		});
+		expect(missing).toMatch(/not_found|not found/i);
+	}, 30_000);
 });
