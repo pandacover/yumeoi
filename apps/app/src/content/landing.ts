@@ -97,12 +97,12 @@ export const faqGroups = [
 		title: "Agents",
 		items: [
 			{
-				q: "How do I connect Cursor or Claude?",
-				a: "Add the MCP URL and complete OAuth in the browser. No API key in that config. Manage connected clients on the Agents page.",
+				q: "How do I connect Cursor, Claude, or another MCP client?",
+				a: "They share one Horizon MCP URL and OAuth. Add the URL in Cursor, Claude Desktop, Windsurf, Codex, Continue, or any MCP host, then allow access in the browser. No API key in that config. Host-specific install links and copy-paste configs are on the Agents page.",
 			},
 			{
 				q: "Do I need an API key?",
-				a: "Not for Cursor or Claude over MCP OAuth. Mint a key only for curl, scripts, or other headless clients that send an Authorization bearer token.",
+				a: "Not for MCP OAuth. Mint a key only for curl, scripts, or other headless clients that send an Authorization bearer token.",
 			},
 			{
 				q: "Can an agent write memories, or only read them?",
