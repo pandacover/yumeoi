@@ -685,6 +685,9 @@ export const sqlMemoryRepoLayer = Layer.effect(
 					if (patch.retention !== undefined) {
 						yield* sql`UPDATE memories SET retention = ${patch.retention}, updated_at = ${now} WHERE id = ${id}`;
 					}
+					if (patch.origin !== undefined) {
+						yield* sql`UPDATE memories SET origin = ${patch.origin}, updated_at = ${now} WHERE id = ${id}`;
+					}
 					const rows = yield* sql<MemoryRow>`SELECT * FROM memories WHERE id = ${id} LIMIT 1`;
 					const row = rows[0];
 					if (!row) {
@@ -702,6 +705,32 @@ export const sqlMemoryRepoLayer = Layer.effect(
 					INSERT OR IGNORE INTO memory_sources (memory_id, source_id, document_id, chunk_id)
 					VALUES (${input.memoryId}, ${input.sourceId}, ${input.documentId}, ${input.chunkId})
 				`.pipe(Effect.asVoid),
+			ensureLinkedProvenance: (input) =>
+				Effect.gen(function* () {
+					const now = Date.now();
+					const sourceId = input.sourceId;
+					const documentId = input.documentId ?? `${sourceId}:notes`;
+					const chunkId = input.chunkId ?? crypto.randomUUID();
+					yield* sql`
+						INSERT INTO sources (id, kind, label, created_at)
+						VALUES (${sourceId}, ${"agent"}, ${"Agent writes"}, ${now})
+						ON CONFLICT(id) DO NOTHING
+					`;
+					yield* sql`
+						INSERT INTO documents (id, source_id, external_id, content_hash, title, markdown, url, r2_key, created_at, updated_at)
+						VALUES (${documentId}, ${sourceId}, ${"notes"}, ${"agent"}, ${"Agent notes"}, ${input.text}, ${null}, ${`${input.userId}/${sourceId}/notes.json`}, ${now}, ${now})
+						ON CONFLICT(id) DO NOTHING
+					`;
+					yield* sql`
+						INSERT INTO chunks (id, document_id, text, content_hash, byte_start, byte_end)
+						VALUES (${chunkId}, ${documentId}, ${input.text}, ${input.memoryId}, ${0}, ${input.text.length})
+						ON CONFLICT(id) DO NOTHING
+					`;
+					yield* sql`
+						INSERT OR IGNORE INTO memory_sources (memory_id, source_id, document_id, chunk_id)
+						VALUES (${input.memoryId}, ${sourceId}, ${documentId}, ${chunkId})
+					`;
+				}),
 			insertHistory: (row) =>
 				sql`
 					INSERT INTO memory_history (

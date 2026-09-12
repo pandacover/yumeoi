@@ -1,5 +1,5 @@
 import { MEMORY_KINDS, type MemoryKind, type RecallResult } from "@yumeoi/domain";
-import { citationsFromRecall } from "@yumeoi/memory";
+import { citationSourceForHit, citationsFromRecall } from "@yumeoi/memory";
 import { type ToolSet, tool } from "ai";
 import { z } from "zod";
 
@@ -62,14 +62,18 @@ export const compactRecall = (result: RecallResult) => {
 	const citations = citationsFromRecall(result);
 	return {
 		citations,
-		memories: result.memories.map((hit) => ({
-			id: hit.memory.id,
-			kind: hit.memory.kind,
-			text: hit.memory.text,
-			title: hit.provenance[0]?.title ?? null,
-			url: hit.provenance[0]?.url ?? null,
-			documentId: hit.provenance[0]?.documentId ?? null,
-		})),
+		memories: result.memories.map((hit) => {
+			const source = citationSourceForHit(hit);
+			return {
+				id: hit.memory.id,
+				kind: hit.memory.kind,
+				text: hit.memory.text,
+				origin: hit.memory.origin,
+				title: source?.title ?? (hit.memory.origin === "extracted" ? null : hit.memory.origin),
+				url: source?.url ?? null,
+				documentId: source?.documentId ?? null,
+			};
+		}),
 		chunks: result.chunks.map((hit) => ({
 			documentId: hit.chunk.documentId,
 			title: hit.title,

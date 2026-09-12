@@ -25,6 +25,7 @@ export * from "./lifecycle.ts";
 export * from "./llm.ts";
 export * from "./memory-repo.ts";
 export * from "./object-store.ts";
+export * from "./provenance.ts";
 export * from "./recall.ts";
 export * from "./refine.ts";
 export * from "./reindex.ts";

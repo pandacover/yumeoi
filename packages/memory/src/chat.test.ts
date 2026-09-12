@@ -155,4 +155,37 @@ describe("chat citations", () => {
 		expect(citations).toHaveLength(1);
 		expect(citations[0]?.index).toBe(1);
 	});
+
+	test("agent-origin memories are not titled as a Notion page", () => {
+		const citations = citationsFromRecall({
+			memories: [
+				{
+					memory: fillMemory({
+						id: "mem-agent",
+						kind: "fact",
+						text: "Luv drinks oat milk lattes at the office every morning.",
+						confidence: 0.9,
+						validFrom: null,
+						validTo: null,
+						supersedes: null,
+						origin: "agent",
+					}),
+					score: 1,
+					provenance: [
+						{
+							sourceId: "notion:ws",
+							documentId: "doc-notion",
+							chunkId: "chunk-notion",
+							title: "Coffee wiki",
+							url: "https://notion.so/coffee",
+						},
+					],
+				},
+			],
+			chunks: [],
+		});
+		expect(citations[0]?.title).toBe("agent");
+		expect(citations[0]?.documentId).toBeNull();
+		expect(citations[0]?.title).not.toBe("Coffee wiki");
+	});
 });

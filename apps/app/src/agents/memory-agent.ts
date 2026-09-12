@@ -35,6 +35,7 @@ import {
 	listEntityIndex,
 	loadDocument,
 	MemoryRepo,
+	orderProvenanceForOrigin,
 	profileLines,
 	recallContext,
 	recordChatEpisode,
@@ -807,7 +808,7 @@ export class MemoryAgent extends AIChatAgent<Env, MemoryAgentState> {
 				return memories.map((memory) => ({
 					memory,
 					score: 1,
-					provenance: byMemory.get(memory.id) ?? [],
+					provenance: orderProvenanceForOrigin(memory.origin, byMemory.get(memory.id) ?? []),
 				}));
 			}),
 		);

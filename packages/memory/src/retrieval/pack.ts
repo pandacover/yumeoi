@@ -9,6 +9,7 @@ import type {
 	WhyFlag,
 } from "@yumeoi/domain";
 import { packMarkdown } from "../format.ts";
+import { orderProvenanceForOrigin } from "../provenance.ts";
 import { isSemanticStale } from "../retention.ts";
 import { estimateTokens } from "../rrf.ts";
 
@@ -47,7 +48,10 @@ export const packRecall = (input: {
 			return {
 				memory,
 				score: input.scores.get(memory.id) ?? 0,
-				provenance: provenanceByMemory.get(memory.id) ?? [],
+				provenance: orderProvenanceForOrigin(
+					memory.origin,
+					provenanceByMemory.get(memory.id) ?? [],
+				),
 				why: [...(input.why.get(memory.id) ?? [])],
 				...(stale ? { stale: true } : {}),
 			};
