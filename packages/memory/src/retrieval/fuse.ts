@@ -1,4 +1,5 @@
 import type { Memory, QueryPlan } from "@yumeoi/domain";
+import { useFactor } from "../retention.ts";
 import type { CandidateLists } from "./candidates.ts";
 import type { RetrievalConfig } from "./config.ts";
 import { freshness } from "./plan.ts";
@@ -45,6 +46,7 @@ export const fuseMemories = (input: {
 	readonly plan: QueryPlan;
 	readonly config: RetrievalConfig;
 	readonly now?: number;
+	readonly feedbackById?: ReadonlyMap<string, number>;
 }): Map<string, number> => {
 	const now = input.now ?? Date.now();
 	const fused = weightedRrf(
@@ -67,13 +69,18 @@ export const fuseMemories = (input: {
 		const ageMs = now - (memory.eventAt ?? memory.observedAt ?? now);
 		const fresh = freshness(memory.type, ageMs, input.config.halfLifeDays);
 		const typeWeight = input.plan.typeWeights[memory.type];
+		const use =
+			input.feedbackById === undefined
+				? 1
+				: Math.max(0.05, useFactor(memory.accessCount, input.feedbackById.get(id) ?? 0));
 		adjusted.set(
 			id,
 			score *
 				(0.5 + 0.5 * memory.confidence) *
 				(0.7 + 0.6 * memory.importance) *
 				fresh *
-				typeWeight,
+				typeWeight *
+				use,
 		);
 	}
 	return adjusted;

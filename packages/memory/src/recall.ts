@@ -111,11 +111,13 @@ export const searchMemories = (
 		const repo = yield* MemoryRepo;
 		const ids = uniqueIds([...lists.fts, ...lists.vector, ...lists.graph, ...lists.recent]);
 		const memories = yield* repo.listMemoriesByIds(ids);
+		const feedback = yield* repo.listFeedbackSums(ids);
 		const scores = fuseMemories({
 			lists,
 			memories,
 			plan,
 			config: defaultRetrievalConfig,
+			feedbackById: new Map(feedback.map((row) => [row.id, row.sum])),
 		});
 		const ranked = [...scores.entries()]
 			.sort((a, b) => b[1] - a[1])
@@ -162,11 +164,13 @@ export const recallContext = (input: Partial<RecallQuery> & { query: string; nam
 		});
 		const memoryIds = uniqueIds([...lists.fts, ...lists.vector, ...lists.graph, ...lists.recent]);
 		const memories = yield* repo.listMemoriesByIds(memoryIds);
+		const feedback = yield* repo.listFeedbackSums(memoryIds);
 		let scores = fuseMemories({
 			lists,
 			memories,
 			plan,
 			config: defaultRetrievalConfig,
+			feedbackById: new Map(feedback.map((row) => [row.id, row.sum])),
 		});
 		const texts = new Map(memories.map((memory) => [memory.id, memory.text]));
 		const rankedIds = [...scores.entries()].sort((a, b) => b[1] - a[1]).map(([id]) => id);

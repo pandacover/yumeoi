@@ -219,7 +219,7 @@ Defined once as Effect Schema in `packages/domain/src/tools.ts` (`ToolInput`/`To
 | `remember` | **`text`** or **`items[]`** (batch ≤ 20), per item: `type`, `kind`, `importance`, `eventAt`, `validFrom`, `entities[]`, `clientRef`; top-level `dedupe` (default true), `mode: "extract"|"verbatim"` | Per item `{ action: "created"|"merged"|"duplicate"|"superseded"|"conflict", id, text, type, kind, affected[] }` | Runs the single write path (§3.3). `mode: "extract"` lets an agent hand in a paragraph and get several memories back. `clientRef` makes retries idempotent. Scope `memories:write`. |
 | `update_memory` | **`id`**, `text`, `validTo`, `importance`, `kind`, `eventAt` | Updated memory + history id | Keeps the id stable; writes `memory_history` (`reason = correct`). |
 | `forget` | **`id`** or **`query`** + **`confirm: true`**, `reason` | Ids moved to `forgotten` | Soft; hard-deleted by the sweep after 30 days. Only memories with `origin ∈ {agent, user, chat}` or explicit `confirm` on extracted ones. `destructiveHint: true`. |
-| `feedback` | **`id`**, **`signal: 1|-1`**, `note` | ack | Feeds importance and decay (§3.6). Cheap way for an agent to say "that was wrong/useful". |
+| `feedback` | **`id`**, **`signal: 1|-1`**, `note`, `query` | `{ ok, id, action?, text? }` | `signal=+1` feeds importance and decay. `signal=-1` with `note` rewrites the memory via `summarize`; without a note, document-backed memories are re-extracted from their source chunk (documents stay truth). `query` is the recall that missed and is passed into rewrite/re-extract. The id stays stable; text changes re-embed. |
 | `get_memory` / `get_document` | **`id`** | Full record (memory includes history, edges, entities, provenance) | Progressive disclosure: `recall` gives short ids, these give depth. |
 | `get_entity` (P4) | **`name`** or **`id`**, `hops` (≤ 2) | Entity summary, relations, recent memories | |
 | `timeline` (P5) | **`about`** (entity or topic), `from`, `to`, `limit` | Chronological episodic memories + version changes | |
@@ -266,6 +266,7 @@ Rewrite `packages/memory/src/recall.ts` into `packages/memory/src/retrieval/{pla
    - `× (0.7 + 0.6·importance)`
    - `× freshness_type(age)` with `age = now − (event_at ?? observed_at)`, half-lives episodic 30 d, semantic 365 d, procedural none (replaces the flat `recencyBoost`)
    - `× typeWeights[type]` from the plan (e.g. howto → procedural 1.4, episodic 0.7)
+   - `× useFactor(access_count, Σfeedback)` (`1 + 0.25·ln(1+access_count) + 0.15·Σfeedback`, floored at 0.05) so recall/search rank from use, not only from fusion. This is the v1 representation-learning hook; embedding models stay frozen (`bge-m3`). Content rewrites (merge, `update_memory`, feedback refine) re-embed the new text.
 4. **Dedupe**. Drop evidence chunks whose id is already cited by a packed memory unless `include` has `evidence` explicitly; collapse memories connected by `same_episode`/`elaborates` edges to the highest scorer; do not show both ends of a `supersedes` edge.
 5. **Rerank** (`rerank.ts`). Top-30 through Workers AI `@cf/baai/bge-reranker-base` (`{ query, contexts: [{text}] }`, colocated, $0.0031/M input tokens, tens of ms) and blend `0.6·rerank + 0.4·fused`. LLM listwise rerank (existing `RerankResult`) stays available as `rerank: "llm"` for chat if the eval says it helps; the P3 eval decides the default. Add `Reranker` service to `packages/memory` with a Workers AI layer in `cf-runtime` and an identity layer in `test-kit`.
 6. **Diversify**. MMR with λ = 0.7 on the top-N using cosine over memory vectors already in hand (fetch with `returnValues` only for the top-30 slice, which is under the 50 cap).
@@ -305,7 +306,7 @@ remember(input: RememberInput) => Effect<RememberOutcome, …>
 // → consolidate v2 → commit (row, edges, history, provenance, entities, relations) → vector upsert → outcome
 ```
 
-`ingest.ts` `consolidateIngest`/`commitIngest` are refactored to call the same internals in batch form (one transaction per document, in-batch candidates included as today). `MemoryRepo.addMemory` is deleted; `MemoryAgent.addMemory` becomes a thin alias of `remember` for one phase (fixes D3).
+`ingest.ts` `consolidateIngest`/`commitIngest` call the same `planExtractedWrite` / `persistExtractedWrite` internals as `remember` (`packages/memory/src/write-extracted.ts`), including merge/contradicts, the temporal guard, graph writes (`writeGraphForMemory`), and re-embed on merge. New rows still go through the document `commit` transaction first so documents stay truth; merge/conflict/graph side effects run in `finalizeIngestWrites` after commit.
 
 #### Consolidation v2
 
@@ -370,7 +371,7 @@ Every text/validity/state change writes `memory_history` (§2.2). `get_memory` r
 | L2 | semantic memories (facts, preferences, relationships) | extraction, agent writes, promotion | default recall |
 | L3 | profile (top stable semantic memories about the user), procedures, entity descriptions | promotion, induction, entity summaries | `memory://profile`, `memory://procedures`, chat system context |
 
-**Promotion** (`packages/memory/src/layers/promote.ts`, run by the nightly sweep): cluster active episodic memories older than 14 days by shared entity + kind (cheap: group by `(entity_id, kind)`, then cosine ≥ 0.8 within group); clusters with ≥ 3 members get one `summarize` call producing a semantic memory (`origin = derived`) with `derived_from` edges to each episode; episodes keep their rows but their `importance` is reduced by 0.2 so decay retires them first. **Procedural induction**: clusters of ≥ 3 episodic `task`/`decision` memories with the same trigger phrase or ≥ 3 `rule`-like instructions across chat sessions produce a `procedural` memory the same way. **Chat sessions**: `MemoryAgent.onChatMessage`'s `onFinish` schedules a `summarize` job that stores at most one episodic memory per turn that contains a decision, commitment, or new preference (`origin = chat`, `eventAt = now`), routed through `remember` so dedupe applies. Profile = top-25 active semantic memories by `importance × retention` with `origin ∈ {agent, user, extracted}` about the user entity (the resolver seeds a `person` entity for the workspace owner from the app user id).
+**Promotion** (`packages/memory/src/layers/promote.ts`, run by the nightly sweep): cluster active episodic memories older than 14 days by shared entity + kind, then cosine ≥ 0.8 connected components within the group (`packages/memory/src/cluster.ts`); clusters with ≥ 3 members get one `summarize` call (schema `SummaryResult`) producing a semantic memory (`origin = derived`) with `derived_from` edges to each episode. Episodes that already have a `derived_from` parent are skipped. Episodes keep their rows but their `importance` is reduced by 0.2 so decay retires them first. **Procedural induction**: clusters of ≥ 3 episodic `task`/`decision` memories or `rule`/`procedure` rows, cosine-grouped the same way, produce a `procedural` memory via `summarize` (not first-item concatenation). **Chat sessions**: `MemoryAgent.onChatMessage`'s `onFinish` schedules a `summarize` job that stores at most one episodic memory per turn that contains a decision, commitment, or new preference (`origin = chat`, `eventAt = now`), routed through `remember` so dedupe applies. Profile = top-25 active semantic memories by `importance × retention` with `origin ∈ {agent, user, extracted}` about the user entity (the resolver seeds a `person` entity for the workspace owner from the app user id).
 
 #### Temporal eval
 
@@ -390,7 +391,7 @@ use            = 1 + 0.25·ln(1 + access_count) + 0.15·Σfeedback
 retention      = clamp(importance^0.5 · confidence · recency · use, 0, 1)
 ```
 
-Explicit writes (`origin ∈ {agent, user}`) and memories with a `derived_from` child (they have already been summarized) get `importance` floors of 0.6 and 0.3 respectively. Negative feedback (`signal = −1`) subtracts 0.2 from `importance` and, at ≤ 0.1, moves the memory to `dormant` immediately.
+Explicit writes (`origin ∈ {agent, user}`) and memories with a `derived_from` child (they have already been summarized) get `importance` floors of 0.6 and 0.3 respectively. Negative feedback (`signal = −1`) subtracts 0.2 from `importance` and, at ≤ 0.1, moves the memory to `dormant` immediately — unless the same call rewrote or re-extracted the text, in which case importance drops by 0.05 and the row stays active.
 
 #### Lifecycle
 

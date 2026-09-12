@@ -26,6 +26,7 @@ export * from "./llm.ts";
 export * from "./memory-repo.ts";
 export * from "./object-store.ts";
 export * from "./recall.ts";
+export * from "./refine.ts";
 export * from "./reindex.ts";
 export * from "./remember.ts";
 export * from "./reranker.ts";

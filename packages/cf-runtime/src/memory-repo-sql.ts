@@ -697,6 +697,11 @@ export const sqlMemoryRepoLayer = Layer.effect(
 					INSERT OR IGNORE INTO memory_edges (src, dst, relation, created_at)
 					VALUES (${src}, ${dst}, ${relation}, ${Date.now()})
 				`.pipe(Effect.asVoid),
+			linkProvenance: (input) =>
+				sql`
+					INSERT OR IGNORE INTO memory_sources (memory_id, source_id, document_id, chunk_id)
+					VALUES (${input.memoryId}, ${input.sourceId}, ${input.documentId}, ${input.chunkId})
+				`.pipe(Effect.asVoid),
 			insertHistory: (row) =>
 				sql`
 					INSERT INTO memory_history (
@@ -809,6 +814,19 @@ export const sqlMemoryRepoLayer = Layer.effect(
 						);
 					} else {
 						clauses.push(sql`memories.state = ${"active"}`);
+					}
+					if (filters.kinds.length > 0) {
+						clauses.push(sql.in("memories.kind", [...filters.kinds]));
+					}
+					if (filters.types && filters.types.length > 0) {
+						clauses.push(sql.in("memories.type", [...filters.types]));
+					}
+					if (filters.sources.length > 0) {
+						clauses.push(sql`EXISTS (
+							SELECT 1 FROM memory_sources
+							WHERE memory_sources.memory_id = memories.id
+							AND ${sql.in("memory_sources.source_id", [...filters.sources])}
+						)`);
 					}
 					const rows = yield* sql<{ id: string }>`
 						SELECT DISTINCT memories.id

@@ -184,6 +184,12 @@ export class MemoryRepo extends Context.Service<
 			dst: string,
 			relation: string,
 		) => Effect.Effect<void, unknown>;
+		readonly linkProvenance: (input: {
+			readonly memoryId: string;
+			readonly sourceId: string;
+			readonly documentId: string;
+			readonly chunkId: string;
+		}) => Effect.Effect<void, unknown>;
 		readonly insertHistory: (row: {
 			readonly memoryId: string;
 			readonly text: string;

@@ -25,7 +25,7 @@ When to call which tool:
 - remember: to store what the user just said, a decision, or a preference. Pass text (or items[]) and let the store classify, embed, and dedupe. Use clientRef on retries. mode=extract splits a paragraph into several memories; mode=verbatim stores the statement as given.
 - update_memory: to correct text or validity on an existing id. The id stays stable.
 - forget: to retire a memory the agent or user wrote. Extracted memories need confirm=true.
-- feedback: signal=1 if a recalled line was useful, -1 if it was wrong. Cheap and preferred over rewriting.
+- feedback: signal=1 if a recalled line was useful, -1 if it was wrong. On -1, pass note (the correction) and/or query (the recall that missed) so the store can rewrite or re-extract the memory text, re-embed it, and keep the same id. Without note or source chunks, -1 only adjusts importance.
 - get_memory / get_document: after recall, when you need history, edges, entities, or the source document.
 - get_entity: entity summary, relations, and recent memories. Pass name or id; hops≤2.
 - timeline: chronological episodic memories about an entity or topic (from/to optional).
@@ -127,12 +127,15 @@ export const FeedbackToolInput = Schema.Struct({
 	id: Schema.String,
 	signal: Schema.Literals([1, -1]),
 	note: Schema.optionalKey(Schema.String),
+	query: Schema.optionalKey(Schema.String),
 });
 export type FeedbackToolInput = typeof FeedbackToolInput.Type;
 
 export const FeedbackToolOutput = Schema.Struct({
 	ok: Schema.Boolean,
 	id: Schema.String,
+	action: Schema.optionalKey(Schema.Literals(["scored", "rewritten", "reextracted"])),
+	text: Schema.optionalKey(Schema.String),
 });
 export type FeedbackToolOutput = typeof FeedbackToolOutput.Type;
 
@@ -201,7 +204,7 @@ export const TOOL_SCHEMA_EXAMPLES = {
 	},
 	update_memory: { id: "m_0123456789ab", text: "Luv prefers Effect 4." },
 	forget: { id: "m_0123456789ab", confirm: true, reason: "user asked" },
-	feedback: { id: "m_0123456789ab", signal: 1 as const },
+	feedback: { id: "m_0123456789ab", signal: 1 as const, query: "What does Luv prefer?" },
 	get_memory: { id: "m_0123456789ab" },
 	get_document: { id: "doc-1" },
 	list_sources: {},

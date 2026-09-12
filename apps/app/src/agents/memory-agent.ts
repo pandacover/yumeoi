@@ -518,7 +518,13 @@ export class MemoryAgent extends AIChatAgent<Env, MemoryAgentState> {
 	}
 
 	@callable()
-	async feedback(input: { id: string; signal: 1 | -1; note?: string; clientId?: string }) {
+	async feedback(input: {
+		id: string;
+		signal: 1 | -1;
+		note?: string;
+		query?: string;
+		clientId?: string;
+	}) {
 		await this.#touch();
 		return this.#runtime.runPromise(
 			recordFeedback({
@@ -527,6 +533,7 @@ export class MemoryAgent extends AIChatAgent<Env, MemoryAgentState> {
 				clientId: input.clientId ?? this.name,
 				namespace: this.name,
 				...(input.note !== undefined ? { note: input.note } : {}),
+				...(input.query !== undefined ? { query: input.query } : {}),
 			}),
 		);
 	}

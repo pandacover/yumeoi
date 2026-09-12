@@ -28,8 +28,8 @@ describe("tool contract v2", () => {
 		expect(Schema.decodeUnknownSync(ForgetToolInput)(TOOL_SCHEMA_EXAMPLES.forget).confirm).toBe(
 			true,
 		);
-		expect(Schema.decodeUnknownSync(FeedbackToolInput)(TOOL_SCHEMA_EXAMPLES.feedback).signal).toBe(
-			1,
+		expect(Schema.decodeUnknownSync(FeedbackToolInput)(TOOL_SCHEMA_EXAMPLES.feedback).query).toBe(
+			"What does Luv prefer?",
 		);
 		expect(
 			Schema.decodeUnknownSync(GetMemoryToolInput)(TOOL_SCHEMA_EXAMPLES.get_memory).id,

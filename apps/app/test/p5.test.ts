@@ -62,7 +62,7 @@ describe("P5 temporal and layers", () => {
 	it("promotion creates summaries with derived_from edges", async () => {
 		const stub = env.MemoryAgent.getByName("p5-promote-user");
 		const old = Date.now() - 20 * MS_DAY;
-		for (const suffix of ["alpha", "bravo", "charlie"]) {
+		for (const suffix of ["A", "B", "C"]) {
 			await stub.remember({
 				items: [
 					{

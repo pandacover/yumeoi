@@ -258,12 +258,14 @@ export function createYumeoiMcpServer(env: Env) {
 	server.registerTool(
 		"feedback",
 		{
-			description: "Mark a recalled memory as useful (1) or wrong (-1).",
+			description:
+				"Mark a recalled memory as useful (1) or wrong (-1). On -1, note and/or query rewrites or re-extracts the memory text (same id, re-embedded); otherwise only importance changes.",
 			annotations: { idempotentHint: true },
 			inputSchema: {
 				id: z.string(),
 				signal: z.union([z.literal(1), z.literal(-1)]),
 				note: z.string().optional(),
+				query: z.string().optional(),
 			},
 		},
 		async (input) => {

@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import { fillMemory } from "@yumeoi/domain";
 import { defaultRetrievalConfig } from "./retrieval/config.ts";
-import { validAt, weightedRrf } from "./retrieval/fuse.ts";
-import { freshness } from "./retrieval/plan.ts";
+import { fuseMemories, validAt, weightedRrf } from "./retrieval/fuse.ts";
+import { freshness, planQueryFast } from "./retrieval/plan.ts";
 import { blendRerank, mmrDiversify } from "./retrieval/rerank.ts";
 
 describe("P3 retrieval helpers", () => {
@@ -49,6 +49,59 @@ describe("P3 retrieval helpers", () => {
 		]);
 		const selected = mmrDiversify(["a", "b"], scores, new Map(), 0.7, 2);
 		expect(selected[0]).toBe("a");
+	});
+
+	test("feedback-aware fuse boosts useful memories and demotes misses", () => {
+		const lists = {
+			fts: ["good", "bad"],
+			vector: ["good", "bad"],
+			graph: [],
+			recent: [],
+			ftsChunks: [],
+			vectorChunks: [],
+			vectorValues: new Map<string, ReadonlyArray<number>>(),
+		};
+		const memories = [
+			fillMemory({
+				id: "good",
+				kind: "fact",
+				text: "Luv prefers Effect 4.",
+				confidence: 1,
+				validFrom: null,
+				validTo: null,
+				supersedes: null,
+				importance: 0.5,
+			}),
+			fillMemory({
+				id: "bad",
+				kind: "fact",
+				text: "Luv prefers React.",
+				confidence: 1,
+				validFrom: null,
+				validTo: null,
+				supersedes: null,
+				importance: 0.5,
+			}),
+		];
+		const plan = planQueryFast({ query: "What does Luv prefer?" });
+		const baseline = fuseMemories({
+			lists,
+			memories,
+			plan,
+			config: defaultRetrievalConfig,
+		});
+		const ranked = fuseMemories({
+			lists,
+			memories,
+			plan,
+			config: defaultRetrievalConfig,
+			feedbackById: new Map([
+				["good", 4],
+				["bad", -2],
+			]),
+		});
+		expect(ranked.get("good") ?? 0).toBeGreaterThan(baseline.get("good") ?? 0);
+		expect(ranked.get("bad") ?? 0).toBeLessThan(baseline.get("bad") ?? 0);
 	});
 
 	test("rerank blend moves the cross-encoder winner up", () => {

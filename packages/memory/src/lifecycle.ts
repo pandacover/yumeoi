@@ -2,6 +2,7 @@ import { InvalidRequest, type Memory, NotFound, type RememberOutcomeItem } from 
 import { Effect } from "effect";
 import { nowMillis } from "./clock.ts";
 import { MemoryRepo } from "./memory-repo.ts";
+import { applyMemoryText, refineMemoryFromUse } from "./refine.ts";
 import { ftsMatchQuery } from "./rrf.ts";
 import { restoreArchivedMemory } from "./sweep.ts";
 import { VectorIndex } from "./vector-index.ts";
@@ -25,28 +26,38 @@ export const updateMemoryRecord = (input: {
 		if (current.state === "archived") {
 			current = yield* restoreArchivedMemory(input.id, input.namespace ?? "default");
 		}
+		const previous = current;
 		const eventAt =
 			input.eventAt === undefined ? undefined : input.eventAt ? Date.parse(input.eventAt) : null;
+		if (input.text !== undefined && input.text !== current.text) {
+			current = yield* applyMemoryText({
+				memory: current,
+				text: input.text,
+				namespace: input.namespace ?? "default",
+				reason: "correct",
+			});
+		}
 		const updated = yield* repo.updateMemory(input.id, {
-			...(input.text !== undefined ? { text: input.text } : {}),
 			...(input.validTo !== undefined ? { validTo: input.validTo } : {}),
 			...(input.importance !== undefined ? { importance: input.importance } : {}),
 			...(input.kind !== undefined ? { kind: input.kind } : {}),
 			...(eventAt !== undefined ? { eventAt: Number.isFinite(eventAt) ? eventAt : null } : {}),
 		});
-		yield* repo.insertHistory({
-			memoryId: updated.id,
-			text: updated.text,
-			type: updated.type,
-			kind: updated.kind,
-			confidence: updated.confidence,
-			validFrom: updated.validFrom,
-			validTo: updated.validTo,
-			state: updated.state,
-			reason: "correct",
-			changedAt: now,
-		});
-		return { memory: updated, previous: current };
+		if (input.text === undefined) {
+			yield* repo.insertHistory({
+				memoryId: updated.id,
+				text: updated.text,
+				type: updated.type,
+				kind: updated.kind,
+				confidence: updated.confidence,
+				validFrom: updated.validFrom,
+				validTo: updated.validTo,
+				state: updated.state,
+				reason: "correct",
+				changedAt: now,
+			});
+		}
+		return { memory: updated, previous };
 	});
 
 export const forgetMemories = (input: {
@@ -117,6 +128,7 @@ export const recordFeedback = (input: {
 	readonly id: string;
 	readonly signal: 1 | -1;
 	readonly note?: string;
+	readonly query?: string;
 	readonly clientId: string;
 	readonly namespace?: string;
 }) =>
@@ -129,21 +141,41 @@ export const recordFeedback = (input: {
 			signal: input.signal,
 			...(input.note ? { note: input.note } : {}),
 		});
+		const namespace = input.namespace ?? "default";
+		const refined =
+			input.signal === -1
+				? yield* refineMemoryFromUse({
+						memory,
+						namespace,
+						...(input.note ? { note: input.note } : {}),
+						...(input.query ? { query: input.query } : {}),
+					})
+				: { action: "scored" as const, memory };
+		const latest = refined.memory;
 		const nextImportance = Math.min(
 			1,
-			Math.max(0, memory.importance + (input.signal === 1 ? 0.05 : -0.2)),
+			Math.max(
+				0,
+				latest.importance +
+					(input.signal === 1 ? 0.05 : refined.action === "scored" ? -0.2 : -0.05),
+			),
 		);
-		if (input.signal === 1 && memory.state === "archived") {
-			yield* restoreArchivedMemory(input.id, input.namespace ?? "default");
+		if (input.signal === 1 && latest.state === "archived") {
+			yield* restoreArchivedMemory(input.id, namespace);
 		}
 		const patch =
-			input.signal === -1 && nextImportance <= 0.1
+			input.signal === -1 && refined.action === "scored" && nextImportance <= 0.1
 				? { importance: nextImportance, state: "dormant" as const }
-				: input.signal === 1 && memory.state === "dormant"
+				: input.signal === 1 && latest.state === "dormant"
 					? { importance: nextImportance, state: "active" as const }
 					: { importance: nextImportance };
 		yield* repo.updateMemory(input.id, patch);
-		return { ok: true as const, id: input.id };
+		return {
+			ok: true as const,
+			id: input.id,
+			action: refined.action,
+			...(refined.action !== "scored" ? { text: refined.memory.text } : {}),
+		};
 	});
 
 export const getMemoryDetail = (id: string) =>
@@ -169,5 +201,10 @@ export const getMemoryDetail = (id: string) =>
 	});
 
 export type ForgetResult = { readonly ids: ReadonlyArray<string> };
-export type FeedbackResult = { readonly ok: true; readonly id: string };
+export type FeedbackResult = {
+	readonly ok: true;
+	readonly id: string;
+	readonly action: "scored" | "rewritten" | "reextracted";
+	readonly text?: string;
+};
 export type RememberBatch = { readonly items: ReadonlyArray<RememberOutcomeItem> };
