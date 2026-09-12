@@ -180,7 +180,9 @@ Cite memories with [n] from the packed block. Follow-up ids are in the footer (\
 
 Timestamps: from, to, asOf, since, and recall_context.since are millisecond Unix epochs. ISO-8601 strings are accepted and coerced to ms. remember/update eventAt, validFrom, and validTo are ISO-8601 strings.
 
-On any tool error: read retry_with and call the same tool again with that JSON object exactly. Do not invent new fields. Do not ask the user unless the error is unauthorized.
+On invalid_input with retry_with: call the same tool once with that JSON object exactly. If the same error repeats, stop. Do not invent new fields.
+On unavailable, rate_limited, or schema_violation: do not retry the same payload. The hint names the missing provider, quota, or server-side classify failure — fix that dependency instead.
+On unauthorized: reconnect OAuth. Do not retry.
 
 Payload examples:
 - recall: {"query":"What does Luv prefer for the domain layer?","format":"markdown","plan":"fast"}

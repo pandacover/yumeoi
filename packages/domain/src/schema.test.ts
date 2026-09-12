@@ -12,6 +12,7 @@ import {
 	DEFAULT_LLM_PROVIDER,
 	defaultLlmConfig,
 	FALLBACK_LLM_PROVIDER,
+	maxOutputTokensForJob,
 	parseResponseUsage,
 } from "./llm.ts";
 import {
@@ -26,6 +27,12 @@ describe("domain schemas", () => {
 	test("chat is pinned to gpt-5.6-luna high", () => {
 		expect(CHAT_MODEL_ID).toBe("gpt-5.6-luna");
 		expect(defaultLlmConfig.chat).toEqual({ model: "gpt-5.6-luna", effort: "high" });
+	});
+
+	test("classify caps Responses API output well below the 65536 OpenRouter default", () => {
+		expect(maxOutputTokensForJob("classify")).toBe(1024);
+		expect(maxOutputTokensForJob("consolidate")).toBe(768);
+		expect(maxOutputTokensForJob("extract")).toBeLessThan(65536);
 	});
 
 	test("M1 pins extract/consolidate/rerank from the keyed eval", () => {

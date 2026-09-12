@@ -480,9 +480,13 @@ export class MemoryAgent extends AIChatAgent<Env, MemoryAgentState> {
 
 	@callable()
 	async addMemory(input: AddMemoryRequest) {
-		const userId = this.name;
-		const request = input.sourceId ? input : { ...input, sourceId: `agent:${userId}` };
-		return this.#runtime.runPromise(addMemory(userId, request));
+		try {
+			const userId = this.name;
+			const request = input.sourceId ? input : { ...input, sourceId: `agent:${userId}` };
+			return await this.#runtime.runPromise(addMemory(userId, request));
+		} catch (error) {
+			throw publicError(error);
+		}
 	}
 
 	@callable()
@@ -503,19 +507,23 @@ export class MemoryAgent extends AIChatAgent<Env, MemoryAgentState> {
 		origin?: "extracted" | "agent" | "user" | "derived" | "chat";
 		observedAt?: number | null;
 	}) {
-		await this.#touch();
-		return this.#runtime.runPromise(
-			remember({
-				userId: this.name,
-				dedupe: input.dedupe ?? true,
-				mode: input.mode ?? "verbatim",
-				sourceId: input.sourceId ?? `agent:${this.name}`,
-				...(input.text !== undefined ? { text: input.text } : {}),
-				...(input.items !== undefined ? { items: input.items as never } : {}),
-				...(input.origin ? { origin: input.origin } : {}),
-				...(input.observedAt !== undefined ? { observedAt: input.observedAt } : {}),
-			}),
-		);
+		try {
+			await this.#touch();
+			return await this.#runtime.runPromise(
+				remember({
+					userId: this.name,
+					dedupe: input.dedupe ?? true,
+					mode: input.mode ?? "verbatim",
+					sourceId: input.sourceId ?? `agent:${this.name}`,
+					...(input.text !== undefined ? { text: input.text } : {}),
+					...(input.items !== undefined ? { items: input.items as never } : {}),
+					...(input.origin ? { origin: input.origin } : {}),
+					...(input.observedAt !== undefined ? { observedAt: input.observedAt } : {}),
+				}),
+			);
+		} catch (error) {
+			throw publicError(error);
+		}
 	}
 
 	@callable()

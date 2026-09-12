@@ -131,6 +131,6 @@ describe("P2 MCP agent experience", () => {
 			params: { name: "get_memory", arguments: { id: "m_does_not_exist_xx" } },
 		});
 		expect(missing).toMatch(/not_found|not found/i);
-		expect(missing).toContain("retry_with");
+		expect(missing).not.toMatch(/retry_with: \{/);
 	}, 30_000);
 });

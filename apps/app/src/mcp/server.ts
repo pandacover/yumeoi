@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/server";
 import {
 	AGENT_INSTRUCTIONS,
+	defaultTypeForKind,
 	MCP_TOOL_DESCRIPTIONS,
 	type MemoryKind,
 	type MemoryType,
@@ -135,7 +136,7 @@ export function createYumeoiMcpServer(env: Env) {
 							text: parsed.text,
 							items: parsed.items,
 							dedupe: parsed.dedupe ?? true,
-							mode: parsed.mode ?? (parsed.items ? "verbatim" : "extract"),
+							mode: parsed.mode ?? "verbatim",
 							sourceId: `agent:${clientId}`,
 						}) as never,
 					),
@@ -301,13 +302,15 @@ export function createYumeoiMcpServer(env: Env) {
 		async (input) =>
 			runTool("add_memory", addMemoryAliasInputSchema, input, async (parsed) => {
 				const { clientId } = authProps();
+				const kind = parsed.kind ?? "fact";
 				return jsonText(
 					await agentFor(env).remember({
 						text: parsed.text,
 						items: [
 							{
 								text: parsed.text,
-								kind: parsed.kind ?? "fact",
+								kind,
+								type: defaultTypeForKind(kind),
 								importance: parsed.confidence ?? 1,
 							},
 						],
