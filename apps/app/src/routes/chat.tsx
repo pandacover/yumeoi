@@ -31,7 +31,7 @@ function ChatPage() {
 	return (
 		<Page
 			wide
-			className="mx-auto flex min-h-0 w-full max-w-5xl flex-1 flex-col md:w-[70%] md:max-w-[70%]"
+			className="mx-auto flex h-full min-h-0 w-full max-w-5xl flex-1 flex-col md:w-[70%] md:max-w-[70%]"
 		>
 			<PageHeader title="Chat" description="Talk to your memories." />
 			{mounted ? (

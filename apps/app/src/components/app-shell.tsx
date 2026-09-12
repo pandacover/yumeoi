@@ -102,7 +102,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 				</SidebarFooter>
 			</Sidebar>
 			{/* biome-ignore lint/correctness/useUniqueElementIds: skip-link fragment target is unique to the app shell */}
-			<SidebarInset className="min-w-0 scroll-smooth scroll-pt-0.5" id="main-content">
+			<SidebarInset className="min-h-0 min-w-0 scroll-smooth scroll-pt-0.5" id="main-content">
 				{children}
 			</SidebarInset>
 		</SidebarProvider>

@@ -23,7 +23,7 @@ function Home() {
 	return (
 		<div className="flex w-full max-w-3xl flex-col px-6 md:px-10">
 			<section
-				className={`flex min-h-[calc(100svh-3rem)] flex-col items-start gap-6 pb-16 ${landingHeroTopPaddingClass}`}
+				className={`flex min-h-[calc(100svh-3rem)] flex-col items-start gap-6 pb-16 md:min-h-svh ${landingHeroTopPaddingClass}`}
 			>
 				<div className="flex max-w-2xl flex-col gap-2">
 					<h1 className="font-heading text-3xl font-medium tracking-tight md:text-4xl">

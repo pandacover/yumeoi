@@ -17,13 +17,19 @@ export function PendingHrefButton({
 	return (
 		<Button
 			{...props}
+			aria-busy={pending}
 			disabled={pending || props.disabled}
 			nativeButton={false}
 			render={
 				// biome-ignore lint/a11y/useAnchorContent: Button children supply the label
 				<a
+					aria-disabled={pending || undefined}
 					href={href}
-					onClick={() => {
+					onClick={(event) => {
+						if (pending) {
+							event.preventDefault();
+							return;
+						}
 						setPending(true);
 					}}
 				/>
