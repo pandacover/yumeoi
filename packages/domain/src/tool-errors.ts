@@ -197,7 +197,7 @@ const mapTagged = (error: { readonly _tag: string }, source: unknown): ToolError
 		case "SchemaViolation": {
 			const message = payloadMessage(source);
 			if (/confirm=true/.test(message) && /extracted/i.test(message)) {
-				return { error: "invalid_input", hint: `${message}. ${TOOL_ERROR_HINTS.forgetConfirm}` };
+				return { error: "invalid_input", hint: TOOL_ERROR_HINTS.forgetConfirm };
 			}
 			if (/query plus confirm=true|query.*confirm/i.test(message)) {
 				return { error: "invalid_input", hint: TOOL_ERROR_HINTS.forgetQueryConfirm };
@@ -243,7 +243,7 @@ const mapMessage = (message: string): ToolError => {
 		return { error: "conflict", hint: TOOL_ERROR_HINTS.conflict };
 	}
 	if (/confirm=true/.test(text) && /extracted/i.test(text)) {
-		return { error: "invalid_input", hint: `${text}. ${TOOL_ERROR_HINTS.forgetConfirm}` };
+		return { error: "invalid_input", hint: TOOL_ERROR_HINTS.forgetConfirm };
 	}
 	if (/query plus confirm=true|forget requires id/i.test(text)) {
 		return {
