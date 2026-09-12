@@ -23,6 +23,7 @@ import { Schema } from "effect";
 import { authenticateRequest, unauthorized } from "../auth/api-key.ts";
 import { listApiKeys, mintApiKey, revokeApiKey } from "../auth/api-keys.ts";
 import { listConnectedMcpClients, revokeConnectedMcpClient } from "../auth/mcp-clients.ts";
+import { ACCESS_TOKEN_TTL_SECONDS } from "../auth/oauth.ts";
 import { MCP_SCOPES } from "../auth/scopes.ts";
 import { resolveAppUserId } from "../auth/session.ts";
 import {
@@ -221,6 +222,7 @@ export async function handleApi(
 				register: "/register",
 				scopes: [...MCP_SCOPES],
 				apiKey: true,
+				accessTokenTtlSeconds: ACCESS_TOKEN_TTL_SECONDS,
 			},
 			chatModel: defaultLlmConfig.chat,
 			extractModel: defaultLlmConfig.extract,

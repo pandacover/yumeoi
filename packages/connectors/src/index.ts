@@ -8,8 +8,12 @@ export {
 	titleFromRichText,
 } from "./notion/blocks.ts";
 export {
+	fetchBlockChildren,
 	fetchNotionPage,
 	isNotionPagePayload,
+	NOTION_CHILD_FETCH_CONCURRENCY,
+	NOTION_REQUEST_GAP_MS,
+	type NotionFetchOptions,
 	notionHeaders,
 	pageTitleFromProperties,
 	propertiesToMarkdown,
