@@ -84,8 +84,8 @@ export const applyMemoryText = (input: {
 		yield* reembedMemory({
 			userId: input.namespace,
 			memory: updated,
-			sourceId: first?.sourceId,
-			documentId: first?.documentId,
+			...(first?.sourceId ? { sourceId: first.sourceId } : {}),
+			...(first?.documentId ? { documentId: first.documentId } : {}),
 		});
 		const mentions = extractMentions(updated.text);
 		yield* writeGraphForMemory({
