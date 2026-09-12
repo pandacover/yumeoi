@@ -98,7 +98,7 @@ const approve = async (clientId: string, challenge: string) => {
 	expect(page.status).toBe(200);
 	const html = await page.text();
 	expect(html).toContain("Connect an agent");
-	expect(html).toContain("loopback");
+	expect(html).toContain("this computer");
 	expect(html).toContain("horizon");
 	expect(html).toContain("test-user");
 	const body = hiddenFields(html);
@@ -193,9 +193,9 @@ describe("M4 MCP OAuth", () => {
 		const { verifier, challenge } = await pkce();
 		const { client_id: clientId } = await registerClient("Cursor Test");
 		const approved = await approve(clientId, challenge);
-		expect(approved.status).toBe(200);
+		expect(approved.status).toBe(302);
 		const html = await approved.text();
-		expect(html).toContain("Return to Cursor");
+		expect(html).toContain("Return to your MCP client");
 		const redirected = oauthRedirect(approved, html);
 		expect(redirected.searchParams.get("state")).toBe("state-1");
 		const code = redirected.searchParams.get("code");
@@ -272,7 +272,10 @@ describe("M4 MCP OAuth", () => {
 				decision: "approve",
 			}),
 		});
-		expect(forged.status).toBe(403);
+		expect(forged.status).toBe(200);
+		const forgedHtml = await forged.text();
+		expect(forgedHtml).toContain("Connect an agent");
+		expect(forgedHtml).toContain("That approval expired");
 	});
 
 	it("still accepts the env API key on /mcp", async () => {

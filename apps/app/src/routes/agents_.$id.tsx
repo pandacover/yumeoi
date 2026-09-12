@@ -110,7 +110,7 @@ function McpManage({ id }: { id: "cursor" | "claude" }) {
 			<p className="text-sm text-muted-foreground">
 				{id === "cursor"
 					? "Paste this into Cursor MCP settings. Cursor opens a browser for OAuth and returns to http://localhost:8787/callback on your machine — that is Cursor's loopback, not this Worker. Do not put an API key in this config."
-					: "Paste this into Claude Desktop MCP settings. Claude connects over OAuth. Do not put an API key in this config."}
+					: "Paste this URL into Claude connectors (Customize → Connectors → Add custom connector), or use the config below in Claude Desktop. Claude opens this site to allow access, then the browser must return to Claude. Click Allow access once and wait — do not press it again. Do not put an API key in this config."}
 			</p>
 			<p className="font-mono text-sm break-all">{mcpUrl || initial.mcpPath}</p>
 			<div className="flex flex-wrap gap-2">

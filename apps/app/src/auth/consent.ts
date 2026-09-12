@@ -107,9 +107,9 @@ const hiddenOAuthFields = (oauthRequest: AuthRequest): string => {
 
 const redirectHint = (redirectUri: string): string => {
 	if (isLoopbackRedirect(redirectUri)) {
-		return `<p>After you approve, this browser returns to your MCP client on this computer (<code>${sanitizeText(redirectUri)}</code>). That loopback URL is Cursor&apos;s callback, not this Worker.</p>`;
+		return `<p>After you allow access, this browser must open your MCP client on this computer (<code>${sanitizeText(redirectUri)}</code>). That address is Claude or Cursor on your machine, not this Worker. Click once and wait.</p>`;
 	}
-	return `<p>After you approve, this browser returns to <code>${sanitizeText(redirectUri)}</code>.</p>`;
+	return `<p>After you allow access, this browser returns to <code>${sanitizeText(redirectUri)}</code>. Click once and wait.</p>`;
 };
 
 const cookieValue = (header: string | null, name: string): string | null => {
@@ -156,7 +156,7 @@ const htmlResponse = (body: string, status = 200, headers?: HeadersInit) =>
 			"x-frame-options": "DENY",
 			"x-content-type-options": "nosniff",
 			"content-security-policy":
-				"default-src 'none'; style-src 'unsafe-inline'; img-src 'self' https:; form-action 'self'; frame-ancestors 'none'; base-uri 'self'",
+				"default-src 'none'; style-src 'unsafe-inline'; img-src 'self' https:; script-src 'unsafe-inline'; form-action 'self'; frame-ancestors 'none'; base-uri 'self'",
 			...headers,
 		},
 	});
@@ -189,6 +189,7 @@ const pageShell = (title: string, inner: string, extraHead = "") => `<!doctype h
 		button[name="decision"][value="deny"] { background: transparent; color: var(--foreground); border: 1px solid var(--border); border-radius: 0; padding: 10px 18px; min-width: 8rem; }
 		.ghost { color: var(--foreground); text-decoration: underline; text-decoration-color: var(--border); text-underline-offset: 3px; display: inline-block; margin-top: 1.5rem; }
 		.error { color: var(--destructive); }
+		.notice { color: var(--foreground); }
 		code { color: var(--foreground); font-size: 0.92em; }
 	</style>
 </head>
@@ -227,6 +228,7 @@ const renderConsent = (
 	userId: string,
 	csrfToken: string,
 	secure: boolean,
+	notice?: string,
 ) => {
 	const name = sanitizeText(client.clientName || client.clientId);
 	const clientUri = client.clientUri ? sanitizeUrl(client.clientUri) : "";
@@ -234,6 +236,7 @@ const renderConsent = (
 	const inner = `
 		<p class="kicker">MCP consent</p>
 		<h1>Connect an agent</h1>
+		${notice ? `<p class="notice">${sanitizeText(notice)}</p>` : ""}
 		<p class="client">${name} wants access to your horizon memories.</p>
 		${clientUri ? `<p><a class="ghost" href="${sanitizeText(clientUri)}">${sanitizeText(clientUri)}</a></p>` : ""}
 		<p>Signed in as <code>${sanitizeText(userId)}</code>.</p>
@@ -241,11 +244,11 @@ const renderConsent = (
 		<ul class="scopes">
 			${scopes.map((scope) => `<li><code>${sanitizeText(scope)}</code></li>`).join("")}
 		</ul>
-		<form method="post" action="/authorize">
+		<form method="post" action="/authorize" onsubmit="if(this.dataset.busy){event.preventDefault();return false;} this.dataset.busy='1';">
 			${hiddenOAuthFields(oauthRequest)}
 			<input type="hidden" name="csrf_token" value="${sanitizeText(csrfToken)}" />
 			<div class="actions">
-				<button type="submit" name="decision" value="approve">Approve</button>
+				<button type="submit" name="decision" value="approve">Allow access</button>
 				<button type="submit" name="decision" value="deny">Deny</button>
 			</div>
 		</form>
@@ -258,18 +261,27 @@ const renderConsent = (
 
 const loopbackHandoff = (redirectTo: string, secure: boolean) => {
 	const href = sanitizeUrl(redirectTo);
-	const extraHead = href
-		? `<meta http-equiv="refresh" content="0;url=${sanitizeText(href)}" />`
-		: "";
+	if (!href) {
+		return htmlResponse(
+			pageShell(
+				"Return to your MCP client — horizon",
+				`<p class="kicker">MCP consent</p><h1>Return to your MCP client</h1><p class="error">Missing loopback redirect.</p>`,
+			),
+			400,
+			{ "set-cookie": clearCsrfCookie(secure) },
+		);
+	}
+	const extraHead = `<meta http-equiv="refresh" content="0;url=${sanitizeText(href)}" /><script>location.replace(${JSON.stringify(href)});</script>`;
 	const inner = `
 		<p class="kicker">MCP consent</p>
-		<h1>Return to Cursor</h1>
-		<p>Access approved. Finish in your MCP client on this computer.</p>
-		${href ? `<p><a id="oauth-redirect" class="ghost" href="${sanitizeText(href)}">Open the local callback</a></p>` : `<p class="error">Missing loopback redirect.</p>`}
+		<h1>Return to your MCP client</h1>
+		<p>Access approved. Opening Claude or Cursor on this computer.</p>
+		<p><a id="oauth-redirect" class="ghost" href="${sanitizeText(href)}">Continue if the app does not open</a></p>
 	`;
-	return htmlResponse(pageShell("Return to Cursor — horizon", inner, extraHead), 200, {
+	return htmlResponse(pageShell("Return to your MCP client — horizon", inner, extraHead), 302, {
+		location: href,
 		"set-cookie": clearCsrfCookie(secure),
-		...(href ? { location: href, refresh: `0;url=${href}` } : {}),
+		refresh: `0;url=${href}`,
 	});
 };
 
@@ -393,13 +405,13 @@ export async function handleAuthorize(request: Request, env: Env): Promise<Respo
 	const csrfForm = String(form.get("csrf_token") ?? "");
 	const csrfCookie = cookieValue(request.headers.get("cookie"), csrfCookieName(secure));
 	if (!csrfForm || !csrfCookie || csrfForm !== csrfCookie) {
-		return htmlResponse(
-			pageShell(
-				"Consent failed — horizon",
-				`<p class="kicker">MCP consent</p><h1>Consent expired</h1><p class="error">Reload the authorize page and try again.</p>`,
-			),
-			403,
-			{ "set-cookie": clearCsrfCookie(secure) },
+		return renderConsent(
+			parsed,
+			client,
+			userId,
+			crypto.randomUUID(),
+			secure,
+			"That approval expired. Click Allow access once and wait for the browser to return to Claude or Cursor.",
 		);
 	}
 
@@ -412,17 +424,35 @@ export async function handleAuthorize(request: Request, env: Env): Promise<Respo
 
 	const scope = grantedScopes(parsed.scope);
 	const clientName = client.clientName || client.clientId;
-	const { redirectTo } = await helpers.completeAuthorization({
-		request: parsed,
-		userId,
-		metadata: { clientName },
-		scope,
-		props: {
+	let redirectTo: string;
+	try {
+		({ redirectTo } = await helpers.completeAuthorization({
+			request: parsed,
 			userId,
-			clientId: client.clientId,
-			clientName,
-		},
-	});
+			metadata: { clientName },
+			scope,
+			props: {
+				userId,
+				clientId: client.clientId,
+				clientName,
+			},
+		}));
+	} catch (error) {
+		if (error instanceof AuthorizationError && error.redirectUri) {
+			return errorRedirect(parsed, error.code, error.description, {
+				"set-cookie": clearCsrfCookie(secure),
+			});
+		}
+		const message = error instanceof Error ? error.message : String(error);
+		return htmlResponse(
+			pageShell(
+				"Consent failed — horizon",
+				`<p class="kicker">MCP consent</p><h1>Could not finish</h1><p class="error">${sanitizeText(message)}</p><a class="ghost" href="/agents">Agents</a>`,
+			),
+			400,
+			{ "set-cookie": clearCsrfCookie(secure) },
+		);
+	}
 	await recordGrant(env, userId, client.clientId, clientName);
 	if (isLoopbackRedirect(redirectTo)) {
 		return loopbackHandoff(redirectTo, secure);

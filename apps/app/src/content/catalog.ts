@@ -36,5 +36,10 @@ export const grantMatchesAgent = (id: Exclude<AgentId, "http">, grant: McpGrantV
 	if (id === "cursor") {
 		return hay.includes("cursor") || hay.includes("localhost:8787");
 	}
-	return hay.includes("claude") || hay.includes("anthropic");
+	return (
+		hay.includes("claude") ||
+		hay.includes("anthropic") ||
+		hay.includes("mcp-remote") ||
+		hay.includes("mcp cli")
+	);
 };
