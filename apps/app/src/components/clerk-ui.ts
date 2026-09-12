@@ -1,5 +1,5 @@
-import { ClerkProvider, Show, SignIn, SignUp, UserButton } from "@clerk/react";
+import { ClerkProvider, Show, SignIn, SignUp, UserProfile } from "@clerk/react";
 
-export { ClerkProvider, Show, SignIn, SignUp, UserButton };
+export { ClerkProvider, Show, SignIn, SignUp, UserProfile };
 
 export const clerkPublishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;

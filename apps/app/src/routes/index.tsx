@@ -26,7 +26,7 @@ function Home() {
 				className={`flex min-h-[calc(100svh-3rem)] flex-col items-start gap-6 pb-16 ${landingHeroTopPaddingClass}`}
 			>
 				<div className="flex max-w-2xl flex-col gap-2">
-					<h1 className="font-heading text-4xl font-medium tracking-tight">
+					<h1 className="font-heading text-3xl font-medium tracking-tight md:text-4xl">
 						horizon is a continual learning infrastructure for agents.
 					</h1>
 					<p className="text-base text-foreground">
