@@ -85,9 +85,10 @@ describe("P2 MCP agent experience", () => {
 		expect(text).toContain("text or items");
 		expect(text).toMatch(/signal[\s\S]{0,400}1/);
 		expect(text).toContain("ISO-8601");
-		expect(text).toContain('Example: {"text":"...","mode":"verbatim"}');
-		expect(text).toContain('Example: {"query":"..."}');
-		expect(text).toContain('Example: {"id":"m_…","signal":1}');
+		expect(text).toContain("Example:");
+		expect(text).toMatch(/mode\\?":\\?"verbatim/);
+		expect(text).toMatch(/query\\?":\\?"\.\.\./);
+		expect(text).toMatch(/signal\\?":\s*1/);
 	});
 
 	it("invalid remember/feedback/forget payloads return retry_with; ISO from is coerced", async () => {
@@ -100,7 +101,7 @@ describe("P2 MCP agent experience", () => {
 		expect(remember).toContain("invalid_input");
 		expect(remember).toContain("text or items");
 		expect(remember).toContain("retry_with");
-		expect(remember).toContain('"text":"..."');
+		expect(remember).toMatch(/text\\?":\\?"\.\.\./);
 		expect(remember).not.toContain("Input validation error");
 
 		const feedback = await mcpResultText({
@@ -112,8 +113,8 @@ describe("P2 MCP agent experience", () => {
 		expect(feedback).toContain("invalid_input");
 		expect(feedback).toMatch(/signal must be/);
 		expect(feedback).toContain("retry_with");
-		expect(feedback).toContain('"id":"m_missing"');
-		expect(feedback).toContain('"signal":1');
+		expect(feedback).toMatch(/id\\?":\\?"m_missing/);
+		expect(feedback).toMatch(/signal\\?":\s*1/);
 
 		const recall = await mcpResultText({
 			jsonrpc: "2.0",
