@@ -147,6 +147,22 @@ const clearCsrfCookie = (secure: boolean): string => {
 	return parts.join("; ");
 };
 
+/** Chrome applies form-action to the 302 after Allow access, not only to the POST URL. */
+export const formActionCspSource = (redirectUri: string): string => {
+	const url = sanitizeUrl(redirectUri);
+	if (!url) {
+		return "";
+	}
+	const origin = new URL(url).origin;
+	return origin.includes(";") || origin === "null" ? "" : origin;
+};
+
+export const consentContentSecurityPolicy = (redirectUri?: string): string => {
+	const origin = redirectUri ? formActionCspSource(redirectUri) : "";
+	const formAction = origin ? `'self' ${origin}` : "'self'";
+	return `default-src 'none'; style-src 'unsafe-inline'; img-src 'self' https:; script-src 'unsafe-inline'; form-action ${formAction}; frame-ancestors 'none'; base-uri 'self'`;
+};
+
 const htmlResponse = (body: string, status = 200, headers?: HeadersInit) =>
 	new Response(body, {
 		status,
@@ -155,8 +171,7 @@ const htmlResponse = (body: string, status = 200, headers?: HeadersInit) =>
 			"cache-control": "no-store",
 			"x-frame-options": "DENY",
 			"x-content-type-options": "nosniff",
-			"content-security-policy":
-				"default-src 'none'; style-src 'unsafe-inline'; img-src 'self' https:; script-src 'unsafe-inline'; form-action 'self'; frame-ancestors 'none'; base-uri 'self'",
+			"content-security-policy": consentContentSecurityPolicy(),
 			...headers,
 		},
 	});
@@ -262,6 +277,7 @@ const renderConsent = (
 		<a class="ghost" href="/agents">Manage connected agents</a>
 	`;
 	return htmlResponse(pageShell("Approve MCP client — horizon", inner), 200, {
+		"content-security-policy": consentContentSecurityPolicy(oauthRequest.redirectUri),
 		"set-cookie": setCsrfCookie(csrfToken, secure),
 	});
 };

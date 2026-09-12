@@ -1,5 +1,6 @@
 import { env, SELF } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
+import { consentContentSecurityPolicy, formActionCspSource } from "../src/auth/consent.ts";
 
 const auth = { authorization: `Bearer ${env.YUMEOI_API_KEY}` };
 const redirectUri = "http://127.0.0.1:9999/callback";
@@ -96,6 +97,8 @@ const approve = async (clientId: string, challenge: string) => {
 	const url = authorizeUrl(clientId, challenge);
 	const page = await SELF.fetch(url);
 	expect(page.status).toBe(200);
+	const csp = page.headers.get("content-security-policy") ?? "";
+	expect(csp).toContain("form-action 'self' http://127.0.0.1:9999");
 	const html = await page.text();
 	expect(html).toContain("Connect an agent");
 	expect(html).toContain("this computer");
@@ -145,6 +148,17 @@ const mcp = (token: string, body: unknown) =>
 	});
 
 describe("M4 MCP OAuth", () => {
+	it("allows Claude's callback origin in consent form-action CSP", () => {
+		expect(formActionCspSource("https://claude.ai/api/mcp/auth_callback")).toBe(
+			"https://claude.ai",
+		);
+		expect(formActionCspSource("http://127.0.0.1:9999/callback")).toBe("http://127.0.0.1:9999");
+		expect(formActionCspSource("javascript:alert(1)")).toBe("");
+		expect(consentContentSecurityPolicy("https://claude.ai/api/mcp/auth_callback")).toContain(
+			"form-action 'self' https://claude.ai",
+		);
+	});
+
 	it("serves health for m4 with OAuth endpoints", async () => {
 		const response = await SELF.fetch("https://example.com/api/health");
 		expect(response.status).toBe(200);
