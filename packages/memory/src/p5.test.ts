@@ -8,8 +8,14 @@ import { Effect, Layer } from "effect";
 import { consolidatorLayer } from "./consolidator.ts";
 import { extractorLayer } from "./extractor.ts";
 import { hashEmbeddingsLayer } from "./hash-embeddings.ts";
-import { heuristicLlmLayer } from "./heuristic-llm.ts";
-import { changesSince, profileLines, promoteEpisodes, timelineAbout } from "./layers/promote.ts";
+import { heuristicLlmLayer, heuristicSummary } from "./heuristic-llm.ts";
+import {
+	changesSince,
+	induceProcedures,
+	profileLines,
+	promoteEpisodes,
+	timelineAbout,
+} from "./layers/promote.ts";
 import { MemoryRepo } from "./memory-repo.ts";
 import { recallContext } from "./recall.ts";
 import { remember } from "./remember.ts";
@@ -129,15 +135,15 @@ describe("P5 temporal and layers", () => {
 		expect(await Effect.runPromise(program.pipe(Effect.provide(layerFor())))).toBe(true);
 	});
 
-	test("promotion writes derived_from edges", async () => {
+	test("promotion writes derived_from edges from a summarize job", async () => {
 		const old = Date.now() - 20 * MS_DAY;
 		const program = Effect.gen(function* () {
-			for (const suffix of ["one", "two", "three"]) {
+			for (const suffix of ["A", "B", "C"]) {
 				yield* remember({
 					userId,
 					items: [
 						{
-							text: `On 2026-01-01 Luv met Anna about Aurora planning ${suffix}.`,
+							text: `On 2026-01-01 Luv met Anna about Aurora planning session ${suffix}.`,
 							type: "episodic",
 							kind: "event",
 							importance: 0.6,
@@ -154,9 +160,64 @@ describe("P5 temporal and layers", () => {
 			const repo = yield* MemoryRepo;
 			const edges = yield* repo.listEdges(result.ids);
 			expect(edges.some((edge) => edge.relation === "derived_from")).toBe(true);
+			const summary = yield* repo.getMemory(result.ids[0] ?? "");
+			expect(summary.origin).toBe("derived");
+			expect(summary.type).toBe("semantic");
+			expect(summary.text.startsWith("Standing summary:")).toBe(false);
+			expect(summary.text.toLowerCase()).toContain("aurora");
+			expect(summary.text).not.toContain("session A. On 2026-01-01");
+			const again = yield* promoteEpisodes(userId, Date.now());
+			expect(again.created).toBe(0);
 			return true;
 		});
 		expect(await Effect.runPromise(program.pipe(Effect.provide(layerFor())))).toBe(true);
+	});
+
+	test("procedure induction summarizes a cosine cluster", async () => {
+		const program = Effect.gen(function* () {
+			for (const suffix of ["staging", "canary", "prod"]) {
+				yield* remember({
+					userId,
+					items: [
+						{
+							text: `When deploying yumeoi to ${suffix}, run bun run deploy:dry-run first.`,
+							type: "episodic",
+							kind: "task",
+							importance: 0.7,
+						},
+					],
+					mode: "verbatim",
+					origin: "chat",
+					dedupe: false,
+				});
+			}
+			const result = yield* induceProcedures(userId);
+			expect(result.created).toBeGreaterThan(0);
+			const repo = yield* MemoryRepo;
+			const induced = yield* repo.getMemory(result.ids[0] ?? "");
+			expect(induced.type).toBe("procedural");
+			expect(induced.origin).toBe("derived");
+			expect(induced.text.startsWith("When this happens:")).toBe(false);
+			expect(induced.text.toLowerCase()).toContain("deploy");
+			return true;
+		});
+		expect(await Effect.runPromise(program.pipe(Effect.provide(layerFor())))).toBe(true);
+	});
+
+	test("heuristic summarize is not concatenation", () => {
+		const text = heuristicSummary(
+			[
+				"Type: semantic",
+				"Kind: fact",
+				"Evidence:",
+				"- On 2026-01-01 Luv met Anna about Aurora planning one.",
+				"- On 2026-01-01 Luv met Anna about Aurora planning two.",
+				"- On 2026-01-01 Luv met Anna about Aurora planning three.",
+			].join("\n"),
+		);
+		expect(text.startsWith("Standing summary:")).toBe(false);
+		expect(text).toContain("Aurora planning");
+		expect(text).not.toContain("planning one. On 2026-01-01");
 	});
 
 	test("profile is stable semantic memories only", async () => {
