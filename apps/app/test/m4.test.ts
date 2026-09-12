@@ -1,6 +1,7 @@
 import { env, SELF } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
 import { consentContentSecurityPolicy, formActionCspSource } from "../src/auth/consent.ts";
+import { ACCESS_TOKEN_TTL_SECONDS, withInvalidTokenChallenge } from "../src/auth/oauth.ts";
 
 const auth = { authorization: `Bearer ${env.YUMEOI_API_KEY}` };
 const redirectUri = "http://127.0.0.1:9999/callback";
@@ -133,7 +134,11 @@ const exchange = async (clientId: string, code: string, verifier: string) => {
 		}),
 	});
 	expect(response.ok).toBe(true);
-	return (await response.json()) as { access_token: string; refresh_token?: string };
+	return (await response.json()) as {
+		access_token: string;
+		refresh_token?: string;
+		expires_in?: number;
+	};
 };
 
 const mcp = (token: string, body: unknown) =>
@@ -148,6 +153,18 @@ const mcp = (token: string, body: unknown) =>
 	});
 
 describe("M4 MCP OAuth", () => {
+	it("puts RFC 6750 error_description on invalid_token challenges", () => {
+		expect(
+			withInvalidTokenChallenge(
+				'Bearer realm="OAuth", resource_metadata="https://example.com/.well-known/oauth-protected-resource/mcp", error="invalid_token"',
+				"Access token expired",
+			),
+		).toContain('error_description="Access token expired"');
+		expect(
+			withInvalidTokenChallenge('Bearer error="invalid_token", error_description="kept"', "new"),
+		).toBe('Bearer error="invalid_token", error_description="kept"');
+	});
+
 	it("allows Claude's callback origin in consent form-action CSP", () => {
 		expect(formActionCspSource("https://claude.ai/api/mcp/auth_callback")).toBe(
 			"https://claude.ai",
@@ -165,7 +182,14 @@ describe("M4 MCP OAuth", () => {
 		const body = (await response.json()) as {
 			milestone: string;
 			memory: unknown;
-			mcp: { oauth: boolean; authorize: string; token: string; register: string; scopes: string[] };
+			mcp: {
+				oauth: boolean;
+				authorize: string;
+				token: string;
+				register: string;
+				scopes: string[];
+				accessTokenTtlSeconds: number;
+			};
 		};
 		expect(body.milestone).toBe("m4");
 		expect(body.memory).toBeNull();
@@ -174,6 +198,7 @@ describe("M4 MCP OAuth", () => {
 		expect(body.mcp.token).toBe("/token");
 		expect(body.mcp.register).toBe("/register");
 		expect(body.mcp.scopes).toEqual(["memories:read", "memories:write"]);
+		expect(body.mcp.accessTokenTtlSeconds).toBe(ACCESS_TOKEN_TTL_SECONDS);
 	});
 
 	it("advertises protected-resource and authorization-server metadata", async () => {
@@ -187,6 +212,23 @@ describe("M4 MCP OAuth", () => {
 		});
 		expect(unauth.status).toBe(401);
 		expect(unauth.headers.get("www-authenticate") ?? "").toMatch(/resource_metadata/i);
+
+		const invalid = await SELF.fetch("https://example.com/mcp", {
+			method: "POST",
+			headers: {
+				"content-type": "application/json",
+				accept: "application/json, text/event-stream",
+				authorization: "Bearer not-a-valid-token",
+			},
+			body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "ping" }),
+		});
+		expect(invalid.status).toBe(401);
+		const invalidWww = invalid.headers.get("www-authenticate") ?? "";
+		expect(invalidWww).toMatch(/error="invalid_token"/);
+		expect(invalidWww).toMatch(/error_description=/);
+		const invalidBody = (await invalid.json()) as { error: string; error_description: string };
+		expect(invalidBody.error).toBe("invalid_token");
+		expect(invalidBody.error_description.length).toBeGreaterThan(0);
 
 		const resource = await SELF.fetch("https://example.com/.well-known/oauth-protected-resource");
 		expect(resource.ok).toBe(true);
@@ -219,6 +261,7 @@ describe("M4 MCP OAuth", () => {
 
 		const tokens = await exchange(clientId, code ?? "", verifier);
 		expect(tokens.access_token).toBeTruthy();
+		expect(tokens.expires_in).toBe(ACCESS_TOKEN_TTL_SECONDS);
 
 		const listed = await mcp(tokens.access_token, {
 			jsonrpc: "2.0",

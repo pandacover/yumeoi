@@ -37,7 +37,7 @@ const authProps = () => {
 	const auth = getMcpAuthContext();
 	const props = auth?.props ?? {};
 	if (typeof props.userId !== "string" || props.userId.length === 0) {
-		throw new Error("unauthorized");
+		throw new Error("unauthorized: MCP session has no user");
 	}
 	return {
 		userId: props.userId,
@@ -49,6 +49,12 @@ const agentFor = (env: Env) => env.MemoryAgent.getByName(authProps().userId);
 
 const asError = (caught: unknown) => {
 	const message = caught instanceof Error ? caught.message : String(caught);
+	if (/unauthorized/i.test(message)) {
+		return toolError(
+			"unauthorized",
+			"MCP access token is missing, expired, or the grant was revoked. If Horizon still shows the client as connected, reconnect so the host can refresh.",
+		);
+	}
 	if (/not found/i.test(message)) {
 		return toolError("not_found", message);
 	}
