@@ -35,7 +35,7 @@ Chat uses `AIChatAgent` + `useAgentChat` with tools bound to `recall` and `get_d
 
 Set `YUMEOI_API_KEY` (and optional `YUMEOI_USER_ID`) in `.dev.vars` for the privileged local Bearer key. Set `OPENROUTER_API_KEY` (default LLM) and optionally `OPENAI_API_KEY` (fallback). Without either LLM key, ingest uses the heuristic extractor so the loop still runs.
 
-Notion OAuth uses a **public** connection plus `NOTION_CLIENT_ID` / `NOTION_CLIENT_SECRET`. The Redirect URI in that connection must match `NOTION_REDIRECT_URI` exactly (production: `https://yumeoi.luvmakin01.workers.dev/api/sources/notion/callback`). Internal connections cannot complete this flow. Connecting Notion from the UI requires a signed-in Clerk session.
+Notion OAuth uses a **public** connection plus `NOTION_CLIENT_ID` / `NOTION_CLIENT_SECRET`. The Redirect URI in that connection must match `NOTION_REDIRECT_URI` exactly (production: `https://yumeoi.luvmakin01.workers.dev/api/sources/notion/callback`). Internal connections cannot complete this flow. Connecting Notion from the UI requires a signed-in Clerk session. The “Connect with …” name and logo on Notion’s consent screen come from that public integration in [Notion’s integration settings](https://www.notion.so/my-integrations), not from this repo.
 
 `POST /ingest` starts `IngestWorkflow` (realtime lane) and waits for the durable steps to finish.
 

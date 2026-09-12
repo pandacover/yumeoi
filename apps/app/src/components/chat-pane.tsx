@@ -155,12 +155,16 @@ function ChatBubble({ message }: { message: UIMessage }) {
 		(part) => part.type === "tool-recall" && "state" in part && part.state !== "output-available",
 	);
 
+	const body = <CitedText citations={citations} text={text} />;
+
 	return (
 		<article className={cn("w-full px-3 py-2", message.role === "user" ? "bg-muted" : undefined)}>
 			{text ? (
-				<CollapsibleBubbleBody key={message.id}>
-					<CitedText citations={citations} text={text} />
-				</CollapsibleBubbleBody>
+				message.role === "user" ? (
+					<CollapsibleBubbleBody>{body}</CollapsibleBubbleBody>
+				) : (
+					<div className="text-sm leading-5">{body}</div>
+				)
 			) : recalling ? (
 				<p className="text-sm text-muted-foreground">Recalling memories…</p>
 			) : null}

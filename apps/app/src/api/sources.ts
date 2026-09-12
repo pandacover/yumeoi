@@ -102,6 +102,15 @@ export const syncSource = async (env: Env, sourceId: string) =>
 export const disconnectSource = async (env: Env, sourceId: string) =>
 	env.SourceAgent.getByName(sourceId).disconnect();
 
+/** Keep work alive after the HTTP response so Notion's OAuth window can redirect immediately. */
+export const continueInBackground = (
+	ctx: ExecutionContext | undefined,
+	work: Promise<unknown>,
+): void => {
+	const ignored = work.catch(() => undefined);
+	ctx?.waitUntil(ignored);
+};
+
 export const isFixtureConnect = (body: Record<string, unknown>): boolean =>
 	body.fixture === true ||
 	isFixtureToken(typeof body.accessToken === "string" ? body.accessToken : "");

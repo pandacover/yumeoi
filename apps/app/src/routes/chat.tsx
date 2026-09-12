@@ -11,9 +11,11 @@ const getChatContext = createServerFn({ method: "GET" }).handler(async () => ({
 }));
 
 export const Route = createFileRoute("/chat")({
-	validateSearch: (search: Record<string, unknown>) => ({
-		mock: search.mock === "1" || search.mock === true,
-	}),
+	validateSearch: (search: Record<string, unknown>): { mock?: true } => {
+		const mock =
+			search.mock === "1" || search.mock === 1 || search.mock === true || search.mock === "true";
+		return mock ? { mock: true } : {};
+	},
 	beforeLoad: () => requireAuth(),
 	loader: () => getChatContext(),
 	component: ChatPage,
@@ -21,8 +23,7 @@ export const Route = createFileRoute("/chat")({
 
 function ChatPage() {
 	const { userId } = Route.useLoaderData();
-	const { mock: mockFromUrl } = Route.useSearch();
-	const mock = mockFromUrl;
+	const { mock = false } = Route.useSearch();
 	const [mounted, setMounted] = useState(false);
 	useEffect(() => {
 		setMounted(true);
